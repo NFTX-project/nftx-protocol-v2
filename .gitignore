@@ -1,0 +1,11 @@
+node_modules
+.openzeppelin
+bin
+.env
+**/.DS_Store
+yarn-error.log
+flattened
+
+#Hardhat files
+cache
+artifacts
