@@ -52,7 +52,15 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 minWethIn
   ) public payable returns (uint256) {
     WETH.deposit{value: msg.value}();
-    return addLiquidity721(vaultId, ids, minWethIn, msg.value);
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value);
+
+    // Return extras.
+    if (amountEth < msg.value) {
+      WETH.withdraw(msg.value-amountEth);
+      payable(msg.sender).transfer(msg.value-amountEth);
+    }
+
+    return liquidity;
   }
 
   function addLiquidity1155ETH(
@@ -62,15 +70,59 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 minEthIn
   ) public payable returns (uint256) {
     WETH.deposit{value: msg.value}();
-    return addLiquidity1155(vaultId, ids, amounts, minEthIn, msg.value);
+    // Finish this.
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value);
+
+    // Return extras.
+    if (amountEth < msg.value) {
+      WETH.withdraw(msg.value-amountEth);
+      payable(msg.sender).transfer(msg.value-amountEth);
+    }
+
+    return liquidity;
   }
 
-  function addLiquidity721(
+
+  function _addLiquidity721(
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn,
     uint256 wethIn
-  ) public payable returns (uint256) {
+  ) public returns (uint256) {
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn);
+
+    // Return extras.
+    if (amountEth < wethIn) {
+      WETH.transfer(msg.sender, wethIn-amountEth);
+    }
+
+    return liquidity;
+  }
+
+
+  function _addLiquidity1155(
+    uint256 vaultId, 
+    uint256[] memory ids,
+    uint256[] memory amounts,
+    uint256 minWethIn,
+    uint256 wethIn
+  ) internal returns (uint256) {
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn);
+
+    // Return extras.
+    if (amountEth < wethIn) {
+      WETH.transfer(msg.sender, wethIn-amountEth);
+    }
+
+    return liquidity;
+  }
+
+  function _addLiquidity721WETH(
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256 minWethIn,
+    uint256 wethIn
+  ) internal returns (uint256, uint256, uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
 
@@ -85,17 +137,16 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
-    return liquidity;
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
   }
 
-  function addLiquidity1155(
+  function _addLiquidity1155WETH(
     uint256 vaultId, 
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
     uint256 wethIn
-  ) public returns (uint256) {
+  ) internal returns (uint256, uint256, uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
 
@@ -107,8 +158,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
-    return liquidity;
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
   }
 
   function withdrawXLPTokens(uint256 vaultId) public {
@@ -135,9 +185,17 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return lockedBalance[vaultId][who];
   }
 
-  function _addLiquidityAndLock(uint256 vaultId, address vault, uint256 minTokenIn, uint256 minWethIn, uint256 wethIn) internal returns (uint256) {
+  function _addLiquidityAndLock(
+    uint256 vaultId, 
+    address vault, 
+    uint256 minTokenIn, 
+    uint256 minWethIn, 
+    uint256 wethIn
+  ) internal returns (uint256, uint256, uint256) {
+    address vault = nftxFactory.vault(vaultId);
+
     // Provide liquidity.
-    IERC20Upgradeable(address(vault)).approve(address(sushiRouter), minTokenIn);
+    IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
       address(vault), 
       sushiRouter.WETH(),
@@ -148,13 +206,6 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
       address(this), 
       block.timestamp
     );
-    // Return extras.
-    if (amountToken < minTokenIn) {
-      IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
-    }
-    if (amountEth < wethIn) {
-      WETH.transfer(msg.sender, wethIn-amountEth);
-    }
 
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
@@ -164,40 +215,11 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     lockedBalance[vaultId][msg.sender] += liquidity;
     zapLock[vaultId][msg.sender] = block.timestamp + lockTime;
 
-    return liquidity;
-  }
-
-
-  function _createPoolAndLock(uint256 vaultId, address vault, uint256 minTokenIn, uint256 minWethIn, uint256 minLiquidityOut) internal returns (uint256) {
-    // Provide liquidity.
-    IERC20Upgradeable(address(vault)).approve(address(sushiRouter), minTokenIn);
-    (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
-      address(vault), 
-      sushiRouter.WETH(),
-      minTokenIn, 
-      minWethIn, 
-      minTokenIn,
-      minWethIn,
-      address(this), 
-      block.timestamp
-    );
-    // Return extras.
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
-    if (amountEth < minWethIn) {
-      WETH.transfer(msg.sender, minWethIn-amountEth);
-    }
 
-    // Stake in LP rewards contract 
-    address lpToken = pairFor(vault, address(WETH));
-    IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
-    lpStaking.depositFor(vaultId, liquidity, msg.sender);
-    
-    lockedBalance[vaultId][msg.sender] += liquidity;
-    zapLock[vaultId][msg.sender] = block.timestamp + lockTime;
-
-    return liquidity;
+    return (amountToken, amountEth, liquidity);
   }
 
   function transferFromERC721(address assetAddr, uint256 tokenId) internal virtual {
