@@ -192,8 +192,6 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 minWethIn, 
     uint256 wethIn
   ) internal returns (uint256, uint256, uint256) {
-    address vault = nftxFactory.vault(vaultId);
-
     // Provide liquidity.
     IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(

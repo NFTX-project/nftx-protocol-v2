@@ -19,6 +19,7 @@ interface INFTXVault {
 
     function vaultId() external returns (uint256);
     function nftIdAt(uint256 holdingsIndex) external view returns (uint256);
+    function allHoldings() external view returns (uint256[] memory);
     function totalHoldings() external view returns (uint256);
     function mintFee() external returns (uint256);
     function randomRedeemFee() external returns (uint256);
@@ -62,6 +63,11 @@ interface INFTXVault {
     ) external;
 
     function finalizeVault() external;
+
+    function setVaultMetadata(
+        string memory name_, 
+        string memory symbol_
+    ) external;
 
     function setVaultFeatures(
         bool _enableMint,

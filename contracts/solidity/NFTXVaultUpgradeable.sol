@@ -75,6 +75,15 @@ contract NFTXVaultUpgradeable is
         setManager(address(0));
     }
 
+    // Added in v1.0.3.
+    function setVaultMetadata(
+        string memory name_, 
+        string memory symbol_
+    ) public override virtual {
+        onlyPrivileged();
+        _setMetadata(name_, symbol_);
+    }
+
     function setVaultFeatures(
         bool _enableMint,
         bool _enableRandomRedeem,
@@ -279,6 +288,16 @@ contract NFTXVaultUpgradeable is
 
     function nftIdAt(uint256 holdingsIndex) external view override virtual returns (uint256) {
         return holdings.at(holdingsIndex);
+    }
+
+    // Added in v1.0.3.
+    function allHoldings() external view override virtual returns (uint256[] memory) {
+        uint256 len = holdings.length();
+        uint256[] memory idArray = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            idArray[i] = holdings.at(i);
+        }
+        return idArray;
     }
 
     // Added in v1.0.3.

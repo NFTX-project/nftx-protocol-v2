@@ -60,6 +60,11 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Upgradeabl
         _symbol = symbol_;
     }
 
+    function _setMetadata(string memory name_, string memory symbol_) internal {
+        _name = name_;
+        _symbol = symbol_;
+    }
+
     /**
      * @dev Returns the name of the token.
      */
