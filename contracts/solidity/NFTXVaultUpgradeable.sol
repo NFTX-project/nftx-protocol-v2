@@ -412,9 +412,9 @@ contract NFTXVaultUpgradeable is
         
         // Mint fees directly to the distributor and distribute.
         if (amount > 0) {
-            _burn(msg.sender, amount);
             address feeDistributor = vaultFactory.feeDistributor();
-            _mint(feeDistributor, amount);
+            // Changed to a _transfer() in v1.0.3.
+            _transfer(msg.sender, feeDistributor, amount);
             INFTXFeeDistributor(feeDistributor).distribute(vaultId);
         }
     }

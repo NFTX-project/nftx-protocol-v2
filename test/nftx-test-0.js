@@ -153,6 +153,14 @@ describe("Main", function () {
     expect(await vaults[0].targetRedeemFee()).to.eq(0);
   });
 
+  it("Should allow changing the metadata", async () => {
+    expect(await vaults[0].name()).to.eq("CryptoPandas");
+    expect(await vaults[0].symbol()).to.eq("PANDA");
+    await vaults[0].connect(primary).setVaultMetadata("TESTPANDA", "TESTPANDA NFT");
+    expect(await vaults[0].name()).to.eq("TESTPANDA");
+    expect(await vaults[0].symbol()).to.eq("TESTPANDA NFT");
+  });
+
   it("Should allow alice as guardian to pause minting", async () => {
     await nftx.connect(alice).pause(1)
   });
