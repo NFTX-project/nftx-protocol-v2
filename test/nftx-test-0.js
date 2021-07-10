@@ -220,6 +220,11 @@ describe("Main", function () {
     expect(await vaults[0].balanceOf(bob.address)).to.equal(BASE.mul(numLoops));
   });
 
+  it("Should properly return list of items", async () => {
+    let list = await vaults[0].allHoldings();
+    expect(list.length).to.equal(await vaults[0].totalHoldings()) 
+  })
+
   it("Should allow alice as guardian to pause redeeming", async () => {
     await nftx.connect(alice).pause(2)
   });
