@@ -34,6 +34,9 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
 
   uint256 BASE = 10**18;
 
+  event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil);
+  event Withdraw(uint256 vaultId, uint256 lpBalance);
+
   constructor(address _nftxFactory, address _sushiRouter) {
     __Ownable_init();
     nftxFactory = INFTXVaultFactory(_nftxFactory);
@@ -82,7 +85,6 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return liquidity;
   }
 
-
   function _addLiquidity721(
     uint256 vaultId, 
     uint256[] memory ids, 
@@ -99,7 +101,6 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return liquidity;
   }
 
-
   function _addLiquidity1155(
     uint256 vaultId, 
     uint256[] memory ids,
@@ -115,6 +116,32 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     }
 
     return liquidity;
+  }
+
+  function withdrawXLPTokens(uint256 vaultId) public {
+    uint256 lockedBal = lockedBalance[vaultId][msg.sender];
+    require(block.timestamp >= zapLock[vaultId][msg.sender], "NFTXZap: Locked");
+    require(lockedBal > 0, "NFTXZap: Nothing locked");
+    
+    zapLock[vaultId][msg.sender] = 0;
+    lockedBalance[vaultId][msg.sender] = 0;
+
+    address xLPtoken = lpStaking.rewardDistributionToken(vaultId);
+    IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
+
+    emit Withdraw(vaultId, lockedBal)
+  }
+
+  function setLockTime(uint256 newLockTime) external onlyOwner {
+    lockTime = newLockTime;
+  } 
+
+  function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
+    return zapLock[vaultId][who];
+  }
+
+  function lockedLPBalance(uint256 vaultId, address who) external view returns (uint256) {
+    return lockedBalance[vaultId][who];
   }
 
   function _addLiquidity721WETH(
@@ -161,30 +188,6 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
   }
 
-  function withdrawXLPTokens(uint256 vaultId) public {
-    uint256 lockedBal = lockedBalance[vaultId][msg.sender];
-    require(block.timestamp >= zapLock[vaultId][msg.sender], "NFTXZap: Locked");
-    require(lockedBal > 0, "NFTXZap: Nothing locked");
-    
-    zapLock[vaultId][msg.sender] = 0;
-    lockedBalance[vaultId][msg.sender] = 0;
-
-    address xLPtoken = lpStaking.rewardDistributionToken(vaultId);
-    IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
-  }
-
-  function setLockTime(uint256 newLockTime) external onlyOwner {
-    lockTime = newLockTime;
-  } 
-
-  function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
-    return zapLock[vaultId][who];
-  }
-
-  function lockedLPBalance(uint256 vaultId, address who) external view returns (uint256) {
-    return lockedBalance[vaultId][who];
-  }
-
   function _addLiquidityAndLock(
     uint256 vaultId, 
     address vault, 
@@ -211,12 +214,14 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     lpStaking.depositFor(vaultId, liquidity, msg.sender);
     
     lockedBalance[vaultId][msg.sender] += liquidity;
-    zapLock[vaultId][msg.sender] = block.timestamp + lockTime;
+    uint256 lockTime = block.timestamp + lockTime;
+    zapLock[vaultId][msg.sender] lockTime;
 
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
 
+    emit UserStaked(vaultId, minTokenIn, liquidity, lockTime);
     return (amountToken, amountEth, liquidity);
   }
 
