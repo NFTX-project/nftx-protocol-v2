@@ -85,12 +85,13 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return liquidity;
   }
 
-  function _addLiquidity721(
+  function addLiquidity721(
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn,
     uint256 wethIn
   ) public returns (uint256) {
+    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn);
 
     // Return extras.
@@ -101,13 +102,14 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return liquidity;
   }
 
-  function _addLiquidity1155(
+  function addLiquidity1155(
     uint256 vaultId, 
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
     uint256 wethIn
-  ) internal returns (uint256) {
+  ) public returns (uint256) {
+    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn);
 
     // Return extras.

@@ -5,6 +5,7 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers, upgrades } = require("hardhat");
 
 const addresses = require("../addresses/rinkeby.json");
+const { zeroPad } = require("ethers/lib/utils");
 
 const BASE = BigNumber.from(10).pow(18);
 const zeroAddr = "0x0000000000000000000000000000000000000000";
@@ -116,7 +117,7 @@ describe("LP Zap Test", function () {
     );
   });
 
-  it("Should add liquidity with 721", async () => {
+  it("Should mint some 721", async () => {
     const assetAddress = await vaults[0].assetAddress();
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
     await coolCats.connect(kiwi).setApprovalForAll(zap.address, true);
@@ -153,6 +154,27 @@ describe("LP Zap Test", function () {
     lpTokenAmount = postDepositBal.sub(preDepositBal)
   })
 
+  it("Should add liquidity with 721 using weth", async () => {
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const WETH = await zap.WETH();
+    const weth = await ethers.getContractAt("IWETH", WETH);
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    const amountToLP = BASE.mul(1);
+    const amountETH = await router.quote(amountToLP, reserve0, reserve1)
+    await weth.connect(kiwi).deposit({value: amountETH});
+
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", WETH);
+    await weth20.connect(kiwi).approve(zap.address, BASE.mul(500))
+    const preDepositBal = await pair.balanceOf(staking.address);
+    await zap.connect(kiwi).addLiquidity721(31, [2271], amountETH.sub(500), amountETH)
+    const postDepositBal = await pair.balanceOf(staking.address);
+    lpTokenAmount = lpTokenAmount.add(postDepositBal.sub(preDepositBal))
+  });
+
   it("Should have locked balance", async () => {
     const locked = await zap.lockedUntil(31, kiwi.getAddress());
     expect(await zap.lockedLPBalance(31, kiwi.getAddress())).to.equal(
@@ -177,7 +199,7 @@ describe("LP Zap Test", function () {
       .find((elem) => elem.event === "NewVault")
       .args[0].toString();
     const vaultAddr = await nftx.vault(vaultId);
-    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [5, 5, 5, 5]);
+    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [10, 10, 10, 5]);
     let new1155Vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaultAddr);
     vaults.push(new1155Vault)
   });
@@ -189,7 +211,18 @@ describe("LP Zap Test", function () {
     await vaults[1].connect(kiwi).mint([3], [5])
   });
 
-  it("Should add liquidity with 1155 with no pool", async () => {
+  it("Should add liquidity with 1155 using weth with no pool", async () => {
+    const amountETH = ethers.utils.parseEther("1.0");
+    const WETH = await zap.WETH();
+    const weth = await ethers.getContractAt("IWETH", WETH);
+    await weth.connect(kiwi).deposit({value: amountETH});
+
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", WETH);
+    await weth20.connect(kiwi).approve(zap.address, BASE.mul(500))
+    await zap.connect(kiwi).addLiquidity1155(41, [0, 1, 2], [5, 5, 5], amountETH, amountETH)
+  });
+
+  it("Should add liquidity with 1155 an eth", async () => {
     const amountETH = ethers.utils.parseEther("1.0");
     await zap.connect(kiwi).addLiquidity1155ETH(41, [0, 1, 2], [5, 5, 5], amountETH, {value: amountETH})
   });
