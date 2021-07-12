@@ -129,7 +129,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     address xLPtoken = lpStaking.rewardDistributionToken(vaultId);
     IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
 
-    emit Withdraw(vaultId, lockedBal)
+    emit Withdraw(vaultId, lockedBal);
   }
 
   function setLockTime(uint256 newLockTime) external onlyOwner {
@@ -215,7 +215,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     
     lockedBalance[vaultId][msg.sender] += liquidity;
     uint256 lockTime = block.timestamp + lockTime;
-    zapLock[vaultId][msg.sender] lockTime;
+    zapLock[vaultId][msg.sender] = lockTime;
 
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);

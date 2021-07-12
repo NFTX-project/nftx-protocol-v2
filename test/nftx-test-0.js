@@ -7,7 +7,7 @@ const { ethers, upgrades } = require("hardhat");
 const addresses = require("../addresses/rinkeby.json");
 
 const BASE = BigNumber.from(10).pow(18);
-const PERC1_FEE = BASE.div(100);
+const PERC5_FEE = BASE.div(20);
 const zeroAddr = "0x0000000000000000000000000000000000000000";
 const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
@@ -176,6 +176,10 @@ describe("Main", function () {
     expect(await vaults[0].balanceOf(alice.address)).to.equal(0);
     await erc721.connect(alice).transferFrom(alice.address, primary.address, tokenId);
   })
+
+  it("Should not allow someone to arbitrarily send an NFT", async () => {
+    await expectRevert(erc721.safeTransferFrom(alice.address, vaults[0].address, tokenId), "not operator");
+  });
   
   it("Should not allow guardian to unpause", async () => {
     await expectRevert(nftx.connect(alice).unpause(1));
@@ -387,7 +391,7 @@ describe("Main", function () {
       expect(await erc1155.balanceOf(vaults[1].address, tokenId)).to.equal(1);
     }
     expect(await vaults[1].balanceOf(bob.address)).to.equal(
-      BASE.mul(numLoops).sub(PERC1_FEE.mul(numLoops))
+      BASE.mul(numLoops).sub(PERC5_FEE.mul(numLoops))
     );
   });
 
@@ -395,7 +399,7 @@ describe("Main", function () {
     for (let i = 0; i < numLoops - 2; i++) {
       await vaults[1].connect(alice).redeem(1, [i]);
       expect(await vaults[1].balanceOf(alice.address)).to.equal(
-        BASE.mul(numLoops - (i + 1)).sub(PERC1_FEE.mul(5).mul(i + 3))
+        BASE.mul(numLoops - (i + 1)).sub(PERC5_FEE.mul(i + numLoops + 1))
       );
     }
   });

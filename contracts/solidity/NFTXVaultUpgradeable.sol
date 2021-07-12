@@ -9,8 +9,8 @@ import "./interface/INFTXEligibilityManager.sol";
 import "./interface/INFTXFeeDistributor.sol";
 import "./interface/IERC165Upgradeable.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
-import "./token/ERC721HolderUpgradeable.sol";
-import "./token/ERC1155HolderUpgradeable.sol";
+import "./token/ERC721SafeHolderUpgradeable.sol";
+import "./token/ERC1155SafeHolderUpgradeable.sol";
 import "./token/IERC721Upgradeable.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
@@ -23,8 +23,8 @@ contract NFTXVaultUpgradeable is
     OwnableUpgradeable,
     ERC20FlashMintUpgradeable,
     ReentrancyGuardUpgradeable,
-    ERC721HolderUpgradeable,
-    ERC1155HolderUpgradeable,
+    ERC721SafeHolderUpgradeable,
+    ERC1155SafeHolderUpgradeable,
     INFTXVault
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
