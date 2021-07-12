@@ -224,7 +224,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC72
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
 
-    emit UserStaked(vaultId, minTokenIn, liquidity, lockTime);
+    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime);
     return (amountToken, amountEth, liquidity);
   }
 
