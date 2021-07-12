@@ -12,6 +12,7 @@ import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
+import "./util/ReentrancyGuardUpgradeable.sol";
 
 // Authors: @0xKiwi_.
 
@@ -21,7 +22,7 @@ interface IWETH {
   function withdraw(uint) external;
 }
 
-contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+contract NFTXStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
   IWETH public WETH; 
   INFTXLPStaking public lpStaking;
   INFTXVaultFactory public nftxFactory;
@@ -53,14 +54,14 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn
-  ) public payable returns (uint256) {
+  ) public payable nonReentrant returns (uint256) {
     WETH.deposit{value: msg.value}();
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value);
 
     // Return extras.
     if (amountEth < msg.value) {
       WETH.withdraw(msg.value-amountEth);
-      payable(msg.sender).transfer(msg.value-amountEth);
+      msg.sender.call{value: msg.value-amountEth};
     }
 
     return liquidity;
@@ -71,7 +72,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256[] memory ids, 
     uint256[] memory amounts,
     uint256 minEthIn
-  ) public payable returns (uint256) {
+  ) public payable nonReentrant returns (uint256) {
     WETH.deposit{value: msg.value}();
     // Finish this.
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value);
@@ -79,7 +80,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     // Return extras.
     if (amountEth < msg.value) {
       WETH.withdraw(msg.value-amountEth);
-      payable(msg.sender).transfer(msg.value-amountEth);
+      msg.sender.call{value: msg.value-amountEth};
     }
 
     return liquidity;
@@ -90,7 +91,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256[] memory ids, 
     uint256 minWethIn,
     uint256 wethIn
-  ) public returns (uint256) {
+  ) public nonReentrant returns (uint256) {
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn);
 
@@ -108,7 +109,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256[] memory amounts,
     uint256 minWethIn,
     uint256 wethIn
-  ) public returns (uint256) {
+  ) public nonReentrant returns (uint256) {
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn);
 
@@ -216,8 +217,8 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     lpStaking.depositFor(vaultId, liquidity, msg.sender);
     
     lockedBalance[vaultId][msg.sender] += liquidity;
-    uint256 lockTime = block.timestamp + lockTime;
-    zapLock[vaultId][msg.sender] = lockTime;
+    uint256 lockEndTime = block.timestamp + lockTime;
+    zapLock[vaultId][msg.sender] = lockEndTime;
 
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
