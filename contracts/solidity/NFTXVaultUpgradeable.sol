@@ -68,7 +68,7 @@ contract NFTXVaultUpgradeable is
         allowAllItems = _allowAllItems;
         emit VaultInit(vaultId, _assetAddress, _is1155, _allowAllItems);
         setVaultFeatures(true /*enableMint*/, true /*enableRandomRedeem*/, true /*enableTargetRedeem*/);
-        setFees(0.01 ether /*mintFee*/, 0 /*randomRedeemFee*/, 0.05 ether /*targetRedeemFee*/);
+        setFees(0.05 ether /*mintFee*/, 0 /*randomRedeemFee*/, 0.05 ether /*targetRedeemFee*/);
     }
 
     function finalizeVault() external override virtual {
