@@ -13,8 +13,6 @@ import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 // Authors: @0xKiwi_.
 
 interface IWETH {
@@ -51,27 +49,27 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
   function addLiquidity721ETH(
     uint256 vaultId, 
     uint256[] memory ids, 
-    uint256 minLiquidityOut
+    uint256 minWethIn
   ) public payable returns (uint256) {
     WETH.deposit{value: msg.value}();
-    return addLiquidity721(vaultId, ids, msg.value, minLiquidityOut);
+    return addLiquidity721(vaultId, ids, minWethIn, msg.value);
   }
 
   function addLiquidity1155ETH(
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256[] memory amounts,
-    uint256 minLiquidityOut
+    uint256 minEthIn
   ) public payable returns (uint256) {
     WETH.deposit{value: msg.value}();
-    return addLiquidity1155(vaultId, ids, amounts, msg.value, minLiquidityOut);
+    return addLiquidity1155(vaultId, ids, amounts, minEthIn, msg.value);
   }
 
   function addLiquidity721(
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn,
-    uint256 minLiquidityOut
+    uint256 wethIn
   ) public payable returns (uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
@@ -87,7 +85,7 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, minLiquidityOut);
+    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
     return liquidity;
   }
 
@@ -96,26 +94,25 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
-    uint256 minLiquidityOut
-  ) public payable returns (uint256) {
+    uint256 wethIn
+  ) public returns (uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
-    IERC1155Upgradeable(assetAddress).setApprovalForAll(address(this), true);
+    IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, minLiquidityOut);
+    uint256 liquidity = _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
     return liquidity;
   }
 
   function withdrawXLPTokens(uint256 vaultId) public {
     uint256 lockedBal = lockedBalance[vaultId][msg.sender];
-    console.log(block.timestamp, zapLock[vaultId][msg.sender]);
     require(block.timestamp >= zapLock[vaultId][msg.sender], "NFTXZap: Locked");
     require(lockedBal > 0, "NFTXZap: Nothing locked");
     
@@ -138,7 +135,40 @@ contract NFTXStakingZap is OwnableUpgradeable, ERC721HolderUpgradeable, ERC1155H
     return lockedBalance[vaultId][who];
   }
 
-  function _addLiquidityAndLock(uint256 vaultId, address vault, uint256 minTokenIn, uint256 minWethIn, uint256 minLiquidityOut) internal returns (uint256) {
+  function _addLiquidityAndLock(uint256 vaultId, address vault, uint256 minTokenIn, uint256 minWethIn, uint256 wethIn) internal returns (uint256) {
+    // Provide liquidity.
+    IERC20Upgradeable(address(vault)).approve(address(sushiRouter), minTokenIn);
+    (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
+      address(vault), 
+      sushiRouter.WETH(),
+      minTokenIn, 
+      wethIn, 
+      minTokenIn,
+      minWethIn,
+      address(this), 
+      block.timestamp
+    );
+    // Return extras.
+    if (amountToken < minTokenIn) {
+      IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
+    }
+    if (amountEth < wethIn) {
+      WETH.transfer(msg.sender, wethIn-amountEth);
+    }
+
+    // Stake in LP rewards contract 
+    address lpToken = pairFor(vault, address(WETH));
+    IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
+    lpStaking.depositFor(vaultId, liquidity, msg.sender);
+    
+    lockedBalance[vaultId][msg.sender] += liquidity;
+    zapLock[vaultId][msg.sender] = block.timestamp + lockTime;
+
+    return liquidity;
+  }
+
+
+  function _createPoolAndLock(uint256 vaultId, address vault, uint256 minTokenIn, uint256 minWethIn, uint256 minLiquidityOut) internal returns (uint256) {
     // Provide liquidity.
     IERC20Upgradeable(address(vault)).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(

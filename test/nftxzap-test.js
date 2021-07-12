@@ -116,35 +116,42 @@ describe("LP Zap Test", function () {
     );
   });
 
-  let lpTokenAmount;
   it("Should add liquidity with 721", async () => {
     const assetAddress = await vaults[0].assetAddress();
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
     await coolCats.connect(kiwi).setApprovalForAll(zap.address, true);
-    await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000));
-    await vaults[0].connect(kiwi).mint([4785, 4067], []);
-    const mintFee = await vaults[0].mintFee();
-    const amountToLP = BASE.mul(5); //.sub(mintFee.mul(5)) no fee anymore
-
-    const router = await ethers.getContractAt(
-      "IUniswapV2Router01",
-      "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
-    );
-    const pair = await ethers.getContractAt(
-      "IUniswapV2Pair",
-      "0x0225e940deecc32a8d7c003cfb7dae22af18460c"
-    );
-    const preDepositBal = await pair.balanceOf(staking.address);
-    const { reserve0, reserve1 } = await pair.getReserves();
-    const amountETH = await router.quote(amountToLP, reserve0, reserve1);
-    await zap
-      .connect(kiwi)
-      .addLiquidity721ETH(31, [1199, 6179, 8859, 1861, 6416], 0, {
-        value: amountETH,
-      });
-    const postDepositBal = await pair.balanceOf(staking.address);
-    lpTokenAmount = postDepositBal.sub(preDepositBal);
+    await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
+    await vaults[0].connect(kiwi).mint([4785, 4067], [])
   });
+
+    
+  it("Should fail to add liquidity if min > in", async () => {
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    const amountToLP = BASE.mul(5); //.sub(mintFee.mul(5)) no fee anymore
+    const amountETH = await router.quote(amountToLP, reserve0, reserve1)
+    await expectRevert(zap.connect(kiwi).addLiquidity721ETH(31, [1199,6179,8859,1861,6416], amountETH.add(500), {value: amountETH}), "INSUFFICIENT")
+  })
+
+  let lpTokenAmount;
+  it("Should add liquidity with 721 on existing pool", async () => {
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const preDepositBal = await pair.balanceOf(staking.address);
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    const amountToLP = BASE.mul(5); //.sub(mintFee.mul(5)) no fee anymore
+    const amountETH = await router.quote(amountToLP, reserve0, reserve1)
+    await zap.connect(kiwi).addLiquidity721ETH(31, [1199,6179,8859,1861,6416], amountETH.sub(500), {value: amountETH})
+    const postDepositBal = await pair.balanceOf(staking.address);
+    lpTokenAmount = postDepositBal.sub(preDepositBal)
+  })
 
   it("Should have locked balance", async () => {
     const locked = await zap.lockedUntil(31, kiwi.getAddress());
@@ -154,14 +161,56 @@ describe("LP Zap Test", function () {
     expect(locked).to.be.gt(1625729248);
   });
 
+  it("Should pass some time", async () => {
+    await ethers.provider.send("evm_increaseTime",  [24*60*60]);
+    await ethers.provider.send("evm_mine", []);
+  })
+
+  let noPool1155NFT;
+  it("Should create a vault for an ERC1155 token", async () => {
+    let ERC1155 = await ethers.getContractFactory("ERC1155");
+    noPool1155NFT = await ERC1155.deploy("");
+    await noPool1155NFT.deployed();
+    const response = await nftx.createVault("FAKE", "FAKE", noPool1155NFT.address, true, true);
+    const receipt = await response.wait(0);
+    const vaultId = receipt.events
+      .find((elem) => elem.event === "NewVault")
+      .args[0].toString();
+    const vaultAddr = await nftx.vault(vaultId);
+    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [5, 5, 5, 5]);
+    let new1155Vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaultAddr);
+    vaults.push(new1155Vault)
+  });
+
+  it("Should add mint some for 1155", async () => {
+    await noPool1155NFT.connect(kiwi).setApprovalForAll(zap.address, true);
+    await vaults[1].connect(kiwi).approve(zap.address, BASE.mul(1000))
+    await noPool1155NFT.connect(kiwi).setApprovalForAll(vaults[1].address, true);
+    await vaults[1].connect(kiwi).mint([3], [5])
+  });
+
+  it("Should add liquidity with 1155 with no pool", async () => {
+    const amountETH = ethers.utils.parseEther("1.0");
+    await zap.connect(kiwi).addLiquidity1155ETH(41, [0, 1, 2], [5, 5, 5], amountETH, {value: amountETH})
+  });
+
   it("Should not allow to withdraw locked tokens before lock", async () => {
+    await expectRevert(zap.connect(kiwi).withdrawXLPTokens(41), ": Locked");
+  });
+
+  it("Should not allow to withdraw other locked tokens before lock", async () => {
     await expectRevert(zap.connect(kiwi).withdrawXLPTokens(31), ": Locked");
   });
 
   it("Should allow withdrawing locked tokens after time passes", async () => {
-    const block = await ethers.provider.getBlock("latest");
-    await ethers.provider.send("evm_increaseTime", [48 * 60 * 60 + 20]);
+    await ethers.provider.send("evm_increaseTime",  [24*60*60 + 20]);
     await ethers.provider.send("evm_mine", []);
-    await zap.connect(kiwi).withdrawXLPTokens(31);
-  });
+    await zap.connect(kiwi).withdrawXLPTokens(31)
+  })
+
+  it("Should allow withdrawing other locked tokens after time passes", async () => {
+    await ethers.provider.send("evm_increaseTime",  [24*60*60 + 20]);
+    await ethers.provider.send("evm_mine", []);
+    await zap.connect(kiwi).withdrawXLPTokens(41)
+  })
 });
