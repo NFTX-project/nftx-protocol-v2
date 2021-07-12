@@ -11,12 +11,10 @@ async function main() {
     "\n"
   );
 
-  const VaultFactory = await ethers.getContractFactory(
-    "NFTXVaultFactoryUpgradeable"
-  );
-  const vaultFactory = await VaultFactory.deploy();
-  await vaultFactory.deployed();
-  console.log("VaultFactory:", vaultFactory.address);
+  const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable");
+  const vaultImpl = await Vault.deploy();
+  await vaultImpl.deployed();
+  console.log("Vault Impl:", vaultImpl.address);
 }
 
 main()
