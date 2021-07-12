@@ -10,11 +10,13 @@
 
 ## Primary Contracts
 
-- NFTXFundFactoryUpgradeable.sol
-- PausableUpgradeable.sol
-- FundTokenClonable.sol
-- FundTokenFactory.sol
-- ProxyController.sol
+- StakingTokenProvider
+- NFTXLPStaking
+- NFTXVaultUpgradeable
+- NFTXFeeDistributor
+- NFTXVaultFactory
+- NFTXEligibilityManager
+- Eligibility Modules
 
 ## Mainnet Contract Addresses
 
