@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const { expectRevert } = require("../utils/expectRevert");
+const { expectRevert, expectException } = require("../utils/expectRevert");
 
 const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers, upgrades } = require("hardhat");
@@ -178,9 +178,10 @@ describe("Main", function () {
   });
 
   it("Should not allow someone to arbitrarily send an NFT", async () => {
-    await expectRevert(
-      erc721.transferFrom(alice.address, vaults[0].address, 0),
-      "not operator"
+    const primaryNFT = erc721.connect(primary)
+    await expectException(
+      primaryNFT["safeTransferFrom(address,address,uint256)"](primary.address, vaults[0].address, 0),
+      "Operator not vault"
     );
   });
 
