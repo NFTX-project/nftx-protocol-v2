@@ -307,7 +307,7 @@ contract NFTXVaultUpgradeable is
 
     // Added in v1.0.3.
     function version() external pure returns (string memory) {
-        return "v1.0.3";
+        return "v1.0.4";
     } 
 
     // We set a hook to the eligibility module (if it exists) after redeems in case anything needs to be modified.
@@ -424,7 +424,8 @@ contract NFTXVaultUpgradeable is
         address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
         bytes memory data;
         if (assetAddr == kitties) {
-            data = abi.encodeWithSignature("transferFrom(address,address,uint256)", address(this), to, tokenId);
+            // Changed in v1.0.4.
+            data = abi.encodeWithSignature("transfer(address,uint256)", to, tokenId);
         } else if (assetAddr == punks) {
             // CryptoPunks.
             data = abi.encodeWithSignature("transferPunk(address,uint256)", to, tokenId);
