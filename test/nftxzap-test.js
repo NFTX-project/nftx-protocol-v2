@@ -89,6 +89,15 @@ describe("LP Zap Test", function () {
     await zap.connect(primary).setLpStakingAddress(staking.address);
     await nftx.connect(dao).setZapContract(zap.address);
   });
+  
+  it("Should deploy and upgrade the vault implementation", async () => {
+    const NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
+    const newVault = await NewVault.deploy();
+    await newVault.deployed();
+    
+    await nftx.connect(dao).upgradeChildTo(newVault.address);
+    expect(await nftx.childImplementation()).to.equal(newVault.address);
+  });
 
   it("Should deploy and upgrade the vault implementation", async () => {
     const NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
