@@ -96,6 +96,13 @@ describe("Main", function () {
     await nftx.setIsGuardian(alice.address, true);
   });
 
+  it("Should set excluded from fees", async () => {
+    await nftx.setFeeExclusion(alice.address, true);
+    expect(await nftx.excludedFromFees(alice.address)).to.be.equal(true)
+    await nftx.setFeeExclusion(alice.address, false);
+    expect(await nftx.excludedFromFees(alice.address)).to.be.equal(false)
+  });
+
   it("Should allow alice as guardian to pause vault creation", async () => {
     await nftx.connect(alice).pause(0);
     expect(await nftx.isPaused(0)).to.equal(true);

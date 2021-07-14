@@ -28,6 +28,9 @@ contract NFTXVaultFactoryUpgradeable is
     
     address[] public allVaults;
 
+    // v1.0.1
+    mapping(address => bool) public override excludedFromFees;
+
     function __NFTXVaultFactory_init(address _vaultImpl, address _feeDistributor) public override initializer {
         __Pausable_init();
         // We use a beacon proxy so that every child contract follows the same implementation code.
@@ -65,6 +68,11 @@ contract NFTXVaultFactoryUpgradeable is
     function setZapContract(address _zapContract) public onlyOwner virtual override {
         emit NewZapContract(zapContract, _zapContract);
         zapContract = _zapContract;
+    }
+
+    function setFeeExclusion(address _excludedAddr, bool excluded) public onlyOwner virtual override {
+        emit FeeExclusion(_excludedAddr, excluded);
+        excludedFromFees[_excludedAddr] = excluded;
     }
 
     function setEligibilityManager(address _eligibilityManager) external onlyOwner virtual override {

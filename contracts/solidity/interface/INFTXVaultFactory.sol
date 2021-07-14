@@ -13,9 +13,11 @@ interface INFTXVaultFactory is IBeacon {
   function vault(uint256 vaultId) external view returns (address);
   function vaultsForAsset(address asset) external view returns (address[] memory);
   function isLocked(uint256 id) external view returns (bool);
+  function excludedFromFees(address addr) external view returns (bool);
 
   event NewFeeDistributor(address oldDistributor, address newDistributor);
   event NewZapContract(address oldZap, address newZap);
+  event FeeExclusion(address feeExcluded, bool excluded);
   event NewEligibilityManager(address oldEligManager, address newEligManager);
   event NewVault(uint256 indexed vaultId, address vaultAddress, address assetAddress);
 
@@ -31,4 +33,5 @@ interface INFTXVaultFactory is IBeacon {
   function setFeeDistributor(address _feeDistributor) external;
   function setEligibilityManager(address _eligibilityManager) external;
   function setZapContract(address _zapContract) external;
+  function setFeeExclusion(address _excludedAddr, bool excluded) external;
 }
