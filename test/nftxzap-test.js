@@ -30,7 +30,7 @@ describe("LP Zap Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 12772572,
+            blockNumber: 12839990,
           },
         },
       ],
@@ -90,21 +90,16 @@ describe("LP Zap Test", function () {
     await zap.connect(primary).setLpStakingAddress(staking.address);
     await nftx.connect(dao).setZapContract(zap.address);
   });
+
+  it("Should exclude the zap from fees", async () => {
+    await nftx.connect(dao).setFeeExclusion(zap.address, true);
+  })
   
   it("Should deploy and upgrade the vault implementation", async () => {
     const NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
     const newVault = await NewVault.deploy();
     await newVault.deployed();
     
-    await nftx.connect(dao).upgradeChildTo(newVault.address);
-    expect(await nftx.childImplementation()).to.equal(newVault.address);
-  });
-
-  it("Should deploy and upgrade the vault implementation", async () => {
-    const NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
-    const newVault = await NewVault.deploy();
-    await newVault.deployed();
-
     await nftx.connect(dao).upgradeChildTo(newVault.address);
     expect(await nftx.childImplementation()).to.equal(newVault.address);
   });
@@ -122,7 +117,7 @@ describe("LP Zap Test", function () {
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
     await coolCats.connect(kiwi).setApprovalForAll(zap.address, true);
     await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
-    await vaults[0].connect(kiwi).mint([4785, 4067], [])
+    await vaults[0].connect(kiwi).mint([9852, 4668], [])
   });
 
     
@@ -149,7 +144,7 @@ describe("LP Zap Test", function () {
     } = await pair.getReserves();
     const amountToLP = BASE.mul(5); //.sub(mintFee.mul(5)) no fee anymore
     const amountETH = await router.quote(amountToLP, reserve0, reserve1)
-    await zap.connect(kiwi).addLiquidity721ETH(31, [1199,6179,8859,1861,6416], amountETH.sub(500), {value: amountETH})
+    await zap.connect(kiwi).addLiquidity721ETH(31, [184,5916,2581,8862,6179], amountETH.sub(500), {value: amountETH})
     const postDepositBal = await pair.balanceOf(staking.address);
     lpTokenAmount = postDepositBal.sub(preDepositBal)
   })
@@ -189,16 +184,17 @@ describe("LP Zap Test", function () {
   })
 
   let noPool1155NFT;
+  let nft1155Id;
   it("Should create a vault for an ERC1155 token", async () => {
     let ERC1155 = await ethers.getContractFactory("ERC1155");
     noPool1155NFT = await ERC1155.deploy("");
     await noPool1155NFT.deployed();
     const response = await nftx.createVault("FAKE", "FAKE", noPool1155NFT.address, true, true);
     const receipt = await response.wait(0);
-    const vaultId = receipt.events
+    nft1155Id = receipt.events
       .find((elem) => elem.event === "NewVault")
       .args[0].toString();
-    const vaultAddr = await nftx.vault(vaultId);
+    const vaultAddr = await nftx.vault(nft1155Id);
     await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [10, 10, 10, 5]);
     let new1155Vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaultAddr);
     vaults.push(new1155Vault)
@@ -219,16 +215,16 @@ describe("LP Zap Test", function () {
 
     const weth20 = await ethers.getContractAt("IERC20Upgradeable", WETH);
     await weth20.connect(kiwi).approve(zap.address, BASE.mul(500))
-    await zap.connect(kiwi).addLiquidity1155(41, [0, 1, 2], [5, 5, 5], amountETH, amountETH)
+    await zap.connect(kiwi).addLiquidity1155(nft1155Id, [0, 1, 2], [5, 5, 5], amountETH, amountETH)
   });
 
   it("Should add liquidity with 1155 an eth", async () => {
     const amountETH = ethers.utils.parseEther("1.0");
-    await zap.connect(kiwi).addLiquidity1155ETH(41, [0, 1, 2], [5, 5, 5], amountETH, {value: amountETH})
+    await zap.connect(kiwi).addLiquidity1155ETH(nft1155Id, [0, 1, 2], [5, 5, 5], amountETH, {value: amountETH})
   });
 
   it("Should not allow to withdraw locked tokens before lock", async () => {
-    await expectRevert(zap.connect(kiwi).withdrawXLPTokens(41), ": Locked");
+    await expectRevert(zap.connect(kiwi).withdrawXLPTokens(nft1155Id), ": Locked");
   });
 
   it("Should not allow to withdraw other locked tokens before lock", async () => {
@@ -244,6 +240,6 @@ describe("LP Zap Test", function () {
   it("Should allow withdrawing other locked tokens after time passes", async () => {
     await ethers.provider.send("evm_increaseTime",  [24*60*60 + 20]);
     await ethers.provider.send("evm_mine", []);
-    await zap.connect(kiwi).withdrawXLPTokens(41)
+    await zap.connect(kiwi).withdrawXLPTokens(nft1155Id)
   })
 });

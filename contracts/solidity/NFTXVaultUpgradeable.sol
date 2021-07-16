@@ -307,7 +307,7 @@ contract NFTXVaultUpgradeable is
 
     // Added in v1.0.3.
     function version() external pure returns (string memory) {
-        return "v1.0.4";
+        return "v1.0.5";
     } 
 
     // We set a hook to the eligibility module (if it exists) after redeems in case anything needs to be modified.
@@ -405,8 +405,8 @@ contract NFTXVaultUpgradeable is
 
     function _chargeAndDistributeFees(uint256 amount) internal virtual {
         // Do not charge fees if the zap contract is calling
-        // Added in v1.0.3.
-        if (msg.sender == vaultFactory.zapContract()) {
+        // Added in v1.0.3. Changed to mapping in v1.0.5.
+        if (vaultFactory.excludedFromFees(msg.sender)) {
             return;
         }
         
