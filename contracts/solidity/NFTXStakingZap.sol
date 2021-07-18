@@ -157,10 +157,10 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   mapping(uint256 => mapping(address => uint256)) private zapLock;
   mapping(uint256 => mapping(address => uint256)) private lockedBalance;
 
-  uint256 BASE = 10**18;
+  uint256 constant BASE = 10**18;
 
-  event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil);
-  event Withdraw(uint256 vaultId, uint256 lpBalance);
+  event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
+  event Withdraw(uint256 vaultId, uint256 lpBalance, address sender);
 
   constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
@@ -259,7 +259,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address xLPtoken = lpStaking.rewardDistributionToken(vaultId);
     IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
 
-    emit Withdraw(vaultId, lockedBal);
+    emit Withdraw(vaultId, lockedBal, msg.sender);
   }
 
   function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
@@ -347,7 +347,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
 
-    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime);
+    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, msg.sender);
     return (amountToken, amountEth, liquidity);
   }
 
