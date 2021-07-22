@@ -129,7 +129,9 @@ describe("LP Staking", function () {
     expect(await vaults[0].enableTargetRedeem()).to.eq(false);
   });
 
+  const fee = BigNumber.from(10).pow(17);
   it("Should set fees to 0", async () => {
+    await nftx.connect(primary).setFactoryFees(fee, fee, fee);
     await vaults[0].connect(primary).setFees(0, 0, 0);
     expect(await vaults[0].mintFee()).to.eq(0);
     expect(await vaults[0].randomRedeemFee()).to.eq(0);
@@ -152,9 +154,10 @@ describe("LP Staking", function () {
     }
   });
 
-  it("Should allow setting a mint and redeem fee", async () => {
-    const fee = BigNumber.from(10).pow(17);
-    await vaults[0].connect(primary).setFees(fee, fee, fee);
+  it("Should deferring to factory for mint and redeem fee", async () => {
+    expect(await vaults[0].useLocalFees()).to.equal(true);
+    await vaults[0].connect(primary).disableLocalFees();
+    expect(await vaults[0].useLocalFees()).to.equal(false);
     expect(await vaults[0].mintFee()).to.equal(fee);
     expect(await vaults[0].randomRedeemFee()).to.equal(fee);
     expect(await vaults[0].targetRedeemFee()).to.equal(fee);
