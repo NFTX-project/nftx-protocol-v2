@@ -38,9 +38,9 @@ contract NFTXVaultUpgradeable is
     INFTXEligibility public override eligibilityStorage;
 
     uint256 randNonce;
-    uint256 public override mintFee;
-    uint256 public override randomRedeemFee;
-    uint256 public override targetRedeemFee;
+    uint256 localMintFee;
+    uint256 localRandomRedeemFee;
+    uint256 localTargetRedeemFee;
 
     bool public override is1155;
     bool public override allowAllItems;
@@ -50,6 +50,9 @@ contract NFTXVaultUpgradeable is
 
     EnumerableSetUpgradeable.UintSet holdings;
     mapping(uint256 => uint256) quantity1155;
+
+    // v1.0.5
+    bool public override useLocalFees;
 
     function __NFTXVault_init(
         string memory _name,
@@ -68,7 +71,8 @@ contract NFTXVaultUpgradeable is
         allowAllItems = _allowAllItems;
         emit VaultInit(vaultId, _assetAddress, _is1155, _allowAllItems);
         setVaultFeatures(true /*enableMint*/, true /*enableRandomRedeem*/, true /*enableTargetRedeem*/);
-        setFees(0.05 ether /*mintFee*/, 0 /*randomRedeemFee*/, 0.05 ether /*targetRedeemFee*/);
+        // No longer assigning/emitting fees since we dont want to change storage for this per vault.
+        // setFees(0.05 ether /*mintFee*/, 0 /*randomRedeemFee*/, 0.05 ether /*targetRedeemFee*/);
     }
 
     function finalizeVault() external override virtual {
@@ -99,6 +103,13 @@ contract NFTXVaultUpgradeable is
         emit EnableTargetRedeemUpdated(_enableTargetRedeem);
     }
 
+    // v1.0.5.
+    function disableLocalFees() external override virtual {
+        onlyPrivileged();
+        useLocalFees = false;
+        emit UseLocalFeesUpdated(false);
+    }
+
     function setFees(
         uint256 _mintFee,
         uint256 _randomRedeemFee,
@@ -108,10 +119,13 @@ contract NFTXVaultUpgradeable is
         require(_mintFee <= base, "Cannot > 1 ether");
         require(_randomRedeemFee <= base, "Cannot > 1 ether");
         require(_targetRedeemFee <= base, "Cannot > 1 ether");
-        mintFee = _mintFee;
-        randomRedeemFee = _randomRedeemFee;
-        targetRedeemFee = _targetRedeemFee;
+        // v1.0.5.  
+        useLocalFees = true;
+        localMintFee = _mintFee;
+        localRandomRedeemFee = _randomRedeemFee;
+        localTargetRedeemFee = _targetRedeemFee;
 
+        emit UseLocalFeesUpdated(true);
         emit MintFeeUpdated(_mintFee);
         emit RandomRedeemFeeUpdated(_randomRedeemFee);
         emit TargetRedeemFeeUpdated(_targetRedeemFee);
@@ -184,7 +198,7 @@ contract NFTXVaultUpgradeable is
 
         // Mint to the user.
         _mint(to, base * count);
-        uint256 totalFee = mintFee * count;
+        uint256 totalFee = mintFee() * count;
         _chargeAndDistributeFees(totalFee);
 
         emit Minted(tokenIds, amounts, to);
@@ -213,8 +227,8 @@ contract NFTXVaultUpgradeable is
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
         // Pay the tokens + toll.
-        uint256 totalFee = (targetRedeemFee * specificIds.length) + (
-            randomRedeemFee * (amount - specificIds.length)
+        uint256 totalFee = (targetRedeemFee() * specificIds.length) + (
+            randomRedeemFee() * (amount - specificIds.length)
         );
         _chargeAndDistributeFees(totalFee);
 
@@ -246,10 +260,10 @@ contract NFTXVaultUpgradeable is
         
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
-        uint256 redeemFee = (targetRedeemFee * specificIds.length) + (
-            randomRedeemFee * (count - specificIds.length)
+        uint256 redeemFee = (targetRedeemFee() * specificIds.length) + (
+            randomRedeemFee() * (count - specificIds.length)
         );
-        uint256 totalFee = (mintFee * count) + redeemFee;
+        uint256 totalFee = (mintFee() * count) + redeemFee;
         _chargeAndDistributeFees(totalFee);
         
         // Withdraw from vault.
@@ -309,6 +323,28 @@ contract NFTXVaultUpgradeable is
     function version() external pure returns (string memory) {
         return "v1.0.5";
     } 
+
+    // Fees changed in v1.0.5 to rely on factory unless specified other-wise.
+    function mintFee() public override view returns (uint256) {
+        if (useLocalFees) {
+            return localMintFee;
+        }
+        return vaultFactory.factoryMintFee();
+    }
+
+    function randomRedeemFee() public override view returns (uint256) {
+        if (useLocalFees) {
+            return localRandomRedeemFee;
+        }
+        return vaultFactory.factoryRandomRedeemFee();
+    }
+
+    function targetRedeemFee() public override view returns (uint256) {
+        if (useLocalFees) {
+            return localTargetRedeemFee;
+        }
+        return vaultFactory.factoryTargetRedeemFee();
+    }
 
     // We set a hook to the eligibility module (if it exists) after redeems in case anything needs to be modified.
     function afterRedeemHook(uint256[] memory tokenIds) internal virtual {

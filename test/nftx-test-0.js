@@ -142,6 +142,17 @@ describe("Main", function () {
     vaults.push(vault);
   });
 
+  it("Should set fees from factory", async () => {
+    expect(await vaults[0].useLocalFees()).to.equal(false);
+    expect(await vaults[0].mintFee()).to.eq(0);
+    expect(await vaults[0].randomRedeemFee()).to.eq(0);
+    expect(await vaults[0].targetRedeemFee()).to.eq(0);
+    await nftx.connect(primary).setFactoryFees(BASE.div(20), 0, BASE.div(20));
+    expect(await vaults[0].mintFee()).to.eq(BASE.div(20));
+    expect(await vaults[0].randomRedeemFee()).to.eq(0);
+    expect(await vaults[0].targetRedeemFee()).to.eq(BASE.div(20));
+  })
+
   it("Should allow all vault features", async () => {
     await vaults[0].connect(primary).setVaultFeatures(true, true, true);
     expect(await vaults[0].enableMint()).to.eq(true);
@@ -154,6 +165,7 @@ describe("Main", function () {
     expect(await vaults[0].mintFee()).to.eq(0);
     expect(await vaults[0].randomRedeemFee()).to.eq(0);
     expect(await vaults[0].targetRedeemFee()).to.eq(0);
+    expect(await vaults[0].useLocalFees()).to.equal(true);
   });
 
   it("Should allow changing the metadata", async () => {

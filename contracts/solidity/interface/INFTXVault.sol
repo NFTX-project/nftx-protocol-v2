@@ -6,24 +6,25 @@ import "../interface/INFTXEligibility.sol";
 import "../interface/INFTXVaultFactory.sol";
 
 interface INFTXVault {
-    function manager() external returns (address);
-    function assetAddress() external returns (address);
-    function vaultFactory() external returns (INFTXVaultFactory);
-    function eligibilityStorage() external returns (INFTXEligibility);
+    function manager() external view returns (address);
+    function assetAddress() external view returns (address);
+    function vaultFactory() external view returns (INFTXVaultFactory);
+    function eligibilityStorage() external view returns (INFTXEligibility);
 
-    function is1155() external returns (bool);
-    function allowAllItems() external returns (bool);
-    function enableMint() external returns (bool);
-    function enableRandomRedeem() external returns (bool);
-    function enableTargetRedeem() external returns (bool);
+    function is1155() external view returns (bool);
+    function allowAllItems() external view returns (bool);
+    function enableMint() external view returns (bool);
+    function enableRandomRedeem() external view returns (bool);
+    function enableTargetRedeem() external view returns (bool);
+    function useLocalFees() external view returns (bool);
 
-    function vaultId() external returns (uint256);
+    function vaultId() external view returns (uint256);
     function nftIdAt(uint256 holdingsIndex) external view returns (uint256);
     function allHoldings() external view returns (uint256[] memory);
     function totalHoldings() external view returns (uint256);
-    function mintFee() external returns (uint256);
-    function randomRedeemFee() external returns (uint256);
-    function targetRedeemFee() external returns (uint256);
+    function mintFee() external view returns (uint256);
+    function randomRedeemFee() external view returns (uint256);
+    function targetRedeemFee() external view returns (uint256);
 
     event VaultInit(
         uint256 indexed vaultId,
@@ -43,6 +44,7 @@ interface INFTXVault {
     event MintFeeUpdated(uint256 mintFee);
     event RandomRedeemFeeUpdated(uint256 randomRedeemFee);
     event TargetRedeemFeeUpdated(uint256 targetRedeemFee);
+    event UseLocalFeesUpdated(bool useLocalFees);
 
     event Minted(uint256[] nftIds, uint256[] amounts, address to);
     event Redeemed(uint256[] nftIds, uint256[] specificIds, address to);
@@ -80,6 +82,8 @@ interface INFTXVault {
         uint256 _randomRedeemFee,
         uint256 _targetRedeemFee
     ) external;
+
+    function disableLocalFees() external;
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
     // It takes in ABI encoded parameters for the desired module. This is to make sure they can all follow

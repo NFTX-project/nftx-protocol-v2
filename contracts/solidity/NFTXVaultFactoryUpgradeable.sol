@@ -26,10 +26,15 @@ contract NFTXVaultFactoryUpgradeable is
     mapping(uint256 => address) public override vault;
     mapping(address => address[]) _vaultsForAsset;
     
-    address[] public allVaults;
+    address[] _allVaults;
 
     // v1.0.1
     mapping(address => bool) public override excludedFromFees;
+
+    // v1.0.2
+    uint256 public override factoryMintFee;
+    uint256 public override factoryRandomRedeemFee;
+    uint256 public override factoryTargetRedeemFee;
 
     function __NFTXVaultFactory_init(address _vaultImpl, address _feeDistributor) public override initializer {
         __Pausable_init();
@@ -52,11 +57,29 @@ contract NFTXVaultFactoryUpgradeable is
         uint256 _vaultId = numVaults;
         vault[_vaultId] = vaultAddr;
         _vaultsForAsset[_assetAddress].push(vaultAddr);
-        allVaults.push(vaultAddr);
+        _allVaults.push(vaultAddr);
         numVaults = _vaultId + 1;
         INFTXFeeDistributor(feeDistributor).initializeVaultReceivers(_vaultId);
         emit NewVault(_vaultId, vaultAddr, _assetAddress);
         return _vaultId;
+    }
+
+    // v1.0.2.
+    function setFactoryFees(
+        uint256 _mintFee,
+        uint256 _randomRedeemFee,
+        uint256 _targetRedeemFee
+    ) public onlyOwner virtual override {
+        require(_mintFee <= 1 ether, "Cannot > 1 ether");
+        require(_randomRedeemFee <= 1 ether, "Cannot > 1 ether");
+        require(_targetRedeemFee <= 1 ether, "Cannot > 1 ether");
+        factoryMintFee = _mintFee;
+        factoryRandomRedeemFee = _randomRedeemFee;
+        factoryTargetRedeemFee = _targetRedeemFee;
+
+        emit FactoryMintFeeUpdated(_mintFee);
+        emit FactoryRandomRedeemFeeUpdated(_randomRedeemFee);
+        emit FactoryTargetRedeemFeeUpdated(_targetRedeemFee);
     }
 
     function setFeeDistributor(address _feeDistributor) public onlyOwner virtual override {
@@ -86,6 +109,11 @@ contract NFTXVaultFactoryUpgradeable is
 
     function vaultsForAsset(address asset) external view override virtual returns (address[] memory) {
         return _vaultsForAsset[asset];
+    }
+
+    // v1.0.2.
+    function allVaults() external view override virtual returns (address[] memory) {
+        return _allVaults;
     }
     
     function deployVault(
