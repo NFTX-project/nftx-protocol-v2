@@ -45,13 +45,13 @@ describe("LP Staking", function () {
     await vault.deployed();
 
     const FeeDistributor = await ethers.getContractFactory(
-      "NFTXFeeDistributor"
+      "NFTXSimpleFeeDistributor"
     );
     feeDistrib = await upgrades.deployProxy(
       FeeDistributor,
       [staking.address, notZeroAddr],
       {
-        initializer: "__FeeDistributor__init__",
+        initializer: "__SimpleFeeDistributor__init__",
       }
     );
     await feeDistrib.deployed();
