@@ -7,6 +7,8 @@ To put it simply:
 - The NFT itself tricks NFTX in order to think its being filled with NFTs. When these are actually not backed by actual NFTs.
 - When someone redeems the vault token, the NFT token is minted on the spot.
 
+This means that the purchase costs, and the minting costs can occur entirely separate for every mint, essentially scaling NFT drops in a form.
+
 This can allow for interesting situations:
 - The market could price unminted (unrevealed) NFTs differently from revealed NFTs.
 - NFT launches can occur entirely within an NFTX vault.
