@@ -16,7 +16,7 @@ This can allow for interesting situations:
 
 The sale itself will be done through the purchase of ERC20 tokens which are actually NFTX vTokens for the NFTs vault. This will mean purchasing costs are constant complexity (much much cheaper), solving one problem of NFT gas wars which literally bring the ethereum chain to a halt for serveral minutes.
 
-The process is as follows:
+### The process is as follows:
 1. The team initiates the process, which creates a vault on NFTX (with the NFT itself as the owner).
 2. The team "prefills" the vault with the set amount they wish to insert.
 3. After filling the vault, the team will received N amount of vault tokens for unminted NFTs.
