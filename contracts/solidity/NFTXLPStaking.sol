@@ -118,7 +118,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
         StakingPool memory pool = vaultStakingInfo[vaultId];
-        _deposit(pool, amount, msg.sender);
+        _deposit(pool, amount);
     }
 
     function exit(uint256 vaultId) external {
@@ -228,10 +228,10 @@ contract NFTXLPStaking is PausableUpgradeable {
         return rewardDistToken;
     }
 
-    function _deposit(StakingPool memory pool, uint256 amount, address account) internal {
+    function _deposit(StakingPool memory pool, uint256 amount) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
-        _rewardDistributionTokenAddr(pool).mint(account, msg.sender, amount);
+        _rewardDistributionTokenAddr(pool).mint(msg.sender, msg.sender, amount);
     }
 
     function _claimRewards(StakingPool memory pool, address account) internal {
