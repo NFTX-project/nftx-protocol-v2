@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import "./IERC721Upgradeable.sol";
+import "./IERC721.sol";
 
 /**
  * @title ERC-721 Non-Fungible Token Standard, optional enumeration extension
  * @dev See https://eips.ethereum.org/EIPS/eip-721
  */
-interface IERC721Enumerable is IERC721Upgradeable {
+interface IERC721Enumerable is IERC721 {
 
     /**
      * @dev Returns the total amount of tokens stored by the contract.

@@ -11,7 +11,8 @@ import "./interface/IERC165Upgradeable.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
 import "./token/ERC721SafeHolderUpgradeable.sol";
 import "./token/ERC1155SafeHolderUpgradeable.sol";
-import "./token/IERC721Upgradeable.sol";
+import "./token/IERC721.sol";
+import "./token/IERC721Enumerable.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
@@ -163,6 +164,14 @@ contract NFTXVaultUpgradeable is
         onlyPrivileged();
         manager = _manager;
         emit ManagerSet(_manager);
+    }
+
+    function preMint(uint256 count) external override virtual {
+        require(manager != address(0), "Vault cannot be published");
+        require(holdings.length() == 0, "Vault must be empty");
+        require(msg.sender == assetAddress, "Can only premint from NFT itself");
+        require(IERC721Enumerable(assetAddress).totalSupply() == 0, "No NFTs are minted yet");
+        _mint(assetAddress, base * count);
     }
 
     function mint(

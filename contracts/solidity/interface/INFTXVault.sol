@@ -91,6 +91,7 @@ interface INFTXVault {
 
     // The manager has control over options like fees and features
     function setManager(address _manager) external;
+    function preMint(uint256 count) external;
 
     function mint(
         uint256[] calldata tokenIds,
