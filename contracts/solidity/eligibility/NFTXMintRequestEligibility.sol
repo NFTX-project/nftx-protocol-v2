@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "../interface/INFTXVault.sol";
-import "../token/IERC721Upgradeable.sol";
+import "../testing/IERC721.sol";
 import "../token/IERC1155Upgradeable.sol";
 import "../token/ERC721HolderUpgradeable.sol";
 import "../token/ERC1155HolderUpgradeable.sol";
@@ -137,7 +137,7 @@ contract NFTXMintRequestEligibility is
                 );
             } else {
                 require(amount == 1, "Must request with only one");
-                IERC721Upgradeable(_assetAddress).safeTransferFrom(
+                IERC721(_assetAddress).safeTransferFrom(
                     msg.sender,
                     address(this),
                     tokenId
@@ -222,7 +222,7 @@ contract NFTXMintRequestEligibility is
                     ""
                 );
             } else {
-                IERC721Upgradeable(_assetAddress).safeTransferFrom(
+                IERC721(_assetAddress).safeTransferFrom(
                     address(this),
                     msg.sender,
                     tokenId

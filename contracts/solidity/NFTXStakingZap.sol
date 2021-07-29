@@ -6,7 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXLPStaking.sol";
 import "./interface/IUniswapV2Router01.sol";
-import "./token/IERC721.sol";
+import "./testing/IERC721.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
