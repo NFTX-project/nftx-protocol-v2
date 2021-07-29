@@ -6,7 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXLPStaking.sol";
 import "./interface/IUniswapV2Router01.sol";
-import "./token/IERC721Upgradeable.sol";
+import "./token/IERC721.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
@@ -174,6 +174,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   } 
 
   function setLockTime(uint256 newLockTime) external onlyOwner {
+    require(newLockTime <= 7 days, "Lock too long");
     lockTime = newLockTime;
   } 
 
@@ -385,7 +386,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
         // CryptoPunks.
         data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
     } else {
-        if (IERC721Upgradeable(assetAddr).isApprovedForAll(address(this), to)) {
+        if (IERC721(assetAddr).isApprovedForAll(address(this), to)) {
           return;
         }
         // Default.
