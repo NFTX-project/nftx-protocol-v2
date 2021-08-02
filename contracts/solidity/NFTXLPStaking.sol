@@ -142,23 +142,6 @@ contract NFTXLPStaking is PausableUpgradeable {
         _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
-    function emergencyClaimAndMigrate(uint256 vaultId) external {
-        StakingPool memory pool = vaultStakingInfo[vaultId];
-        RewardDistributionTokenUpgradeable oldDist = _oldRewardDistributionTokenAddr(pool);
-        require(isContract(address(oldDist)), "Not a pool");
-        RewardDistributionTokenUpgradeable newDist = _rewardDistributionTokenAddr(pool);
-        if (!isContract(address(newDist))) {
-            address deployedDist = _deployDividendToken(pool);
-            require(deployedDist == address(newDist), "Not deploying proper distro");
-            emit PoolUpdated(vaultId, deployedDist);
-        }
-        uint256 bal = oldDist.balanceOf(msg.sender);
-        require(bal > 0, "Nothing to migrate");
-        oldDist.withdrawReward(msg.sender);
-        oldDist.burnFrom(msg.sender, bal);
-        newDist.mint(msg.sender, msg.sender, bal);
-    }
-
     function emergencyMigrate(uint256 vaultId) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         RewardDistributionTokenUpgradeable oldDist = _oldRewardDistributionTokenAddr(pool);
