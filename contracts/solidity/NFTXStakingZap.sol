@@ -257,7 +257,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     zapLock[vaultId][msg.sender] = 0;
     lockedBalance[vaultId][msg.sender] = 0;
 
-    address xLPtoken = lpStaking.rewardDistributionToken(vaultId);
+    address xLPtoken = lpStaking.newRewardDistributionToken(vaultId);
     IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
 
     emit Withdraw(vaultId, lockedBal, msg.sender);

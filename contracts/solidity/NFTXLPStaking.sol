@@ -153,7 +153,7 @@ contract NFTXLPStaking is PausableUpgradeable {
             emit PoolUpdated(vaultId, deployedDist);
         }
         uint256 bal = oldDist.balanceOf(msg.sender);
-        require(bal > 0, "Empty bal");
+        require(bal > 0, "Nothing to migrate");
         oldDist.withdrawReward(msg.sender);
         oldDist.burnFrom(msg.sender, bal);
         newDist.mint(msg.sender, msg.sender, bal);
@@ -170,6 +170,7 @@ contract NFTXLPStaking is PausableUpgradeable {
             emit PoolUpdated(vaultId, deployedDist);
         }
         uint256 bal = oldDist.balanceOf(msg.sender);
+        require(bal > 0, "Nothing to migrate");
         oldDist.burnFrom(msg.sender, bal);
         newDist.mint(msg.sender, msg.sender, bal);
     }
@@ -184,7 +185,15 @@ contract NFTXLPStaking is PausableUpgradeable {
         _claimRewards(pool, msg.sender);
     }
 
-    function rewardDistributionToken(uint256 vaultId) external view returns (RewardDistributionTokenUpgradeable) {
+   function rewardDistributionToken(uint256 vaultId) external view returns (RewardDistributionTokenUpgradeable) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        if (pool.stakingToken == address(0)) {
+            return RewardDistributionTokenUpgradeable(address(0));
+        }
+        return _oldRewardDistributionTokenAddr(pool);
+    }
+
+    function newRewardDistributionToken(uint256 vaultId) external view returns (RewardDistributionTokenUpgradeable) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         if (pool.stakingToken == address(0)) {
             return RewardDistributionTokenUpgradeable(address(0));
