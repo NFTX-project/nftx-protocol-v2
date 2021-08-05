@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXFeeDistributor.sol";
+import "./interface/IRewardDistributionToken.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
@@ -11,7 +12,7 @@ import "./util/Address.sol";
 import "./proxy/ClonesUpgradeable.sol";
 import "./proxy/Initializable.sol";
 import "./StakingTokenProvider.sol";
-import "./token/RewardDistributionTokenUpgradeable.sol";
+import "./token/TimelockRewardDistributionTokenImpl.sol";
 
 // Author: 0xKiwi.
 
@@ -22,7 +23,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     INFTXVaultFactory public nftxVaultFactory;
-    RewardDistributionTokenUpgradeable public rewardDistTokenImpl;
+    IRewardDistributionToken public rewardDistTokenImpl;
     StakingTokenProvider public stakingTokenProvider;
 
     event PoolCreated(uint256 vaultId, address pool);
@@ -35,12 +36,19 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
     mapping(uint256 => StakingPool) public vaultStakingInfo;
 
+    TimelockRewardDistributionTokenImpl public newTimelockRewardDistTokenImpl;
+
     function __NFTXLPStaking__init(address _stakingTokenProvider) external initializer {
         __Ownable_init();
         require(_stakingTokenProvider != address(0), "Provider != address(0)");
-        rewardDistTokenImpl = new RewardDistributionTokenUpgradeable();
-        rewardDistTokenImpl.__RewardDistributionToken_init(IERC20Upgradeable(address(0)), "", "");
+        assignNewImpl();
         stakingTokenProvider = StakingTokenProvider(_stakingTokenProvider);
+    }
+
+    function assignNewImpl() public {
+        require(address(newTimelockRewardDistTokenImpl) == address(0), "Already assigned");
+        newTimelockRewardDistTokenImpl = new TimelockRewardDistributionTokenImpl();
+        newTimelockRewardDistTokenImpl.__TimelockRewardDistributionToken_init(IERC20Upgradeable(address(0)), "", "");
     }
 
     modifier onlyAdmin() {
@@ -100,7 +108,7 @@ contract NFTXLPStaking is PausableUpgradeable {
             return false;
         }
         
-        RewardDistributionTokenUpgradeable rewardDistToken = _rewardDistributionTokenAddr(pool);
+        TimelockRewardDistributionTokenImpl rewardDistToken = _rewardDistributionTokenAddr(pool);
         // Don't distribute rewards unless there are people to distribute to.
         // Also added here if the distribution token is not deployed, just forfeit rewards for now.
         if (!isContract(address(rewardDistToken)) || rewardDistToken.totalSupply() == 0) {
@@ -121,6 +129,17 @@ contract NFTXLPStaking is PausableUpgradeable {
         _deposit(pool, amount);
     }
 
+    function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
+        require(msg.sender == nftxVaultFactory.zapContract(), "Not zap");
+        onlyOwnerIfPaused(10);
+        // Check the pool in case its been updated.
+        updatePoolForVault(vaultId);
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
+        IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        _rewardDistributionTokenAddr(pool).timelockMint(account, amount, timelockLength);
+    }
+
     function exit(uint256 vaultId) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         _claimRewards(pool, msg.sender);
@@ -129,7 +148,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function emergencyExitAndClaim(address _stakingToken, address _rewardToken) external {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
-        RewardDistributionTokenUpgradeable dist = _rewardDistributionTokenAddr(pool);
+        TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         _claimRewards(pool, msg.sender);
         _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
@@ -137,25 +156,40 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function emergencyExit(address _stakingToken, address _rewardToken) external {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
-        RewardDistributionTokenUpgradeable dist = _rewardDistributionTokenAddr(pool);
+        TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
     function emergencyMigrate(uint256 vaultId) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
-        RewardDistributionTokenUpgradeable oldDist = _oldRewardDistributionTokenAddr(pool);
-        require(isContract(address(oldDist)), "Not a pool");
-        RewardDistributionTokenUpgradeable newDist = _rewardDistributionTokenAddr(pool);
+        IRewardDistributionToken unusedDist = _unusedRewardDistributionTokenAddr(pool);
+        IRewardDistributionToken oldDist = _oldRewardDistributionTokenAddr(pool);
+
+        uint256 unusedDistBal; 
+        if (isContract(address(unusedDist))) {
+            unusedDistBal = unusedDist.balanceOf(msg.sender);
+            if (unusedDistBal > 0) {
+                unusedDist.burnFrom(msg.sender, unusedDistBal);
+            }
+        }
+        uint256 oldDistBal; 
+        if (isContract(address(oldDist))) {
+            oldDistBal = oldDist.balanceOf(msg.sender);
+            if (oldDistBal > 0) {
+                oldDist.withdrawReward(msg.sender); 
+                oldDist.burnFrom(msg.sender, oldDistBal);
+            }
+        }
+        
+        TimelockRewardDistributionTokenImpl newDist = _rewardDistributionTokenAddr(pool);
         if (!isContract(address(newDist))) {
             address deployedDist = _deployDividendToken(pool);
             require(deployedDist == address(newDist), "Not deploying proper distro");
             emit PoolUpdated(vaultId, deployedDist);
         }
-        uint256 bal = oldDist.balanceOf(msg.sender);
-        require(bal > 0, "Nothing to migrate");
-        oldDist.burnFrom(msg.sender, bal);
-        newDist.mint(msg.sender, msg.sender, bal);
+        require(unusedDistBal + oldDistBal > 0, "Nothing to migrate");
+        newDist.mint(msg.sender, unusedDistBal + oldDistBal);
     }
 
     function withdraw(uint256 vaultId, uint256 amount) external {
@@ -168,20 +202,20 @@ contract NFTXLPStaking is PausableUpgradeable {
         _claimRewards(pool, msg.sender);
     }
 
-   function rewardDistributionToken(uint256 vaultId) external view returns (RewardDistributionTokenUpgradeable) {
+    function newRewardDistributionToken(uint256 vaultId) external view returns (TimelockRewardDistributionTokenImpl) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         if (pool.stakingToken == address(0)) {
-            return RewardDistributionTokenUpgradeable(address(0));
-        }
-        return _oldRewardDistributionTokenAddr(pool);
-    }
-
-    function newRewardDistributionToken(uint256 vaultId) external view returns (RewardDistributionTokenUpgradeable) {
-        StakingPool memory pool = vaultStakingInfo[vaultId];
-        if (pool.stakingToken == address(0)) {
-            return RewardDistributionTokenUpgradeable(address(0));
+            return TimelockRewardDistributionTokenImpl(address(0));
         }
         return _rewardDistributionTokenAddr(pool);
+    }
+
+   function rewardDistributionToken(uint256 vaultId) external view returns (IRewardDistributionToken) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        if (pool.stakingToken == address(0)) {
+            return IRewardDistributionToken(address(0));
+        }
+        return _oldRewardDistributionTokenAddr(pool);
     }
 
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address) {
@@ -192,6 +226,14 @@ contract NFTXLPStaking is PausableUpgradeable {
         return address(_oldRewardDistributionTokenAddr(pool));
     }
 
+    function unusedRewardDistributionToken(uint256 vaultId) external view returns (address) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        if (pool.stakingToken == address(0)) {
+            return address(0);
+        }
+        return address(_unusedRewardDistributionTokenAddr(pool));
+    }
+
     function rewardDistributionTokenAddr(address stakingToken, address rewardToken) public view returns (address) {
         StakingPool memory pool = StakingPool(stakingToken, rewardToken);
         return address(_rewardDistributionTokenAddr(pool));
@@ -199,31 +241,29 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function balanceOf(uint256 vaultId, address addr) public view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
-        RewardDistributionTokenUpgradeable dist = _rewardDistributionTokenAddr(pool);
+        TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         return dist.balanceOf(addr);
     }
 
     function oldBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
-        RewardDistributionTokenUpgradeable dist = _oldRewardDistributionTokenAddr(pool);
+        IRewardDistributionToken dist = _oldRewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         return dist.balanceOf(addr);
     }
 
-    function _deployDividendToken(StakingPool memory pool) internal returns (address) {
-        // Changed to use new nonces.
-        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken, uint256(1)));
-        address rewardDistToken = ClonesUpgradeable.cloneDeterministic(address(rewardDistTokenImpl), salt);
-        string memory name = stakingTokenProvider.nameForStakingToken(pool.rewardToken);
-        RewardDistributionTokenUpgradeable(rewardDistToken).__RewardDistributionToken_init(IERC20Upgradeable(pool.rewardToken), name, name);
-        return rewardDistToken;
+    function unusedBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        IRewardDistributionToken dist = _unusedRewardDistributionTokenAddr(pool);
+        require(isContract(address(dist)), "Not a pool");
+        return dist.balanceOf(addr);
     }
 
     function _deposit(StakingPool memory pool, uint256 amount) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
-        _rewardDistributionTokenAddr(pool).mint(msg.sender, msg.sender, amount);
+        _rewardDistributionTokenAddr(pool).mint(msg.sender, amount);
     }
 
     function _claimRewards(StakingPool memory pool, address account) internal {
@@ -237,18 +277,34 @@ contract NFTXLPStaking is PausableUpgradeable {
         IERC20Upgradeable(pool.stakingToken).safeTransfer(account, amount);
     }
 
-    // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
-    function _oldRewardDistributionTokenAddr(StakingPool memory pool) public view returns (RewardDistributionTokenUpgradeable) {
-        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken));
-        address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(rewardDistTokenImpl), salt);
-        return RewardDistributionTokenUpgradeable(tokenAddr);
+    function _deployDividendToken(StakingPool memory pool) internal returns (address) {
+        // Changed to use new nonces.
+        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken, uint256(2)));
+        address rewardDistToken = ClonesUpgradeable.cloneDeterministic(address(newTimelockRewardDistTokenImpl), salt);
+        string memory name = stakingTokenProvider.nameForStakingToken(pool.rewardToken);
+        TimelockRewardDistributionTokenImpl(rewardDistToken).__TimelockRewardDistributionToken_init(IERC20Upgradeable(pool.rewardToken), name, name);
+        return rewardDistToken;
     }
 
     // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
-    function _rewardDistributionTokenAddr(StakingPool memory pool) public view returns (RewardDistributionTokenUpgradeable) {
-        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken, uint256(1) /* small nonce to change tokens */));
+    function _rewardDistributionTokenAddr(StakingPool memory pool) public view returns (TimelockRewardDistributionTokenImpl) {
+        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken, uint256(2) /* small nonce to change tokens */));
+        address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(newTimelockRewardDistTokenImpl), salt);
+        return TimelockRewardDistributionTokenImpl(tokenAddr);
+    }
+
+    // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
+    function _oldRewardDistributionTokenAddr(StakingPool memory pool) public view returns (IRewardDistributionToken) {
+        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken, uint256(1)));
         address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(rewardDistTokenImpl), salt);
-        return RewardDistributionTokenUpgradeable(tokenAddr);
+        return IRewardDistributionToken(tokenAddr);
+    }
+
+    // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
+    function _unusedRewardDistributionTokenAddr(StakingPool memory pool) public view returns (IRewardDistributionToken) {
+        bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken));
+        address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(rewardDistTokenImpl), salt);
+        return IRewardDistributionToken(tokenAddr);
     }
 
     function isContract(address account) internal view returns (bool) {

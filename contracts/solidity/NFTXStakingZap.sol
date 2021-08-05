@@ -4,7 +4,9 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
+import "./interface/INFTXFeeDistributor.sol";
 import "./interface/INFTXLPStaking.sol";
+import "./interface/ITimelockRewardDistributionToken.sol";
 import "./interface/IUniswapV2Router01.sol";
 import "./testing/IERC721.sol";
 import "./token/IERC1155Upgradeable.sol";
@@ -147,31 +149,23 @@ abstract contract Ownable {
 }
 
 contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
-  IWETH public WETH; 
-  INFTXLPStaking public lpStaking;
+  IWETH public immutable WETH; 
+  INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
-  IUniswapV2Router01 public sushiRouter;
+  IUniswapV2Router01 public immutable sushiRouter;
 
   uint256 public lockTime = 48 hours; 
-
-  mapping(uint256 => mapping(address => uint256)) private zapLock;
-  mapping(uint256 => mapping(address => uint256)) private lockedBalance;
-
   uint256 constant BASE = 10**18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
-  event Withdraw(uint256 vaultId, uint256 lpBalance, address sender);
 
   constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
+    lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
-    WETH = IWETH(sushiRouter.WETH());
-    IERC20Upgradeable(address(WETH)).approve(address(sushiRouter), type(uint256).max);
+    WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
+    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
   }
-
-  function setLpStakingAddress(address newLpStaking) external onlyOwner {
-    lpStaking = INFTXLPStaking(newLpStaking);
-  } 
 
   function setLockTime(uint256 newLockTime) external onlyOwner {
     require(newLockTime <= 7 days, "Lock too long");
@@ -249,26 +243,17 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     return liquidity;
   }
 
-  function withdrawXLPTokens(uint256 vaultId) public {
-    uint256 lockedBal = lockedBalance[vaultId][msg.sender];
-    require(block.timestamp >= zapLock[vaultId][msg.sender], "NFTXZap: Locked");
-    require(lockedBal > 0, "NFTXZap: Nothing locked");
-    
-    zapLock[vaultId][msg.sender] = 0;
-    lockedBalance[vaultId][msg.sender] = 0;
-
-    address xLPtoken = lpStaking.newRewardDistributionToken(vaultId);
-    IERC20Upgradeable(xLPtoken).transfer(msg.sender, lockedBal);
-
-    emit Withdraw(vaultId, lockedBal, msg.sender);
-  }
-
   function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
-    return zapLock[vaultId][who];
+    address xLPToken = lpStaking.newRewardDistributionToken(vaultId);
+    return ITimelockRewardDistributionToken(xLPToken).timelockUntil(who);
   }
 
   function lockedLPBalance(uint256 vaultId, address who) external view returns (uint256) {
-    return lockedBalance[vaultId][who];
+    ITimelockRewardDistributionToken xLPToken = ITimelockRewardDistributionToken(lpStaking.newRewardDistributionToken(vaultId));
+    if(block.timestamp > xLPToken.timelockUntil(who)) {
+      return 0;
+    }
+    return xLPToken.balanceOf(who);
   }
 
   function _addLiquidity721WETH(
@@ -338,16 +323,13 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
-    lpStaking.deposit(vaultId, liquidity);
+    lpStaking.timelockDepositFor(vaultId, msg.sender, liquidity, lockTime);
     
-    lockedBalance[vaultId][msg.sender] += liquidity;
-    uint256 lockEndTime = block.timestamp + lockTime;
-    zapLock[vaultId][msg.sender] = lockEndTime;
-
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
 
+    uint256 lockEndTime = block.timestamp + lockTime;
     emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, msg.sender);
     return (amountToken, amountEth, liquidity);
   }

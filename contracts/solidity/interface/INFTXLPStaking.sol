@@ -11,6 +11,7 @@ interface INFTXLPStaking {
     function rewardDistributionToken(uint256 vaultId) external view returns (address);
     function newRewardDistributionToken(uint256 vaultId) external view returns (address);
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address);
+    function unusedRewardDistributionToken(uint256 vaultId) external view returns (address);
     function rewardDistributionTokenAddr(address stakingToken, address rewardToken) external view returns (address);
     
     // Write functions.
@@ -22,7 +23,7 @@ interface INFTXLPStaking {
     function updatePoolForVaults(uint256[] calldata vaultId) external;
     function receiveRewards(uint256 vaultId, uint256 amount) external returns (bool);
     function deposit(uint256 vaultId, uint256 amount) external;
-    function depositFor(uint256 vaultId, uint256 amount, address to) external;
+    function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external;
     function exit(uint256 vaultId, uint256 amount) external;
     function rescue(uint256 vaultId) external;
     function withdraw(uint256 vaultId, uint256 amount) external;

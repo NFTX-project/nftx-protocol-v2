@@ -9,14 +9,12 @@ import "../util/SafeERC20Upgradeable.sol";
 import "../util/SafeMathUpgradeable.sol";
 import "../util/SafeMathInt.sol";
 
-import "hardhat/console.sol";
-
 /// @title Reward-Paying Token (renamed from Dividend)
 /// @author Roger Wu (https://github.com/roger-wu)
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute a target token
 ///  to token holders as dividends and allows token holders to withdraw their dividends.
 ///  Reference: the source code of PoWH3D: https://etherscan.io/address/0xB3775fB83F7D12A36E0475aBdD1FCA35c091efBe#code
-contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
+contract TimelockRewardDistributionTokenImpl is OwnableUpgradeable, ERC20Upgradeable {
   using SafeMathUpgradeable for uint256;
   using SafeMathInt for int256;
   using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -44,7 +42,11 @@ contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradea
   mapping(address => int256) internal magnifiedRewardCorrections;
   mapping(address => uint256) internal withdrawnRewards;
 
-  function __RewardDistributionToken_init(IERC20Upgradeable _target, string memory _name, string memory _symbol) public initializer {
+  mapping(address => uint256) internal timelock;
+
+  event Timelocked(address user, uint256 amount, uint256 until);
+
+  function __TimelockRewardDistributionToken_init(IERC20Upgradeable _target, string memory _name, string memory _symbol) public initializer {
     __Ownable_init();
     __ERC20_init(_name, _symbol);
     target = _target;
@@ -91,8 +93,19 @@ contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradea
       return true;
   }
 
-  function mint(address account, address to, uint256 amount) public onlyOwner virtual {
-      _mint(account, to, amount);
+  function mint(address account, uint256 amount) public onlyOwner virtual {
+      _mint(account, amount);
+  }
+
+  function timelockMint(address account, uint256 amount, uint256 timelockLength) public onlyOwner virtual {
+    uint256 timelockFinish = block.timestamp + timelockLength;
+    timelock[account] = timelockFinish;
+    emit Timelocked(account, amount, timelockFinish);
+    _mint(account, amount);
+  }
+
+  function timelockUntil(address account) public view returns (uint256) {
+    return timelock[account];
   }
 
   /**
@@ -184,22 +197,12 @@ contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradea
   /// @param to The address to transfer to.
   /// @param value The amount to be transferred.
   function _transfer(address from, address to, uint256 value) internal override {
+    require(block.timestamp > timelock[from], "User locked");
     super._transfer(from, to, value);
 
     int256 _magCorrection = magnifiedRewardPerShare.mul(value).toInt256();
     magnifiedRewardCorrections[from] = magnifiedRewardCorrections[from].add(_magCorrection);
     magnifiedRewardCorrections[to] = magnifiedRewardCorrections[to].sub(_magCorrection);
-  }
-
-  /// @dev Internal function that mints tokens to an account.
-  /// Update magnifiedRewardCorrections to keep dividends unchanged.
-  /// @param account The account that will receive the created tokens.
-  /// @param value The amount that will be created.
-  function _mint(address account, address to, uint256 value) internal {
-    super._mint(to, value);
-
-    magnifiedRewardCorrections[account] = magnifiedRewardCorrections[account]
-      .sub( (magnifiedRewardPerShare.mul(value)).toInt256() );
   }
 
   /// @dev Internal function that mints tokens to an account.
@@ -218,6 +221,7 @@ contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradea
   /// @param account The account whose tokens will be burnt.
   /// @param value The amount that will be burnt.
   function _burn(address account, uint256 value) internal override {
+    require(block.timestamp > timelock[account], "User locked");
     super._burn(account, value);
 
     magnifiedRewardCorrections[account] = magnifiedRewardCorrections[account]
@@ -239,6 +243,4 @@ contract RewardDistributionTokenUpgradeable is OwnableUpgradeable, ERC20Upgradea
     address indexed to,
     uint256 weiAmount
   );
-
-  uint256[45] private __gap;
 }
