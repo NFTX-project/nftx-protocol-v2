@@ -6,6 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXEligibility.sol";
 import "./interface/INFTXEligibilityManager.sol";
+import "./interface/INFTXLPStaking.sol";
 import "./interface/INFTXFeeDistributor.sol";
 import "./interface/IERC165Upgradeable.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
@@ -165,6 +166,21 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
+    function saveStuckFees() public {
+        require(msg.sender == 0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48, "Not auth");
+        address distributor = vaultFactory.feeDistributor();
+        address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
+        uint256 _vaultId = vaultId;
+
+        // Get stuck tokens from v1.
+        address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
+        uint256 stuckUnusedBal = balanceOf(unusedAddr);
+
+        require(stuckUnusedBal > 0, "Zero");
+        _transfer(unusedAddr, distributor, stuckUnusedBal);
+        INFTXFeeDistributor(distributor).distribute(_vaultId);
+    }
+
     function mint(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts /* ignored for ERC721 vaults */
@@ -185,7 +201,7 @@ contract NFTXVaultUpgradeable is
         // Mint to the user.
         _mint(to, base * count);
         uint256 totalFee = mintFee * count;
-        _chargeAndDistributeFees(totalFee);
+        _chargeAndDistributeFees(to, totalFee);
 
         emit Minted(tokenIds, amounts, to);
         return count;
@@ -216,7 +232,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = (targetRedeemFee * specificIds.length) + (
             randomRedeemFee * (amount - specificIds.length)
         );
-        _chargeAndDistributeFees(totalFee);
+        _chargeAndDistributeFees(msg.sender, totalFee);
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
@@ -250,7 +266,7 @@ contract NFTXVaultUpgradeable is
             randomRedeemFee * (count - specificIds.length)
         );
         uint256 totalFee = (mintFee * count) + redeemFee;
-        _chargeAndDistributeFees(totalFee);
+        _chargeAndDistributeFees(msg.sender, totalFee);
         
         // Withdraw from vault.
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
@@ -403,7 +419,7 @@ contract NFTXVaultUpgradeable is
         return redeemedIds;
     }
 
-    function _chargeAndDistributeFees(uint256 amount) internal virtual {
+    function _chargeAndDistributeFees(address user, uint256 amount) internal virtual {
         // Do not charge fees if the zap contract is calling
         // Added in v1.0.3. Changed to mapping in v1.0.5.
         if (vaultFactory.excludedFromFees(msg.sender)) {
@@ -414,7 +430,7 @@ contract NFTXVaultUpgradeable is
         if (amount > 0) {
             address feeDistributor = vaultFactory.feeDistributor();
             // Changed to a _transfer() in v1.0.3.
-            _transfer(msg.sender, feeDistributor, amount);
+            _transfer(user, feeDistributor, amount);
             INFTXFeeDistributor(feeDistributor).distribute(vaultId);
         }
     }
