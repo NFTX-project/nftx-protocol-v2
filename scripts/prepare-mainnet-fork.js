@@ -36,10 +36,14 @@ async function main() {
     primary = signers[0];
     alice = signers[1];
     bob = signers[2];
-
+    
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
       params: ["0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48"],
+    });
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"],
     });
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
@@ -97,6 +101,29 @@ async function main() {
     console.log("New staking Impl deployed: ", newStaking.address);
     await controller.connect(dao).upgradeProxyTo(3, newStaking.address);
     await staking.assignNewImpl();
+
+    vault = await ethers.getContractAt(
+      "NFTXVaultUpgradeable",
+      "0x114f1388fab456c4ba31b1850b244eedcd024136"
+    );
+    vaults.push(vault);
+    const assetAddress = await vaults[0].assetAddress();
+    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
+
+    await coolCats.connect(kiwi).setApprovalForAll(zap.address, true);
+
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    const amountToLP = BASE.mul(2); //.sub(mintFee.mul(5)) no fee anymore
+    const amountETH = await router.quote(amountToLP, reserve0, reserve1)
+    await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
+    await zap.connect(kiwi).addLiquidity721ETH(31, [9852,9838], amountETH.sub(500), {value: amountETH})
+    const postDepositBal = await pair.balanceOf(staking.address);
+    console.log("ZApped")
   }
 
 

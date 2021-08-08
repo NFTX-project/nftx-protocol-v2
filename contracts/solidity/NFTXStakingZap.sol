@@ -395,4 +395,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
       require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
   }
+
+  receive() external payable {
+
+  }
 }

@@ -31,7 +31,7 @@ describe("LP Staking Upgrade Migrate Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 12963200,
+            blockNumber: 12978807,
           },
         },
       ],
