@@ -192,7 +192,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Return extras.
     if (amountEth < msg.value) {
       WETH.withdraw(msg.value-amountEth);
-      msg.sender.call{value: msg.value-amountEth};
+      payable(to).call{value: msg.value-amountEth};
     }
 
     return liquidity;
@@ -221,7 +221,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Return extras.
     if (amountEth < msg.value) {
       WETH.withdraw(msg.value-amountEth);
-      msg.sender.call{value: msg.value-amountEth};
+      payable(to).call{value: msg.value-amountEth};
     }
 
     return liquidity;
@@ -248,7 +248,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
     // Return extras.
     if (amountEth < wethIn) {
-      WETH.transfer(msg.sender, wethIn-amountEth);
+      WETH.transfer(to, wethIn-amountEth);
     }
 
     return liquidity;
@@ -277,7 +277,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
     // Return extras.
     if (amountEth < wethIn) {
-      WETH.transfer(msg.sender, wethIn-amountEth);
+      WETH.transfer(to, wethIn-amountEth);
     }
 
     return liquidity;
@@ -369,7 +369,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lockTime);
     
     if (amountToken < minTokenIn) {
-      IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
+      IERC20Upgradeable(vault).transfer(to, minTokenIn-amountToken);
     }
 
     uint256 lockEndTime = block.timestamp + lockTime;
