@@ -89,7 +89,6 @@ describe("LP Zap Test", function () {
     console.log("deployed");
     await zap.deployed();
 
-    await zap.connect(primary).setLpStakingAddress(staking.address);
     await nftx.connect(dao).setZapContract(zap.address);
   });
 

@@ -31,7 +31,7 @@ describe("LP Staking Upgrade Migrate Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 12978807,
+            blockNumber: 12964000,
           },
         },
       ],
@@ -159,7 +159,7 @@ describe("LP Staking Upgrade Migrate Test", function () {
   it("Should mint to generate some rewards", async () => {
     let newDisttoken = await staking.newRewardDistributionToken(31);
     let oldBal = await vaults[0].balanceOf(newDisttoken);
-    await vaults[0].connect(kiwi).mint([7356], [1]);
+    await vaults[0].connect(kiwi).mint([2581], [1]);
     let newBal = await vaults[0].balanceOf(newDisttoken);
     expect(oldBal).to.not.equal(newBal);
   })
@@ -180,6 +180,54 @@ describe("LP Staking Upgrade Migrate Test", function () {
     await ethers.provider.send("evm_mine", []);
   });
 
+
+  let noPool1155NFT;
+  let nft1155Id;
+  it("Should create a vault for an ERC1155 token", async () => {
+    let ERC1155 = await ethers.getContractFactory("ERC1155");
+    noPool1155NFT = await ERC1155.deploy("");
+    await noPool1155NFT.deployed();
+    const response = await nftx.createVault("FAKE", "FAKE", noPool1155NFT.address, true, true);
+    const receipt = await response.wait(0);
+    nft1155Id = receipt.events
+      .find((elem) => elem.event === "NewVault")
+      .args[0].toString();
+    const vaultAddr = await nftx.vault(nft1155Id);
+    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [10, 10, 10, 5]);
+    let new1155Vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaultAddr);
+    vaults.push(new1155Vault)
+  });
+
+  it("Should add mint some for 1155", async () => {
+    await noPool1155NFT.connect(kiwi).setApprovalForAll(zap.address, true);
+    await vaults[1].connect(kiwi).approve(zap.address, BASE.mul(1000))
+    await noPool1155NFT.connect(kiwi).setApprovalForAll(vaults[1].address, true);
+    await vaults[1].connect(kiwi).mint([3], [4])
+  });
+
+  it("Should add liquidity with 1155 using weth with no pool for someone else", async () => {
+    const amountETH = ethers.utils.parseEther("1.0");
+    const WETH = await zap.WETH();
+    const weth = await ethers.getContractAt("IWETH", WETH);
+    await weth.connect(kiwi).deposit({value: amountETH});
+
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", WETH);
+    await weth20.connect(kiwi).approve(zap.address, BASE.mul(500))
+    await zap.connect(kiwi).addLiquidity1155To(nft1155Id, [0, 1, 2], [5, 5, 5], amountETH, amountETH, primary.getAddress())
+  });
+
+  it("Should add liquidity with 1155 an eth", async () => {
+    const amountETH = ethers.utils.parseEther("1.0");
+    await zap.connect(kiwi).addLiquidity1155ETH(nft1155Id, [0, 1, 2], [5, 5, 5], amountETH, {value: amountETH})
+  });
+
+  it("Should not allow to withdraw locked tokens for someone else before lock", async () => {
+    await expectException(staking.connect(primary).exit(nft1155Id), "User locked");
+  });
+  it("Should not allow to withdraw locked tokens before lock", async () => {
+    await expectException(staking.connect(kiwi).exit(nft1155Id), "User locked");
+  });
+
   it("Should not allow to withdraw locked tokens before lock", async () => {
     await expectException(staking.connect(kiwi).exit(31), "User locked");
   });
@@ -198,17 +246,30 @@ describe("LP Staking Upgrade Migrate Test", function () {
   it("Should distribute current new rewards to new LP token", async () => {
     let newDisttoken = await staking.newRewardDistributionToken(31);
     let oldBal = await vaults[0].balanceOf(newDisttoken);
-    await vaults[0].connect(kiwi).mint([2581], [1]);
+    await vaults[0].connect(kiwi).mint([9059], [1]);
     let newBal = await vaults[0].balanceOf(newDisttoken);
     expect(oldBal).to.not.equal(newBal);
   });
 
   it("Should allow to exit and claim locked tokens after lock", async () => {
     let oldBal = await vaults[0].balanceOf(kiwi.getAddress());
-    await staking.connect(kiwi).claimRewards(31);
+    await staking.connect(kiwi).claimMultipleRewards([31, nft1155Id]);
     let newBal = await vaults[0].balanceOf(kiwi.getAddress());
     expect(newBal).to.not.equal(oldBal);
     expect(await zap.lockedLPBalance(31, kiwi.getAddress())).to.equal(0);
+  });
+
+  it("Should pass some time", async () => {
+    await ethers.provider.send("evm_increaseTime",  [24*60*60]);
+    await ethers.provider.send("evm_mine", []);
+  });
+
+  it("Should allow to withdraw locked tokens for someone else after lock", async () => {
+    await staking.connect(primary).exit(nft1155Id);
+  });
+
+  it("Should allow to withdraw locked 1155 tokens after lock", async () => {
+    await staking.connect(kiwi).exit(nft1155Id);
   });
 
   it("Should upgrade the vault contract", async () => {

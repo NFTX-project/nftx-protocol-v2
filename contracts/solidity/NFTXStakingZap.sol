@@ -176,9 +176,18 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn
+  ) public payable returns (uint256) {
+    return addLiquidity721ETHTo(vaultId, ids, minWethIn, msg.sender);
+  }
+
+  function addLiquidity721ETHTo(
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256 minWethIn,
+    address to
   ) public payable nonReentrant returns (uint256) {
     WETH.deposit{value: msg.value}();
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value);
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value, to);
 
     // Return extras.
     if (amountEth < msg.value) {
@@ -194,10 +203,19 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256[] memory ids, 
     uint256[] memory amounts,
     uint256 minEthIn
+  ) public payable returns (uint256) {
+    return addLiquidity1155ETHTo(vaultId, ids, amounts, minEthIn, msg.sender);
+  }
+    function addLiquidity1155ETHTo(
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256[] memory amounts,
+    uint256 minEthIn,
+    address to
   ) public payable nonReentrant returns (uint256) {
     WETH.deposit{value: msg.value}();
     // Finish this.
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value);
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value, to);
 
     // Return extras.
     if (amountEth < msg.value) {
@@ -213,9 +231,19 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256[] memory ids, 
     uint256 minWethIn,
     uint256 wethIn
+  ) public returns (uint256) {
+    return addLiquidity721To(vaultId, ids, minWethIn, wethIn, msg.sender);
+  }
+
+  function addLiquidity721To(
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256 minWethIn,
+    uint256 wethIn,
+    address to
   ) public nonReentrant returns (uint256) {
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn);
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn, to);
 
     // Return extras.
     if (amountEth < wethIn) {
@@ -231,9 +259,20 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256[] memory amounts,
     uint256 minWethIn,
     uint256 wethIn
+  ) public returns (uint256) {
+    return addLiquidity1155To(vaultId, ids, amounts, minWethIn, wethIn, msg.sender);
+  }
+
+  function addLiquidity1155To(
+    uint256 vaultId, 
+    uint256[] memory ids,
+    uint256[] memory amounts,
+    uint256 minWethIn,
+    uint256 wethIn,
+    address to
   ) public nonReentrant returns (uint256) {
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn);
+    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn, to);
 
     // Return extras.
     if (amountEth < wethIn) {
@@ -260,7 +299,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn,
-    uint256 wethIn
+    uint256 wethIn,
+    address to
   ) internal returns (uint256, uint256, uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
@@ -276,7 +316,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidity1155WETH(
@@ -284,7 +324,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
-    uint256 wethIn
+    uint256 wethIn,
+    address to
   ) internal returns (uint256, uint256, uint256) {
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
@@ -297,7 +338,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 balance = (count * BASE); // We should not be experiencing fees.
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
-    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn);
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidityAndLock(
@@ -305,7 +346,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address vault, 
     uint256 minTokenIn, 
     uint256 minWethIn, 
-    uint256 wethIn
+    uint256 wethIn,
+    address to
   ) internal returns (uint256, uint256, uint256) {
     // Provide liquidity.
     IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
@@ -323,14 +365,14 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
-    lpStaking.timelockDepositFor(vaultId, msg.sender, liquidity, lockTime);
+    lpStaking.timelockDepositFor(vaultId, to, liquidity, lockTime);
     
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(msg.sender, minTokenIn-amountToken);
     }
 
     uint256 lockEndTime = block.timestamp + lockTime;
-    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, msg.sender);
+    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
     return (amountToken, amountEth, liquidity);
   }
 

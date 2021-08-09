@@ -197,9 +197,15 @@ contract NFTXLPStaking is PausableUpgradeable {
         _withdraw(pool, amount, msg.sender);
     }
 
-    function claimRewards(uint256 vaultId) external {
+    function claimRewards(uint256 vaultId) public {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         _claimRewards(pool, msg.sender);
+    }
+
+    function claimMultipleRewards(uint256[] memory vaultIds) external {
+        for (uint256 i = 0; i < vaultIds.length; i++) {
+            claimRewards(vaultIds[i]);
+        }
     }
 
     function newRewardDistributionToken(uint256 vaultId) external view returns (TimelockRewardDistributionTokenImpl) {
