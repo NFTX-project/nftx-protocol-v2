@@ -206,7 +206,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   ) public payable returns (uint256) {
     return addLiquidity1155ETHTo(vaultId, ids, amounts, minEthIn, msg.sender);
   }
-    function addLiquidity1155ETHTo(
+
+  function addLiquidity1155ETHTo(
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256[] memory amounts,
