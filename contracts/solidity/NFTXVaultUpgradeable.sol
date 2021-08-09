@@ -166,20 +166,20 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
-    function saveStuckFees() public {
-        require(msg.sender == 0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48, "Not auth");
-        address distributor = vaultFactory.feeDistributor();
-        address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
-        uint256 _vaultId = vaultId;
+    // function saveStuckFees() public {
+    //     require(msg.sender == 0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48, "Not auth");
+    //     address distributor = vaultFactory.feeDistributor();
+    //     address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
+    //     uint256 _vaultId = vaultId;
 
-        // Get stuck tokens from v1.
-        address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
-        uint256 stuckUnusedBal = balanceOf(unusedAddr);
+    //     // Get stuck tokens from v1.
+    //     address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
+    //     uint256 stuckUnusedBal = balanceOf(unusedAddr);
 
-        require(stuckUnusedBal > 0, "Zero");
-        _transfer(unusedAddr, distributor, stuckUnusedBal);
-        INFTXFeeDistributor(distributor).distribute(_vaultId);
-    }
+    //     require(stuckUnusedBal > 0, "Zero");
+    //     _transfer(unusedAddr, distributor, stuckUnusedBal);
+    //     INFTXFeeDistributor(distributor).distribute(_vaultId);
+    // }
 
     function mint(
         uint256[] calldata tokenIds,
