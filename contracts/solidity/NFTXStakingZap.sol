@@ -422,11 +422,11 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   // calculates the CREATE2 address for a pair without making any external calls
-  function pairFor(address tokenA, address tokenB) internal pure returns (address pair) {
+  function pairFor(address tokenA, address tokenB) internal view returns (address pair) {
     (address token0, address token1) = sortTokens(tokenA, tokenB);
     pair = address(uint160(uint256(keccak256(abi.encodePacked(
       hex'ff',
-      0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac,
+      sushiRouter.factory(),
       keccak256(abi.encodePacked(token0, token1)),
       hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
     )))));
