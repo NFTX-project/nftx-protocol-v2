@@ -236,7 +236,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         if (pool.stakingToken == address(0)) {
             return IRewardDistributionToken(address(0));
         }
-        return _oldRewardDistributionTokenAddr(pool);
+        return _unusedRewardDistributionTokenAddr(pool);
     }
 
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address) {
