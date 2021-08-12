@@ -200,6 +200,13 @@ contract NFTXLPStaking is PausableUpgradeable {
         newDist.mint(to, balanceToMint);
     }
 
+    function adminBurn(uint256 vaultId, address to, uint256 balanceToMint) external {
+        require(msg.sender == 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B, "Not authed");
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        TimelockRewardDistributionTokenImpl newDist = _rewardDistributionTokenAddr(pool);
+        newDist.burnFrom(to, balanceToMint);
+    }
+
     function withdraw(uint256 vaultId, uint256 amount) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         _withdraw(pool, amount, msg.sender);

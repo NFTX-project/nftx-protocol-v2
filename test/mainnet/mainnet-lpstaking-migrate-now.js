@@ -300,6 +300,26 @@ describe("LP Staking Upgrade Migrate Test", function () {
     expect(newBal).to.equal(oldBal.add(ethers.utils.parseEther("2.666125390411983827")));
   });
 
+  it("Should not allow someone who isnt founder to admin butn xSLP", async () => {
+    await staking.updatePoolForVault(101);
+    let newDisttoken = await staking.newRewardDistributionToken(101);
+    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
+    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
+    await expectException(staking.connect(kiwi).adminBurn(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827")), "Not authed");
+    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
+    expect(oldBal).to.equal(newBal);
+  });
+  
+  it("Should allow to founder to admin burn xSLP", async () => {
+    await staking.updatePoolForVault(101);
+    let newDisttoken = await staking.newRewardDistributionToken(101);
+    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
+    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
+    await staking.connect(founder).adminBurn(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827"));
+    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
+    expect(newBal).to.equal(oldBal.sub(ethers.utils.parseEther("2.666125390411983827")));
+  });
+
   it("Should upgrade the vault contract", async () => {
     let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
     let newVault = await NewVault.deploy();
