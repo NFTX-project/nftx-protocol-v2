@@ -66,7 +66,6 @@ contract NFTXLPStaking is PausableUpgradeable {
         stakingTokenProvider = StakingTokenProvider(newProvider);
     }
 
-    // Consider changing LP staking to take vault id into consideration, and access data from there.
     function addPoolForVault(uint256 vaultId) external onlyAdmin {
         require(address(nftxVaultFactory) != address(0), "LPStaking: Factory not set");
         require(vaultStakingInfo[vaultId].stakingToken == address(0), "LPStaking: Pool already exists");

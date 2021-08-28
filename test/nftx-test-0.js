@@ -436,12 +436,6 @@ describe("Main", function () {
     expect(await erc1155.balanceOf(alice.address, swapId)).to.equal(1);
   });
 
-  it("Should allow me to swap random ERC1155", async () => {
-    expect(await erc1155.balanceOf(alice.address, swapId)).to.equal(1);
-    await vaults[1].connect(alice).swap([swapId], [1], []);
-    expect(await erc1155.balanceOf(alice.address, swapId)).to.equal(0);
-  });
-
   it("Should allow upgrading the factory", async () => {
     const TestFactoryUpgrade = await ethers.getContractFactory(
       "TestFactoryUpgrade"
@@ -455,6 +449,12 @@ describe("Main", function () {
     expect(await upgraded.isUpgraded()).to.equal(true);
   });
 
+  it("Should allow me to swap random ERC1155", async () => {
+    expect(await erc1155.balanceOf(alice.address, swapId)).to.equal(1);
+    await vaults[1].connect(alice).swap([swapId], [1], []);
+    expect(await erc1155.balanceOf(alice.address, swapId)).to.equal(0);
+  });
+  
   it("Should allow upgrading the vaults", async () => {
     const TestVaultUpgrade = await ethers.getContractFactory(
       "TestVaultUpgrade"

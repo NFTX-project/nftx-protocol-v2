@@ -3,9 +3,10 @@
 pragma solidity ^0.8.0;
 
 import "../interface/INFTXEligibility.sol";
+import "../token/IERC20Upgradeable.sol";
 import "../interface/INFTXVaultFactory.sol";
 
-interface INFTXVault {
+interface INFTXVault is IERC20Upgradeable {
     function manager() external returns (address);
     function assetAddress() external returns (address);
     function vaultFactory() external returns (INFTXVaultFactory);
@@ -21,9 +22,9 @@ interface INFTXVault {
     function nftIdAt(uint256 holdingsIndex) external view returns (uint256);
     function allHoldings() external view returns (uint256[] memory);
     function totalHoldings() external view returns (uint256);
-    function mintFee() external returns (uint256);
-    function randomRedeemFee() external returns (uint256);
-    function targetRedeemFee() external returns (uint256);
+    function mintFee() external view returns (uint256);
+    function randomRedeemFee() external view returns (uint256);
+    function targetRedeemFee() external view returns (uint256);
 
     event VaultInit(
         uint256 indexed vaultId,
@@ -76,9 +77,9 @@ interface INFTXVault {
     ) external;
 
     function setFees(
-        uint256 _mintFee,
-        uint256 _randomRedeemFee,
-        uint256 _targetRedeemFee
+        uint64 _mintFee,
+        uint64 _randomRedeemFee,
+        uint64 _targetRedeemFee
     ) external;
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
