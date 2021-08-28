@@ -45,13 +45,14 @@ interface INFTXVault is IERC20Upgradeable {
     event RandomRedeemFeeUpdated(uint256 randomRedeemFee);
     event TargetRedeemFeeUpdated(uint256 targetRedeemFee);
 
-    event Minted(uint256[] nftIds, uint256[] amounts, address to);
-    event Redeemed(uint256[] nftIds, uint256[] specificIds, address to);
+    event Minted(uint256[] nftIds, uint256[] amounts, uint256 feesCharged, address to);
+    event Redeemed(uint256[] nftIds, uint256[] specificIds, uint256 feesCharged, address to);
     event Swapped(
         uint256[] nftIds,
         uint256[] amounts,
         uint256[] specificIds,
         uint256[] redeemedIds,
+        uint256 feesCharged,
         address to
     );
 

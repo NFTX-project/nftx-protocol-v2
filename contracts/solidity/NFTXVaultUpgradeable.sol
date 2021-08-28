@@ -193,7 +193,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = mintFee() * count;
         _chargeAndDistributeFees(to, totalFee);
 
-        emit Minted(tokenIds, amounts, to);
+        emit Minted(tokenIds, amounts, totalFee, to);
         return count;
     }
 
@@ -226,7 +226,7 @@ contract NFTXVaultUpgradeable is
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
-        emit Redeemed(redeemedIds, specificIds, to);
+        emit Redeemed(redeemedIds, specificIds, totalFee, to);
         return redeemedIds;
     }
     
@@ -246,9 +246,18 @@ contract NFTXVaultUpgradeable is
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
         require(enableMint && (enableRandomRedeem || enableTargetRedeem), "NFTXVault: Mint & Redeem enabled");
-        // Take the NFTs first, so the user has a chance of rerolling the same.
-        // This is intentional so this action mirrors how minting/redeeming manually would work. 
-        uint256 count = receiveNFTs(tokenIds, amounts);
+
+        uint256 count;
+        if (is1155) {
+            for (uint256 i = 0; i < tokenIds.length; i++) {
+                uint256 tokenId = tokenIds[i];
+                uint256 amount = amounts[i];
+                require(amount > 0, "NFTXVault: transferring < 1");
+                count += amount;
+            }
+        } else {
+            count = tokenIds.length;
+        }
         
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
@@ -257,9 +266,12 @@ contract NFTXVaultUpgradeable is
         );
         _chargeAndDistributeFees(msg.sender, redeemFee);
         
-        // Withdraw from vault.
+        // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
-        emit Swapped(tokenIds, amounts, specificIds, ids, to);
+
+        receiveNFTs(tokenIds, amounts);
+
+        emit Swapped(tokenIds, amounts, specificIds, ids, redeemFee, to);
         return ids;
     }
 
