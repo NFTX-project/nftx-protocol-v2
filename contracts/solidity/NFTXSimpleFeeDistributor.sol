@@ -19,7 +19,6 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   address public override nftxVaultFactory;
   address public override lpStaking;
   address public override treasury;
-  uint256 private constant threshold = 10**9;
 
   // Total allocation points per vault. 
   uint256 public override allocTotal;
@@ -40,8 +39,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     setTreasuryAddress(_treasury);
     setLPStakingAddress(_lpStaking);
 
-    _addReceiver(0, _treasury, true);
-    _addReceiver(0.5 ether, lpStaking, true);
+    _addReceiver(0.8 ether, lpStaking, true);
   }
 
   function distribute(uint256 vaultId) external override virtual nonReentrant {
@@ -55,17 +53,12 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       return;
     } 
 
-    if (tokenBalance <= threshold) {
-      return;
-    }
-    // Leave some balance for dust since we know we have more than 10**9.
-    tokenBalance -= 1000;
-
     uint256 length = feeReceivers.length;
     for (uint256 i = 0; i < length; i++) {
       FeeReceiver memory _feeReceiver = feeReceivers[i];
       uint256 amountToSend = tokenBalance * _feeReceiver.allocPoint / allocTotal;
-      amountToSend = amountToSend > tokenBalance ? tokenBalance : amountToSend;
+      uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
+      amountToSend = amountToSend > currentTokenBalance ? currentTokenBalance : amountToSend;
       _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
     }
   }
@@ -142,7 +135,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 _tokenBalance) internal virtual {
     uint256 amountToSend = _tokenBalance * _receiver.allocPoint / allocTotal;
     // If we're at this point we know we have more than enough to perform this safely.
-    uint256 balance = IERC20Upgradeable(_vault).balanceOf(address(this)) - 1000;
+    uint256 balance = IERC20Upgradeable(_vault).balanceOf(address(this));
     amountToSend = amountToSend > balance ? balance : amountToSend;
 
     if (_receiver.isContract) {

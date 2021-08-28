@@ -234,7 +234,7 @@ describe("LP Staking", function () {
 
   it("Should allow withdraw from the distribution contract", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardDistToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardDistToken.balanceOf(alice.address);
     await staking.connect(alice).withdraw(id, bal.div(2));
@@ -260,7 +260,7 @@ describe("LP Staking", function () {
 
   it("Should not allow withdrawing normally after change", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardToken.balanceOf(alice.address);
     await rewardToken.connect(alice).approve(staking.address, bal);
@@ -269,7 +269,7 @@ describe("LP Staking", function () {
 
   it("Should allow emergency withdrawing normally after change", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardToken.balanceOf(alice.address);
     await rewardToken.connect(alice).approve(staking.address, bal);
