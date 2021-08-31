@@ -22,7 +22,6 @@ contract ERC721SafeHolderUpgradeable is IERC721ReceiverUpgradeable {
         uint256,
         bytes memory
     ) public virtual override returns (bytes4) {
-        require(operator == address(this), "Operator not vault");
         return this.onERC721Received.selector;
     }
 }
