@@ -184,14 +184,6 @@ describe("Main", function () {
       .transferFrom(alice.address, primary.address, tokenId);
   });
 
-  it("Should not allow someone to arbitrarily send an NFT", async () => {
-    const primaryNFT = erc721.connect(primary)
-    await expectException(
-      primaryNFT["safeTransferFrom(address,address,uint256)"](primary.address, vaults[0].address, 0),
-      "Operator not vault"
-    );
-  });
-
   it("Should not allow guardian to unpause", async () => {
     await expectRevert(nftx.connect(alice).unpause(1));
     expect(await nftx.isPaused(1)).to.equal(true);
