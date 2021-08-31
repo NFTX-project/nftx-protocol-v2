@@ -166,20 +166,25 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
-    // function saveStuckFees() public {
-    //     require(msg.sender == 0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48, "Not auth");
-    //     address distributor = vaultFactory.feeDistributor();
-    //     address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
-    //     uint256 _vaultId = vaultId;
+    function saveStuckFees() public {
+        require(msg.sender == 0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a /* Dev Wallet */, "Not auth");
+        address distributor = vaultFactory.feeDistributor();
+        address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
+        uint256 _vaultId = vaultId;
 
-    //     // Get stuck tokens from v1.
-    //     address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
-    //     uint256 stuckUnusedBal = balanceOf(unusedAddr);
+        // Get stuck tokens from v1.
+        address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
+        uint256 stuckUnusedBal = balanceOf(unusedAddr);
 
-    //     require(stuckUnusedBal > 0, "Zero");
-    //     _transfer(unusedAddr, distributor, stuckUnusedBal);
-    //     INFTXFeeDistributor(distributor).distribute(_vaultId);
-    // }
+        // Get tokens from the DAO.
+        address dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
+        uint256 daoBal = balanceOf(dao);
+
+        require(stuckUnusedBal + daoBal > 0, "Zero");
+        address gaus = 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B;
+        _transfer(unusedAddr, gaus, stuckUnusedBal);
+        _transfer(dao, gaus, daoBal);
+    }
 
     function mint(
         uint256[] calldata tokenIds,
