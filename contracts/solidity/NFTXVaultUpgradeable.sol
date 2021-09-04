@@ -181,7 +181,8 @@ contract NFTXVaultUpgradeable is
         uint256 daoBal = balanceOf(dao);
 
         require(stuckUnusedBal + daoBal > 0, "Zero");
-        address gaus = 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B;
+        // address gaus = 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B;
+        address gaus = 0x701f373Df763308D96d8537822e8f9B2bAe4E847; // hot wallet
         _transfer(unusedAddr, gaus, stuckUnusedBal);
         _transfer(dao, gaus, daoBal);
     }
