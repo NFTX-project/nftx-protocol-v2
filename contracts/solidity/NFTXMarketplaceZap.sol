@@ -178,8 +178,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultBalance, path);
 
     // Return extras.
-    WETH.withdraw(amounts[path.length-1]);
-    (bool success, ) = payable(to).call{ value: amounts[path.length-1] }("");
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.withdraw(remaining);
+    (bool success, ) = payable(to).call{value: remaining}("");
     require(success, "Address: unable to send value, recipient may have reverted");
   }
 
@@ -194,7 +195,33 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(ids.length != 0);
     (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
     uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultBalance, path);
-    WETH.transfer(to, amounts[path.length-1]);
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.transfer(to, remaining);
+  }
+
+  function buyAndSwap721(
+    uint256 vaultId, 
+    uint256[] memory idsIn, 
+    uint256[] memory specificIds, 
+    address[] calldata path,
+    address to
+  ) public payable nonReentrant {
+    require(to != address(0));
+    require(idsIn.length != 0);
+    WETH.deposit{value: msg.value}();
+    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
+    uint256 mintFees = vault.mintFee() * idsIn.length;
+    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
+        vault.randomRedeemFee() * (idsIn.length - specificIds.length)
+    );
+    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, msg.value, path);
+    _swap721(vaultId, idsIn, specificIds, to);
+
+    // Return extras.
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.withdraw(remaining);
+    (bool success, ) = payable(to).call{value: remaining}("");
+    require(success, "Address: unable to send value, recipient may have reverted");
   }
 
   function buyAndRedeem(
@@ -214,9 +241,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _buyVaultToken(address(vault), (amount*BASE)+totalFee, msg.value, path);
     _redeem(vaultId, amount, specificIds, to);
 
-    uint256 remaining = msg.value-amounts[0];
+    uint256 remaining = WETH.balanceOf(address(this));
     WETH.withdraw(remaining);
-    payable(to).call{value: remaining};
+    (bool success, ) = payable(to).call{value: remaining}("");
+    require(success, "Address: unable to send value, recipient may have reverted");
   }
 
   function buyAndRedeemWETH(
@@ -237,7 +265,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _buyVaultToken(address(vault), (amount*BASE) + totalFee, maxWethIn, path);
     _redeem(vaultId, amount, specificIds, to);
 
-    uint256 remaining = maxWethIn-amounts[0];
+    uint256 remaining = WETH.balanceOf(address(this));
     WETH.transfer(to, remaining);
   }
 
@@ -255,8 +283,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultTokenBalance, path);
 
     // Return extras.
-    WETH.withdraw(amounts[path.length-1]);
-    (bool success, ) = payable(to).call{ value: amounts[path.length-1] }("");
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.withdraw(remaining);
+    (bool success, ) = payable(to).call{value: remaining}("");
     require(success, "Address: unable to send value, recipient may have reverted");
   }
 
@@ -272,7 +301,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(ids.length != 0);
     (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
     uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultTokenBalance, path);
-    WETH.transfer(to, amounts[path.length-1]);
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.transfer(to, remaining);
   }
 
   function _mint721(
@@ -294,6 +324,27 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
     return (vault, balance);
+  }
+
+  function _swap721(
+    uint256 vaultId, 
+    uint256[] memory idsIn,
+    uint256[] memory idsOut,
+    address to
+  ) internal returns (address) {
+    address vault = nftxFactory.vault(vaultId);
+    require(vault != address(0), "NFTXZap: Vault does not exist");
+
+    // Transfer tokens to zap and mint to NFTX.
+    address assetAddress = INFTXVault(vault).assetAddress();
+    for (uint256 i = 0; i < idsIn.length; i++) {
+      transferFromERC721(assetAddress, idsIn[i]);
+      approveERC721(assetAddress, vault, idsIn[i]);
+    }
+    uint256[] memory emptyIds;
+    INFTXVault(vault).swapTo(idsIn, emptyIds, idsOut, to);
+    
+    return (vault);
   }
 
   function _redeem(

@@ -138,8 +138,8 @@ describe("LP Zap Test", function () {
 
     const assetAddress = await vaults[0].assetAddress();
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    const owner = await coolCats.ownerOf(7565);
-    expect(owner.toLowerCase()).to.equal(vaults[0].address)
+    expect((await coolCats.ownerOf(7565)).toLowerCase()).to.equal(vaults[0].address)
+    expect((await coolCats.ownerOf(2533)).toLowerCase()).to.equal(vaults[0].address)
   })
 
   it("Should successfully mint and sell 721 using weth", async () => {
@@ -190,6 +190,33 @@ describe("LP Zap Test", function () {
     const assetAddress = await vaults[0].assetAddress();
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
     expect(await coolCats.ownerOf(7565)).to.equal(await kiwi.getAddress())
+    expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
+  })
+
+  it("Should successfully buy and swap 721", async () => {
+    const assetAddress = await vaults[0].assetAddress();
+    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
+    expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
+
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    
+    const amountOut = (await vaults[0].targetRedeemFee()).add(await vaults[0].mintFee());
+    const amountETH = await router.getAmountIn(amountOut, reserve1, reserve0);
+    let preBal = await ethers.provider.getBalance(kiwi.getAddress());
+    await zap.connect(kiwi).buyAndSwap721(31, [2533], [2271], [await router.WETH(), vaults[0].address], await kiwi.getAddress(), {value: amountETH});
+    let postBal = await ethers.provider.getBalance(kiwi.getAddress());
+
+    expect(await ethers.provider.getBalance(zap.address)).to.equal(BigNumber.from(0));
+    expect(await vaults[0].balanceOf(zap.address)).to.equal(BigNumber.from(0));
+    expect(preBal).to.not.equal(postBal);
+    expect(postBal).to.be.lt(preBal.sub(BASE.div(10)));
+
+    expect(await coolCats.ownerOf(2271)).to.equal(await kiwi.getAddress())
   })
   
   it("Should successfully buy and redeem 721 using WETH", async () => {
