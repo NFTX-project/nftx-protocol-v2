@@ -280,6 +280,37 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(success, "Address: unable to send value, recipient may have reverted");
   }
 
+  function buyAndSwap1155WETH(
+    uint256 vaultId, 
+    uint256[] memory idsIn, 
+    uint256[] memory amounts, 
+    uint256[] memory specificIds, 
+    uint256 maxWethIn, 
+    address[] calldata path,
+    address to
+  ) public payable nonReentrant {
+    require(to != address(0));
+    require(idsIn.length != 0);
+    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
+    uint256 count;
+    for (uint256 i = 0; i < idsIn.length; i++) {
+        uint256 amount = amounts[i];
+        require(amount > 0, "Transferring < 1");
+        count += amount;
+    }
+    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
+    uint256 mintFees = vault.mintFee() * count;
+    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
+        vault.randomRedeemFee() * (count - specificIds.length)
+    );
+    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, msg.value, path);
+    _swap1155(vaultId, idsIn, amounts, specificIds, to);
+
+    // Return extras.
+    uint256 remaining = WETH.balanceOf(address(this));
+    WETH.transfer(to, remaining);
+  }
+
   function buyAndRedeem(
     uint256 vaultId, 
     uint256 amount,
