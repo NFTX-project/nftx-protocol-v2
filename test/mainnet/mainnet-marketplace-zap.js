@@ -262,17 +262,10 @@ describe("LP Zap Test", function () {
       .find((elem) => elem.event === "NewVault")
       .args[0].toString();
     const vaultAddr = await nftx.vault(nft1155Id);
-    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [10, 10, 10, 5]);
+    await noPool1155NFT.connect(kiwi).publicMintBatch(kiwi.getAddress(), [0, 1, 2, 3], [15, 15, 15, 10]);
     let new1155Vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaultAddr);
     vaults.push(new1155Vault)
   });
-
-  // it("Should add mint some for 1155", async () => {
-  //   await noPool1155NFT.connect(kiwi).setApprovalForAll(zap.address, true);
-  //   await vaults[1].connect(kiwi).approve(zap.address, BASE.mul(1000))
-  //   await noPool1155NFT.connect(kiwi).setApprovalForAll(vaults[1].address, true);
-  //   await vaults[1].connect(kiwi).mint([3], [4])
-  // });
 
   it("Should add liquidity with 1155 using weth with no pool", async () => {
     const amountETH = ethers.utils.parseEther("1.0");
@@ -287,11 +280,34 @@ describe("LP Zap Test", function () {
     await stakingZap.connect(kiwi).addLiquidity1155(nft1155Id, [0, 1, 2], [5, 5, 5], amountETH, amountETH)
   });
 
-  it("Should successfully mint and sell 115", async () => {
+  it("Should successfully mint and sell 1155", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
     await noPool1155NFT.connect(kiwi).setApprovalForAll(zap.address, true);
     let preBal = await ethers.provider.getBalance(kiwi.getAddress());
     await zap.connect(kiwi).mintAndSell1155(nft1155Id, [3], [4], 1, [vaults[1].address, await router.WETH()], kiwi.getAddress());
+    let postBal = await ethers.provider.getBalance(kiwi.getAddress());
+    expect(preBal).to.not.equal(postBal);
+    expect(postBal).to.be.gt(preBal);
+
+    const bal = await noPool1155NFT.balanceOf(vaults[1].address, 3);
+    expect(bal).to.equal(4)
+  })
+
+  it("Should successfully swap and buy 1155", async () => {
+    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    const WETH = await router.WETH();
+    const stakingProvider = await ethers.getContractAt("StakingTokenProvider", "0x5fAD0e4cc9925365b9B0bbEc9e0C3536c0B1a5C7");
+
+    const pair = await ethers.getContractAt("IUniswapV2Pair", await stakingProvider.pairForVaultToken(vaults[1].address, WETH))
+    const {
+      reserve0,
+      reserve1,
+    } = await pair.getReserves();
+    const amountOut = ((await vaults[1].targetRedeemFee()).mul(3)).add((await vaults[1].mintFee()).mul(4)).add(await vaults[1].randomRedeemFee());
+    const amountETH = await router.getAmountIn(amountOut, reserve0, reserve1);
+
+    let preBal = await ethers.provider.getBalance(kiwi.getAddress());
+    await zap.connect(kiwi).buyAndSwap1155(nft1155Id, [0, 1], [2, 2], [0, 0, 1], [await router.WETH(), vaults[1].address], kiwi.getAddress(), {value: amountETH});
     let postBal = await ethers.provider.getBalance(kiwi.getAddress());
     expect(preBal).to.not.equal(postBal);
     expect(postBal).to.be.gt(preBal);
