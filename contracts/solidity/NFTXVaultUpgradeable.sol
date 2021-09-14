@@ -18,8 +18,6 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/EnumerableSetUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 // Authors: @0xKiwi_ and @alexgausman.
 
 contract NFTXVaultUpgradeable is
@@ -260,7 +258,6 @@ contract NFTXVaultUpgradeable is
         uint256 redeemFee = (targetRedeemFee * specificIds.length) + (
             randomRedeemFee * (count - specificIds.length)
         );
-        console.log(redeemFee);
         _chargeAndDistributeFees(msg.sender, redeemFee);
         
         // Withdraw from vault.

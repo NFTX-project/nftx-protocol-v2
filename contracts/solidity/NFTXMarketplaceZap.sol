@@ -15,8 +15,6 @@ import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 // Authors: @0xKiwi_.
 
 interface IWETH {
@@ -269,10 +267,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (count - specificIds.length)
     );
-    for (uint i = 0; i < idsIn.length; i++) {
-      console.log(idsIn[i]);
-      console.log(amounts[i]);
-    }
     _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
 
@@ -305,10 +299,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (count - specificIds.length)
     );
-    for (uint i = 0; i < idsIn.length; i++) {
-      console.log(idsIn[i]);
-      console.log(amounts[i]);
-    }
     _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
 
@@ -454,7 +444,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), idsIn, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
-    console.log(IERC20Upgradeable(vault).balanceOf(address(this)));
     INFTXVault(vault).swapTo(idsIn, amounts, idsOut, to);
     
     return (vault);
