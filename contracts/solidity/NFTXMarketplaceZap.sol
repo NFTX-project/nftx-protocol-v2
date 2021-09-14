@@ -15,6 +15,8 @@ import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 
+import "hardhat/console.sol";
+
 // Authors: @0xKiwi_.
 
 interface IWETH {
@@ -210,11 +212,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(idsIn.length != 0);
     WETH.deposit{value: msg.value}();
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 mintFees = vault.mintFee() * idsIn.length;
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (idsIn.length - specificIds.length)
     );
-    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, msg.value, path);
+    uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap721(vaultId, idsIn, specificIds, to);
 
     // Return extras.
@@ -236,11 +237,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(idsIn.length != 0);
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 mintFees = vault.mintFee() * idsIn.length;
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (idsIn.length - specificIds.length)
     );
-    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, maxWethIn, path);
+    uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, maxWethIn, path);
     _swap721(vaultId, idsIn, specificIds, to);
 
     // Return extras.
@@ -266,11 +266,14 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
         count += amount;
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 mintFees = vault.mintFee() * count;
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (count - specificIds.length)
     );
-    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, msg.value, path);
+    for (uint i = 0; i < idsIn.length; i++) {
+      console.log(idsIn[i]);
+      console.log(amounts[i]);
+    }
+    _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
 
     // Return extras.
@@ -299,11 +302,14 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
         count += amount;
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 mintFees = vault.mintFee() * count;
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (count - specificIds.length)
     );
-    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, msg.value, path);
+    for (uint i = 0; i < idsIn.length; i++) {
+      console.log(idsIn[i]);
+      console.log(amounts[i]);
+    }
+    _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
 
     // Return extras.
@@ -448,6 +454,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), idsIn, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+    console.log(IERC20Upgradeable(vault).balanceOf(address(this)));
     INFTXVault(vault).swapTo(idsIn, amounts, idsOut, to);
     
     return (vault);

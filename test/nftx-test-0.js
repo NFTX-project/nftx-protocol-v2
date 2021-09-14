@@ -173,7 +173,7 @@ describe("Main", function () {
   it("Should not allow minting after pausing", async () => {
     const tokenId = 0;
     await erc721.transferFrom(primary.address, alice.address, tokenId);
-    expect(await -erc721.balanceOf(alice.address)).to.equal(1);
+    expect(await erc721.balanceOf(alice.address)).to.equal(1);
     await erc721.connect(alice).approve(vaults[0].address, tokenId);
     await expectRevert(vaults[0].connect(alice).mint([tokenId], [1]));
     expect(await erc721.balanceOf(alice.address)).to.equal(1);

@@ -18,6 +18,8 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/EnumerableSetUpgradeable.sol";
 
+import "hardhat/console.sol";
+
 // Authors: @0xKiwi_ and @alexgausman.
 
 contract NFTXVaultUpgradeable is
@@ -166,27 +168,6 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
-    function saveStuckFees() public {
-        require(msg.sender == 0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a /* Dev Wallet */, "Not auth");
-        address distributor = vaultFactory.feeDistributor();
-        address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
-        uint256 _vaultId = vaultId;
-
-        // Get stuck tokens from v1.
-        address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
-        uint256 stuckUnusedBal = balanceOf(unusedAddr);
-
-        // Get tokens from the DAO.
-        address dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
-        uint256 daoBal = balanceOf(dao);
-
-        require(stuckUnusedBal + daoBal > 0, "Zero");
-        // address gaus = 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B;
-        address gaus = 0x701f373Df763308D96d8537822e8f9B2bAe4E847; // hot wallet
-        _transfer(unusedAddr, gaus, stuckUnusedBal);
-        _transfer(dao, gaus, daoBal);
-    }
-
     function mint(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts /* ignored for ERC721 vaults */
@@ -262,20 +243,30 @@ contract NFTXVaultUpgradeable is
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
         require(enableMint && (enableRandomRedeem || enableTargetRedeem), "NFTXVault: Mint & Redeem enabled");
-        // Take the NFTs first, so the user has a chance of rerolling the same.
-        // This is intentional so this action mirrors how minting/redeeming manually would work. 
-        uint256 count = receiveNFTs(tokenIds, amounts);
         
+        uint256 count;
+        if (is1155) {
+            for (uint256 i = 0; i < tokenIds.length; i++) {
+                uint256 amount = amounts[i];
+                require(amount > 0, "NFTXVault: transferring < 1");
+                count += amount;
+            }
+        } else {
+            count = tokenIds.length;
+        }
+
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
         uint256 redeemFee = (targetRedeemFee * specificIds.length) + (
             randomRedeemFee * (count - specificIds.length)
         );
-        uint256 totalFee = (mintFee * count) + redeemFee;
-        _chargeAndDistributeFees(msg.sender, totalFee);
+        console.log(redeemFee);
+        _chargeAndDistributeFees(msg.sender, redeemFee);
         
         // Withdraw from vault.
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
+        receiveNFTs(tokenIds, amounts);
+
         emit Swapped(tokenIds, amounts, specificIds, ids, to);
         return ids;
     }
@@ -373,6 +364,7 @@ contract NFTXVaultUpgradeable is
             address _assetAddress = assetAddress;
             for (uint256 i = 0; i < tokenIds.length; i++) {
                 uint256 tokenId = tokenIds[i];
+                // To add pulling. Make sure the vault can't allow the same NFT to be minted multiple times.
                 transferFromERC721(_assetAddress, tokenId);
                 holdings.add(tokenId);
             }

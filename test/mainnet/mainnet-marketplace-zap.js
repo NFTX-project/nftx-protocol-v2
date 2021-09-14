@@ -96,6 +96,13 @@ describe("LP Zap Test", function () {
     await nftx.connect(dao).setZapContract(stakingZap.address);
   });
 
+  it("Should upgrade to new vault", async () => {
+    const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable")
+    const vault = await Vault.deploy();
+    await vault.deployed();
+    await nftx.connect(dao).upgradeChildTo(vault.address);
+  })
+
   it("Should enable fee distribution", async () => {
     await feeDistrib.connect(dao).pauseFeeDistribution(false);
   });
@@ -306,14 +313,18 @@ describe("LP Zap Test", function () {
     const amountOut = ((await vaults[1].targetRedeemFee()).mul(3)).add((await vaults[1].mintFee()).mul(4)).add(await vaults[1].randomRedeemFee());
     const amountETH = await router.getAmountIn(amountOut, reserve0, reserve1);
 
+    const oldbal0 = await noPool1155NFT.balanceOf(kiwi.getAddress(), 0);
+
     let preBal = await ethers.provider.getBalance(kiwi.getAddress());
-    await zap.connect(kiwi).buyAndSwap1155(nft1155Id, [0, 1], [2, 2], [0, 0, 1], [await router.WETH(), vaults[1].address], kiwi.getAddress(), {value: amountETH});
+    await zap.connect(kiwi).buyAndSwap1155(nft1155Id, [0, 1], [2, 2], [0, 0, 0], [await router.WETH(), vaults[1].address], kiwi.getAddress(), {value: amountETH});
     let postBal = await ethers.provider.getBalance(kiwi.getAddress());
     expect(preBal).to.not.equal(postBal);
-    expect(postBal).to.be.gt(preBal);
+    expect(postBal).to.be.lt(preBal);
 
     const bal = await noPool1155NFT.balanceOf(vaults[1].address, 3);
     expect(bal).to.equal(4)
+    const bal0 = await noPool1155NFT.balanceOf(kiwi.getAddress(), 0);
+    expect(bal0).to.equal(oldbal0.add(1))
   })
 
 });
