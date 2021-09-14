@@ -40,7 +40,6 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     setTreasuryAddress(_treasury);
     setLPStakingAddress(_lpStaking);
 
-    _addReceiver(0, _treasury, true);
     _addReceiver(0.5 ether, lpStaking, true);
   }
 

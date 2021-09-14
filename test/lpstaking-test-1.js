@@ -165,7 +165,7 @@ describe("LP Staking", function () {
     const depositBal = bal.div(100);
     const id = await vaults[0].vaultId();
     await vaults[0].connect(alice).approve(staking.address, depositBal);
-    await expectRevert(staking.connect(alice).depositFor(id, depositBal, alice.address));
+    await expectRevert(staking.connect(alice).timelockDepositFor(id, alice.address, depositBal, 172800));
   })
 
   it("Should allow staking into the fee distribution contract", async () => {
@@ -176,7 +176,7 @@ describe("LP Staking", function () {
     await staking.connect(alice).deposit(id, depositBal);
     const newBal = await vaults[0].balanceOf(alice.address);
     expect(newBal).to.equal(bal.sub(depositBal));
-    let distToken = await staking.rewardDistributionToken(id)
+    let distToken = await staking.newRewardDistributionToken(id)
     const rewardDist = await ethers.getContractAt("RewardDistributionTokenUpgradeable", distToken);
     const total = await rewardDist.totalSupply();
     expect(total).to.equal(depositBal);
@@ -194,6 +194,15 @@ describe("LP Staking", function () {
     expect(await vaults[0].enableRandomRedeem()).to.eq(false);
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
   });
+
+  it("Should allow adding arbitrary receivers to distributor", async () => { 
+    await feeDistrib.connect(primary).addReceiver(ethers.utils.parseEther("0.1"), bob.address, false);
+    const receiver = await feeDistrib.feeReceivers(1);
+    expect(receiver.receiver).to.equal(bob.address);
+    expect(receiver.isContract).to.equal(false);
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.equal(0)
+  })
 
   it("Should allow direct redeeming one at a time by alice", async () => {
     const fee = BigNumber.from(10).pow(17);
@@ -232,9 +241,14 @@ describe("LP Staking", function () {
     expect(bal).to.gt(BASE.div(2));
   })
 
+  it("Should distribute rewards to other receiver", async () => {
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.gt(100000);
+  })
+
   it("Should allow withdraw from the distribution contract", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardDistToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardDistToken.balanceOf(alice.address);
     await staking.connect(alice).withdraw(id, bal.div(2));
@@ -260,7 +274,7 @@ describe("LP Staking", function () {
 
   it("Should not allow withdrawing normally after change", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardToken.balanceOf(alice.address);
     await rewardToken.connect(alice).approve(staking.address, bal);
@@ -269,7 +283,7 @@ describe("LP Staking", function () {
 
   it("Should allow emergency withdrawing normally after change", async () => {
     const id = await vaults[0].vaultId();
-    const rewardAddr = await staking.rewardDistributionToken(id);
+    const rewardAddr = await staking.newRewardDistributionToken(id);
     const rewardToken = await ethers.getContractAt("IERC20Upgradeable", rewardAddr);
     const bal = await rewardToken.balanceOf(alice.address);
     await rewardToken.connect(alice).approve(staking.address, bal);

@@ -91,11 +91,11 @@ contract NFTXLPStaking is PausableUpgradeable {
         require(pool.stakingToken != address(0), "LPStaking: Pool doesn't exist");
         address _stakingToken = stakingTokenProvider.stakingTokenForVaultToken(pool.rewardToken);
         // If the pool is already deployed, ignore the update.
-        address addr = address(_rewardDistributionTokenAddr(pool));
+        StakingPool memory newPool = StakingPool(_stakingToken, pool.rewardToken);
+        address addr = address(_rewardDistributionTokenAddr(newPool));
         if (isContract(addr)) {
             return;
         }
-        StakingPool memory newPool = StakingPool(_stakingToken, pool.rewardToken);
         vaultStakingInfo[vaultId] = newPool;
         address newRewardDistToken = _deployDividendToken(newPool);
         emit PoolUpdated(vaultId, newRewardDistToken);
