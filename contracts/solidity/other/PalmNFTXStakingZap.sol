@@ -2,18 +2,18 @@
 
 pragma solidity ^0.8.0;
 
-import "./interface/INFTXVault.sol";
-import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXFeeDistributor.sol";
-import "./interface/INFTXLPStaking.sol";
-import "./interface/ITimelockRewardDistributionToken.sol";
-import "./interface/IUniswapV2Router01.sol";
-import "./testing/IERC721.sol";
-import "./token/IERC1155Upgradeable.sol";
-import "./token/IERC20Upgradeable.sol";
-import "./token/ERC721HolderUpgradeable.sol";
-import "./token/ERC1155HolderUpgradeable.sol";
-import "./util/OwnableUpgradeable.sol";
+import "../interface/INFTXVault.sol";
+import "../interface/INFTXVaultFactory.sol";
+import "../interface/INFTXFeeDistributor.sol";
+import "../interface/INFTXLPStaking.sol";
+import "../interface/ITimelockRewardDistributionToken.sol";
+import "../interface/IUniswapV2Router01.sol";
+import "../testing/IERC721.sol";
+import "../token/IERC1155Upgradeable.sol";
+import "../token/IERC20Upgradeable.sol";
+import "../token/ERC721HolderUpgradeable.sol";
+import "../token/ERC1155HolderUpgradeable.sol";
+import "../util/OwnableUpgradeable.sol";
 
 // Authors: @0xKiwi_.
 
@@ -148,8 +148,8 @@ abstract contract Ownable {
     }
 }
 
-contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
-  IWETH public immutable WETH; 
+contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+  IERC20Upgradeable public immutable pairedToken; 
   INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
@@ -159,73 +159,18 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
 
-  constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
+  constructor(address _nftxFactory, address _sushiRouter, address _pairedToken) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
-    WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
-    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
+    pairedToken = IERC20Upgradeable(_pairedToken);
+    IERC20Upgradeable(address(_pairedToken)).approve(_sushiRouter, type(uint256).max);
   }
 
   function setLockTime(uint256 newLockTime) external onlyOwner {
     require(newLockTime <= 7 days, "Lock too long");
     lockTime = newLockTime;
   } 
-
-  function addLiquidity721ETH(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256 minWethIn
-  ) public payable returns (uint256) {
-    return addLiquidity721ETHTo(vaultId, ids, minWethIn, msg.sender);
-  }
-
-  function addLiquidity721ETHTo(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256 minWethIn,
-    address to
-  ) public payable nonReentrant returns (uint256) {
-    WETH.deposit{value: msg.value}();
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value, to);
-
-    // Return extras.
-    if (amountEth < msg.value) {
-      WETH.withdraw(msg.value-amountEth);
-      payable(to).call{value: msg.value-amountEth};
-    }
-
-    return liquidity;
-  }
-
-  function addLiquidity1155ETH(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256[] memory amounts,
-    uint256 minEthIn
-  ) public payable returns (uint256) {
-    return addLiquidity1155ETHTo(vaultId, ids, amounts, minEthIn, msg.sender);
-  }
-
-  function addLiquidity1155ETHTo(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256[] memory amounts,
-    uint256 minEthIn,
-    address to
-  ) public payable nonReentrant returns (uint256) {
-    WETH.deposit{value: msg.value}();
-    // Finish this.
-    (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value, to);
-
-    // Return extras.
-    if (amountEth < msg.value) {
-      WETH.withdraw(msg.value-amountEth);
-      payable(to).call{value: msg.value-amountEth};
-    }
-
-    return liquidity;
-  }
 
   function addLiquidity721(
     uint256 vaultId, 
@@ -243,12 +188,12 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) public nonReentrant returns (uint256) {
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
+    pairedToken.transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn, to);
 
     // Return extras.
     if (amountEth < wethIn) {
-      WETH.transfer(to, wethIn-amountEth);
+      pairedToken.transfer(to, wethIn-amountEth);
     }
 
     return liquidity;
@@ -272,12 +217,12 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) public nonReentrant returns (uint256) {
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
+    pairedToken.transferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn, to);
 
     // Return extras.
     if (amountEth < wethIn) {
-      WETH.transfer(to, wethIn-amountEth);
+      pairedToken.transfer(to, wethIn-amountEth);
     }
 
     return liquidity;
@@ -354,7 +299,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
       address(vault), 
-      sushiRouter.WETH(),
+      address(pairedToken),
       minTokenIn, 
       wethIn, 
       minTokenIn,
@@ -364,7 +309,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     );
 
     // Stake in LP rewards contract 
-    address lpToken = pairFor(vault, address(WETH));
+    address lpToken = pairFor(vault, address(pairedToken));
     IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lockTime);
     
@@ -378,24 +323,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function transferFromERC721(address assetAddr, uint256 tokenId) internal virtual {
-    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
-    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-    bytes memory data;
-    if (assetAddr == kitties) {
-        // Cryptokitties.
-        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
-    } else if (assetAddr == punks) {
-        // CryptoPunks.
-        // Fix here for frontrun attack. Added in v1.0.2.
-        bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
-        (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-        (address owner) = abi.decode(result, (address));
-        require(checkSuccess && owner == msg.sender, "Not the owner");
-        data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
-    } else {
-        // Default.
-        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
-    }
+    bytes memory data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
   }
@@ -403,20 +331,11 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   function approveERC721(address assetAddr, address to, uint256 tokenId) internal virtual {
     address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-    bytes memory data;
-    if (assetAddr == kitties) {
-        // Cryptokitties.
-        data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
-    } else if (assetAddr == punks) {
-        // CryptoPunks.
-        data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
-    } else {
-        if (IERC721(assetAddr).isApprovedForAll(address(this), to)) {
-          return;
-        }
-        // Default.
-        data = abi.encodeWithSignature("setApprovalForAll(address,bool)", to, true);
+    if (IERC721(assetAddr).isApprovedForAll(address(this), to)) {
+      return;
     }
+    // Default.
+    bytes memory data = abi.encodeWithSignature("setApprovalForAll(address,bool)", to, true);
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
   }
