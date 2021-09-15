@@ -63,7 +63,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     uint256 length = feeReceivers.length;
     for (uint256 i = 0; i < length; i++) {
       FeeReceiver memory _feeReceiver = feeReceivers[i];
-      uint256 amountToSend = tokenBalance * _feeReceiver.allocPoint / allocTotal;
+      uint256 amountToSend = (tokenBalance * _feeReceiver.allocPoint) / allocTotal;
       amountToSend = amountToSend > tokenBalance ? tokenBalance : amountToSend;
       _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
     }
@@ -138,12 +138,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     emit AddFeeReceiver(_receiver, _allocPoint);
   }
 
-  function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 _tokenBalance) internal virtual {
-    uint256 amountToSend = _tokenBalance * _receiver.allocPoint / allocTotal;
-    // If we're at this point we know we have more than enough to perform this safely.
-    uint256 balance = IERC20Upgradeable(_vault).balanceOf(address(this)) - 1000;
-    amountToSend = amountToSend > balance ? balance : amountToSend;
-
+  function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual {
     if (_receiver.isContract) {
       IERC20Upgradeable(_vault).approve(_receiver.receiver, amountToSend);
       // If the receive is not properly processed, send it to the treasury instead.
