@@ -156,26 +156,6 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
-    function saveStuckFees() public {
-        require(msg.sender == 0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a /* Dev Wallet */, "Not auth");
-        address distributor = vaultFactory.feeDistributor();
-        address lpStaking = INFTXFeeDistributor(distributor).lpStaking();
-        uint256 _vaultId = vaultId;
-
-        // Get stuck tokens from v1.
-        address unusedAddr = INFTXLPStaking(lpStaking).unusedRewardDistributionToken(_vaultId);
-        uint256 stuckUnusedBal = balanceOf(unusedAddr);
-
-        // Get tokens from the DAO.
-        address dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
-        uint256 daoBal = balanceOf(dao);
-
-        require(stuckUnusedBal + daoBal > 0, "Zero");
-        address gaus = 0x8F217D5cCCd08fD9dCe24D6d42AbA2BB4fF4785B;
-        _transfer(unusedAddr, gaus, stuckUnusedBal);
-        _transfer(dao, gaus, daoBal);
-    }
-
     function mint(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts /* ignored for ERC721 vaults */
@@ -251,11 +231,10 @@ contract NFTXVaultUpgradeable is
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
         require(enableMint && (enableRandomRedeem || enableTargetRedeem), "NFTXVault: Mint & Redeem enabled");
-
+        
         uint256 count;
         if (is1155) {
             for (uint256 i = 0; i < tokenIds.length; i++) {
-                uint256 tokenId = tokenIds[i];
                 uint256 amount = amounts[i];
                 require(amount > 0, "NFTXVault: transferring < 1");
                 count += amount;
@@ -263,7 +242,7 @@ contract NFTXVaultUpgradeable is
         } else {
             count = tokenIds.length;
         }
-        
+
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
         uint256 redeemFee = (targetRedeemFee() * specificIds.length) + (
@@ -388,6 +367,7 @@ contract NFTXVaultUpgradeable is
             address _assetAddress = assetAddress;
             for (uint256 i = 0; i < tokenIds.length; i++) {
                 uint256 tokenId = tokenIds[i];
+                // To add pulling. Make sure the vault can't allow the same NFT to be minted multiple times.
                 transferFromERC721(_assetAddress, tokenId);
                 holdings.add(tokenId);
             }

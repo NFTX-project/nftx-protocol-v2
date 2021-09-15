@@ -195,6 +195,15 @@ describe("LP Staking", function () {
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
   });
 
+  it("Should allow adding arbitrary receivers to distributor", async () => { 
+    await feeDistrib.connect(primary).addReceiver(ethers.utils.parseEther("0.1"), bob.address, false);
+    const receiver = await feeDistrib.feeReceivers(1);
+    expect(receiver.receiver).to.equal(bob.address);
+    expect(receiver.isContract).to.equal(false);
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.equal(0)
+  })
+
   it("Should allow direct redeeming one at a time by alice", async () => {
     const fee = BigNumber.from(10).pow(17);
 
@@ -230,6 +239,11 @@ describe("LP Staking", function () {
     await staking.connect(alice).claimRewards(id);
     const bal = await vaults[0].balanceOf(alice.address);
     expect(bal).to.gt(BASE.div(2));
+  })
+
+  it("Should distribute rewards to other receiver", async () => {
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.gt(100000);
   })
 
   it("Should allow withdraw from the distribution contract", async () => {
