@@ -271,34 +271,11 @@ describe("LP Staking Upgrade Migrate Test", function () {
   it("Should allow to withdraw locked 1155 tokens after lock", async () => {
     await staking.connect(kiwi).exit(nft1155Id);
   });
-
+  
   it("Should upgrade the vault contract", async () => {
     let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
     let newVault = await NewVault.deploy();
     await newVault.deployed();
     await nftx.connect(dao).upgradeChildTo(newVault.address);
   });
-
-  it("Should save stuck fees", async () => {
-    let newDisttoken = await staking.newRewardDistributionToken(31);
-    let unusedDisttoken = await staking.unusedRewardDistributionToken(31);
-    let oldNewBal = await vaults[0].balanceOf(newDisttoken);
-    let oldUnusedBal = await vaults[0].balanceOf(unusedDisttoken);
-
-    await vaults[0].connect(kiwi).saveStuckFees()
-
-    let newNewBal = await vaults[0].balanceOf(newDisttoken);
-    let newUnusedBal = await vaults[0].balanceOf(unusedDisttoken);
-    expect(oldUnusedBal).to.not.equal(0);
-    expect(newUnusedBal).to.equal(0);
-    expect(newNewBal).to.not.equal(0);
-    expect(newNewBal).to.equal(oldNewBal.add(oldUnusedBal));
-  })
-
-  it("Should allow claiming rewards after distributing", async () => {
-    let oldBal = await vaults[0].balanceOf(kiwi.getAddress());
-    await staking.connect(kiwi).claimRewards(31);
-    let newBal = await vaults[0].balanceOf(kiwi.getAddress());
-    expect(newBal).to.not.equal(oldBal);
-  })
 });
