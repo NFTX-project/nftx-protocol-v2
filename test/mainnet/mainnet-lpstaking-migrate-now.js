@@ -289,84 +289,11 @@ describe("LP Staking Upgrade Migrate Test", function () {
   it("Should allow to withdraw locked 1155 tokens after lock", async () => {
     await staking.connect(kiwi).exit(nft1155Id);
   });
-
-  it("Should not allow someone who isnt founder to admin mint xSLP", async () => {
-    await staking.updatePoolForVault(101);
-    let newDisttoken = await staking.newRewardDistributionToken(101);
-    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    await expectException(staking.connect(kiwi).adminMint(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827")), "Not authed");
-    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    expect(oldBal).to.equal(newBal);
-  });
   
-  it("Should allow to foudner to admin mint xSLP", async () => {
-    await staking.updatePoolForVault(101);
-    let newDisttoken = await staking.newRewardDistributionToken(101);
-    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    await staking.connect(founder).adminMint(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827"));
-    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    expect(newBal).to.equal(oldBal.add(ethers.utils.parseEther("2.666125390411983827")));
-  });
-
-  it("Should not allow someone who isnt founder to admin butn xSLP", async () => {
-    await staking.updatePoolForVault(101);
-    let newDisttoken = await staking.newRewardDistributionToken(101);
-    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    await expectException(staking.connect(kiwi).adminBurn(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827")), "Not authed");
-    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    expect(oldBal).to.equal(newBal);
-  });
-  
-  it("Should allow to founder to admin burn xSLP", async () => {
-    await staking.updatePoolForVault(101);
-    let newDisttoken = await staking.newRewardDistributionToken(101);
-    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-    let oldBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    await staking.connect(founder).adminBurn(101, "0x9307547d686b2909b4c4eb932777a2d5615dece0", ethers.utils.parseEther("2.666125390411983827"));
-    let newBal = await distToken.balanceOf("0x9307547d686b2909b4c4eb932777a2d5615dece0");
-    expect(newBal).to.equal(oldBal.sub(ethers.utils.parseEther("2.666125390411983827")));
-  });
-
   it("Should upgrade the vault contract", async () => {
     let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
     let newVault = await NewVault.deploy();
     await newVault.deployed();
     await nftx.connect(dao).upgradeChildTo(newVault.address);
   });
-
-  // it("Should let old user unlock their tokens", async () => {
-  //   await staking.updatePoolForVault(64);
-  //   let newDisttoken = await staking.unusedRewardDistributionToken(64);
-  //   let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-  //   let oldBal = await distToken.balanceOf(liveZapLockUser.getAddress());
-  //   await oldZap.connect(liveZapLockUser).withdrawXLPTokens(64);
-  //   let newBal = await distToken.balanceOf(liveZapLockUser.getAddress());
-  //   expect(newBal).to.not.equal(oldBal);
-  // })
-  
-  // it("Should save stuck fees", async () => {
-  //   let newDisttoken = await staking.newRewardDistributionToken(31);
-  //   let unusedDisttoken = await staking.unusedRewardDistributionToken(31);
-  //   let oldNewBal = await vaults[0].balanceOf(newDisttoken);
-  //   let oldUnusedBal = await vaults[0].balanceOf(unusedDisttoken);
-
-  //   await vaults[0].connect(kiwi).saveStuckFees()
-
-  //   let newNewBal = await vaults[0].balanceOf(newDisttoken);
-  //   let newUnusedBal = await vaults[0].balanceOf(unusedDisttoken);
-  //   expect(oldUnusedBal).to.not.equal(0);
-  //   expect(newUnusedBal).to.equal(0);
-  //   expect(newNewBal).to.not.equal(0);
-  //   expect(newNewBal).to.equal(oldNewBal.add(oldUnusedBal));
-  // })
-
-  // it("Should allow claiming rewards after distributing", async () => {
-  //   let oldBal = await vaults[0].balanceOf(kiwi.getAddress());
-  //   await staking.connect(kiwi).claimRewards(31);
-  //   let newBal = await vaults[0].balanceOf(kiwi.getAddress());
-  //   expect(newBal).to.not.equal(oldBal);
-  // })
 });
