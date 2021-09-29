@@ -70,6 +70,20 @@ describe("V1 Buyout", function () {
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("4"))
   });
 
+  it("Should let owner emergency withdraw all eth and then clear buyout", async () => {
+    await buyout.emergencyWithdraw();
+    expect(await ethers.provider.getBalance(buyout.address)).to.equal("0")
+    expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
+    await buyout.clearBuyout(xToken.address);
+    expect(await buyout.ethAvailiable(xToken.address)).to.equal("0")
+  })
+
+  it("Should allow the owner to add back a buyout with 4 eth", async () => {
+    await buyout.addBuyout(xToken.address, {value: ethers.utils.parseEther("4")})
+    expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
+    expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("4"))
+  });
+
   it("Should mint tokens for everyone", async () => {
     await xToken.connect(alice).mint(await alice.getAddress(), ethers.utils.parseEther("1"));
     await xToken.connect(bob).mint(await bob.getAddress(), ethers.utils.parseEther("2"));

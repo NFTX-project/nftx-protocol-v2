@@ -13,11 +13,21 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   mapping(address => uint256) public ethAvailiable;
 
   event TokenBuyout(address tokenAddress, uint256 totalEth);
-  event BuyoutComplete(address tokenAddress, uint256 remaining);
+  event BuyoutComplete(address tokenAddress);
 
   function __NFTXV1Buyout_init() external initializer {
     __Ownable_init();
     __ReentrancyGuard_init();
+  }
+
+  // Emergency functions.
+  function emergencyWithdraw() external onlyOwner {
+    payable(msg.sender).transfer(address(this).balance);
+  }
+
+  function clearBuyout(address v1TokenAddr) external onlyOwner {
+    ethAvailiable[v1TokenAddr] = 0;
+    emit BuyoutComplete(v1TokenAddr);
   }
 
   function addBuyout(address v1TokenAddr) external payable onlyOwner {
@@ -32,7 +42,7 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     require(amount > 0, "Cannot remove 0");
     ethAvailiable[v1TokenAddr] = 0;
     payable(msg.sender).transfer(amount);
-    emit BuyoutComplete(v1TokenAddr, amount);
+    emit BuyoutComplete(v1TokenAddr);
   }
 
   function claimETH(address v1TokenAddr) external nonReentrant {
@@ -50,7 +60,7 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     require(success, "Address: unable to send value, recipient may have reverted");
 
     if (ethAvailiable[v1TokenAddr] == 0) {
-      emit BuyoutComplete(v1TokenAddr, 0);
+      emit BuyoutComplete(v1TokenAddr);
     }
   }
 }
