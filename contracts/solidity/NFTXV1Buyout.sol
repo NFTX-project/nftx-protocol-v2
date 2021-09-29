@@ -12,9 +12,27 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   uint256 constant BASE = 10*18;
   mapping(address => uint256) public ethAvailiable;
 
+  event TokenBuyout(address tokenAddress, uint256 totalEth);
+  event BuyoutComplete(address tokenAddress, uint256 remaining);
+
+  function __NFTXV1Buyout_init() external initializer {
+    __Ownable_init();
+    __ReentrancyGuard_init();
+  }
+
   function addBuyout(address v1TokenAddr) external payable onlyOwner {
     require(msg.value > 0, "Cannot pair with 0 ETH");
-    ethAvailiable[v1TokenAddr] = msg.value;
+    ethAvailiable[v1TokenAddr] += msg.value;
+
+    emit TokenBuyout(v1TokenAddr, msg.value);
+  }
+
+  function removeBuyout(address v1TokenAddr) external onlyOwner {
+    uint256 amount = ethAvailiable[v1TokenAddr];
+    require(amount > 0, "Cannot remove 0");
+    ethAvailiable[v1TokenAddr] = 0;
+    payable(msg.sender).transfer(amount);
+    emit BuyoutComplete(v1TokenAddr, amount);
   }
 
   function claimETH(address v1TokenAddr) external nonReentrant {
@@ -22,10 +40,17 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     require(ethAvail > 0, "Not a valid buyout token");
 
     uint256 userBal = IV1Token(v1TokenAddr).balanceOf(msg.sender);
+    require(userBal > 0, "cant be zero");
     uint256 totalSupply = IV1Token(v1TokenAddr).totalSupply();
     IV1Token(v1TokenAddr).burnFrom(msg.sender, userBal);
-    uint256 ethToSend = ethAvail * ((userBal * BASE)/ totalSupply) / BASE;
+    uint256 ethToSend = (ethAvail * userBal)/totalSupply;
     ethToSend = ethToSend > ethAvail ? ethAvail : ethToSend;
-    msg.sender.call{value: ethToSend};
+    ethAvailiable[v1TokenAddr] -= ethToSend;
+    (bool success, ) = msg.sender.call{ value: ethToSend }("");
+    require(success, "Address: unable to send value, recipient may have reverted");
+
+    if (ethAvailiable[v1TokenAddr] == 0) {
+      emit BuyoutComplete(v1TokenAddr, 0);
+    }
   }
 }
