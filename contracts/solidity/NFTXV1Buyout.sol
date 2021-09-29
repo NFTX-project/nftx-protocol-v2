@@ -2,13 +2,13 @@ pragma solidity ^0.8.0;
 
 import "./token/IERC20Upgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol"; 
-import "./util/OwnableUpgradeable.sol"; 
+import "./util/PausableUpgradeable.sol"; 
 
 interface IV1Token is IERC20Upgradeable {
   function burnFrom(address account, uint256 amount) external;
 }
 
-contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable { 
+contract NFTXV1Buyout is PausableUpgradeable, ReentrancyGuardUpgradeable { 
   uint256 constant BASE = 10*18;
   mapping(address => uint256) public ethAvailiable;
 
@@ -16,7 +16,7 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   event BuyoutComplete(address tokenAddress);
 
   function __NFTXV1Buyout_init() external initializer {
-    __Ownable_init();
+    __Pausable_init();
     __ReentrancyGuard_init();
   }
 
@@ -46,6 +46,7 @@ contract NFTXV1Buyout is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   }
 
   function claimETH(address v1TokenAddr) external nonReentrant {
+    onlyOwnerIfPaused(0);
     uint256 ethAvail = ethAvailiable[v1TokenAddr];
     require(ethAvail > 0, "Not a valid buyout token");
 

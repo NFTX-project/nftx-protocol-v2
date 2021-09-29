@@ -71,8 +71,11 @@ describe("V1 Buyout", function () {
   });
 
   it("Should let owner emergency withdraw all eth and then clear buyout", async () => {
+    let oldBal = await ethers.provider.getBalance(primary.address);
     await buyout.emergencyWithdraw();
+    let newBal = await ethers.provider.getBalance(primary.address);
     expect(await ethers.provider.getBalance(buyout.address)).to.equal("0")
+    expect(newBal).to.gt(oldBal.add(ethers.utils.parseEther("4")).sub(ethers.utils.parseEther("0.1")))
     expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
     await buyout.clearBuyout(xToken.address);
     expect(await buyout.ethAvailiable(xToken.address)).to.equal("0")
