@@ -165,7 +165,7 @@ describe("LP Staking", function () {
     const depositBal = bal.div(100);
     const id = await vaults[0].vaultId();
     await vaults[0].connect(alice).approve(staking.address, depositBal);
-    await expectRevert(staking.connect(alice).timelockDepositFor(id, alice.address, depositBal, 172800));
+    await expectRevert(staking.connect(alice).timelockDepositFor(id, alice.address, depositBal, 600));
   })
 
   it("Should allow staking into the fee distribution contract", async () => {
@@ -177,7 +177,7 @@ describe("LP Staking", function () {
     const newBal = await vaults[0].balanceOf(alice.address);
     expect(newBal).to.equal(bal.sub(depositBal));
     let distToken = await staking.newRewardDistributionToken(id)
-    const rewardDist = await ethers.getContractAt("RewardDistributionTokenUpgradeable", distToken);
+    const rewardDist = await ethers.getContractAt("TimelockRewardDistributionTokenImpl", distToken);
     const total = await rewardDist.totalSupply();
     expect(total).to.equal(depositBal);
   })

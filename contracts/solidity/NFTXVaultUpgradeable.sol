@@ -39,9 +39,9 @@ contract NFTXVaultUpgradeable is
     INFTXEligibility public override eligibilityStorage;
 
     uint256 randNonce;
-    uint256 public override mintFee;
-    uint256 public override randomRedeemFee;
-    uint256 public override targetRedeemFee;
+    uint256 private UNUSED_FEE1;
+    uint256 private UNUSED_FEE2;
+    uint256 private UNUSED_FEE3;
 
     bool public override is1155;
     bool public override allowAllItems;
@@ -69,7 +69,6 @@ contract NFTXVaultUpgradeable is
         allowAllItems = _allowAllItems;
         emit VaultInit(vaultId, _assetAddress, _is1155, _allowAllItems);
         setVaultFeatures(true /*enableMint*/, true /*enableRandomRedeem*/, true /*enableTargetRedeem*/);
-        setFees(0.05 ether /*mintFee*/, 0 /*randomRedeemFee*/, 0.05 ether /*targetRedeemFee*/);
     }
 
     function finalizeVault() external override virtual {
@@ -101,21 +100,12 @@ contract NFTXVaultUpgradeable is
     }
 
     function setFees(
-        uint256 _mintFee,
-        uint256 _randomRedeemFee,
-        uint256 _targetRedeemFee
+        uint64 _mintFee,
+        uint64 _randomRedeemFee,
+        uint64 _targetRedeemFee
     ) public override virtual {
         onlyPrivileged();
-        require(_mintFee <= base, "Cannot > 1 ether");
-        require(_randomRedeemFee <= base, "Cannot > 1 ether");
-        require(_targetRedeemFee <= base, "Cannot > 1 ether");
-        mintFee = _mintFee;
-        randomRedeemFee = _randomRedeemFee;
-        targetRedeemFee = _targetRedeemFee;
-
-        emit MintFeeUpdated(_mintFee);
-        emit RandomRedeemFeeUpdated(_randomRedeemFee);
-        emit TargetRedeemFeeUpdated(_targetRedeemFee);
+        vaultFactory.setVaultFees(vaultId, _mintFee, _randomRedeemFee, _targetRedeemFee);
     }
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
@@ -185,10 +175,10 @@ contract NFTXVaultUpgradeable is
 
         // Mint to the user.
         _mint(to, base * count);
-        uint256 totalFee = mintFee * count;
+        uint256 totalFee = mintFee() * count;
         _chargeAndDistributeFees(to, totalFee);
 
-        emit Minted(tokenIds, amounts, to);
+        emit Minted(tokenIds, amounts, totalFee, to);
         return count;
     }
 
@@ -214,14 +204,14 @@ contract NFTXVaultUpgradeable is
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
         // Pay the tokens + toll.
-        uint256 totalFee = (targetRedeemFee * specificIds.length) + (
-            randomRedeemFee * (amount - specificIds.length)
+        uint256 totalFee = (targetRedeemFee() * specificIds.length) + (
+            randomRedeemFee() * (amount - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
-        emit Redeemed(redeemedIds, specificIds, to);
+        emit Redeemed(redeemedIds, specificIds, totalFee, to);
         return redeemedIds;
     }
     
@@ -255,16 +245,17 @@ contract NFTXVaultUpgradeable is
 
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
-        uint256 redeemFee = (targetRedeemFee * specificIds.length) + (
-            randomRedeemFee * (count - specificIds.length)
+        uint256 redeemFee = (targetRedeemFee() * specificIds.length) + (
+            randomRedeemFee() * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, redeemFee);
         
-        // Withdraw from vault.
+        // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
+
         receiveNFTs(tokenIds, amounts);
 
-        emit Swapped(tokenIds, amounts, specificIds, ids, to);
+        emit Swapped(tokenIds, amounts, specificIds, ids, redeemFee, to);
         return ids;
     }
 
@@ -276,6 +267,21 @@ contract NFTXVaultUpgradeable is
     ) public override virtual returns (bool) {
         onlyOwnerIfPaused(4);
         return super.flashLoan(receiver, token, amount, data);
+    }
+
+    function mintFee() public view override virtual returns (uint256) {
+        (uint256 _mintFee, , ) = vaultFactory.vaultFees(vaultId);
+        return _mintFee;
+    }
+
+    function randomRedeemFee() public view override virtual returns (uint256) {
+        (, uint256 _randomRedeemFee, ) = vaultFactory.vaultFees(vaultId);
+        return _randomRedeemFee;
+    }
+
+    function targetRedeemFee() public view override virtual returns (uint256) {
+        (, , uint256 _targetRedeemFee) = vaultFactory.vaultFees(vaultId);
+        return _targetRedeemFee;
     }
 
     function allValidNFTs(uint256[] memory tokenIds)
