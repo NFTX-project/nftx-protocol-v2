@@ -25,6 +25,9 @@ interface INFTXVault is IERC20Upgradeable {
     function mintFee() external view returns (uint256);
     function randomRedeemFee() external view returns (uint256);
     function targetRedeemFee() external view returns (uint256);
+    function randomSwapFee() external view returns (uint256);
+    function targetSwapFee() external view returns (uint256);
+    function vaultFees() external view returns (uint256, uint256, uint256, uint256, uint256);
 
     event VaultInit(
         uint256 indexed vaultId,
@@ -40,10 +43,6 @@ interface INFTXVault is IERC20Upgradeable {
     event EnableMintUpdated(bool enabled);
     event EnableRandomRedeemUpdated(bool enabled);
     event EnableTargetRedeemUpdated(bool enabled);
-
-    event MintFeeUpdated(uint256 mintFee);
-    event RandomRedeemFeeUpdated(uint256 randomRedeemFee);
-    event TargetRedeemFeeUpdated(uint256 targetRedeemFee);
 
     event Minted(uint256[] nftIds, uint256[] amounts, uint256 feesCharged, address to);
     event Redeemed(uint256[] nftIds, uint256[] specificIds, uint256 feesCharged, address to);
@@ -78,9 +77,11 @@ interface INFTXVault is IERC20Upgradeable {
     ) external;
 
     function setFees(
-        uint64 _mintFee,
-        uint64 _randomRedeemFee,
-        uint64 _targetRedeemFee
+        uint256 _mintFee,
+        uint256 _randomRedeemFee,
+        uint256 _targetRedeemFee,
+        uint256 _randomSwapFee,
+        uint256 _targetSwapFee
     ) external;
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.

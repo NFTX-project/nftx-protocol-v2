@@ -100,12 +100,14 @@ contract NFTXVaultUpgradeable is
     }
 
     function setFees(
-        uint64 _mintFee,
-        uint64 _randomRedeemFee,
-        uint64 _targetRedeemFee
+        uint256 _mintFee,
+        uint256 _randomRedeemFee,
+        uint256 _targetRedeemFee,
+        uint256 _randomSwapFee,
+        uint256 _targetSwapFee
     ) public override virtual {
         onlyPrivileged();
-        vaultFactory.setVaultFees(vaultId, _mintFee, _randomRedeemFee, _targetRedeemFee);
+        vaultFactory.setVaultFees(vaultId, _mintFee, _randomRedeemFee, _targetRedeemFee, _randomSwapFee, _targetSwapFee);
     }
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
@@ -245,8 +247,8 @@ contract NFTXVaultUpgradeable is
 
         // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
-        uint256 redeemFee = (targetRedeemFee() * specificIds.length) + (
-            randomRedeemFee() * (count - specificIds.length)
+        uint256 redeemFee = (targetSwapFee() * specificIds.length) + (
+            randomSwapFee() * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, redeemFee);
         
@@ -270,18 +272,32 @@ contract NFTXVaultUpgradeable is
     }
 
     function mintFee() public view override virtual returns (uint256) {
-        (uint256 _mintFee, , ) = vaultFactory.vaultFees(vaultId);
+        (uint256 _mintFee, , , ,) = vaultFactory.vaultFees(vaultId);
         return _mintFee;
     }
 
     function randomRedeemFee() public view override virtual returns (uint256) {
-        (, uint256 _randomRedeemFee, ) = vaultFactory.vaultFees(vaultId);
+        (, uint256 _randomRedeemFee, , ,) = vaultFactory.vaultFees(vaultId);
         return _randomRedeemFee;
     }
 
     function targetRedeemFee() public view override virtual returns (uint256) {
-        (, , uint256 _targetRedeemFee) = vaultFactory.vaultFees(vaultId);
+        (, , uint256 _targetRedeemFee, ,) = vaultFactory.vaultFees(vaultId);
         return _targetRedeemFee;
+    }
+
+    function randomSwapFee() public view override virtual returns (uint256) {
+        (, , , uint256 _randomSwapFee, ) = vaultFactory.vaultFees(vaultId);
+        return _randomSwapFee;
+    }
+
+    function targetSwapFee() public view override virtual returns (uint256) {
+        (, , , ,uint256 _targetSwapFee) = vaultFactory.vaultFees(vaultId);
+        return _targetSwapFee;
+    }
+
+    function vaultFees() public view override virtual returns (uint256, uint256, uint256, uint256, uint256) {
+        return vaultFactory.vaultFees(vaultId);
     }
 
     function allValidNFTs(uint256[] memory tokenIds)

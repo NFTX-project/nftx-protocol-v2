@@ -7,7 +7,7 @@ const { ethers, upgrades } = require("hardhat");
 const addresses = require("../addresses/rinkeby.json");
 
 const BASE = BigNumber.from(10).pow(18);
-const PERC5_FEE = BASE.div(20);
+const PERC25_FEE = BASE.div(40);
 const zeroAddr = "0x0000000000000000000000000000000000000000";
 const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
@@ -150,10 +150,12 @@ describe("Main", function () {
   });
 
   it("Should set fees to 0", async () => {
-    await vaults[0].connect(primary).setFees(0, 0, 0);
+    await vaults[0].connect(primary).setFees(0, 0, 0, 0, 0);
     expect(await vaults[0].mintFee()).to.eq(0);
     expect(await vaults[0].randomRedeemFee()).to.eq(0);
     expect(await vaults[0].targetRedeemFee()).to.eq(0);
+    expect(await vaults[0].randomSwapFee()).to.eq(0);
+    expect(await vaults[0].targetSwapFee()).to.eq(0);
   });
 
   it("Should allow changing the metadata", async () => {
@@ -359,6 +361,16 @@ describe("Main", function () {
     expect(await vaults[1].enableTargetRedeem()).to.eq(true);
   });
 
+  it("Should set fees to 0", async () => {
+    let perc25 = ethers.utils.parseEther("0.025")
+    await vaults[1].connect(primary).setFees(perc25, perc25, perc25, perc25, perc25);
+    expect(await vaults[1].mintFee()).to.eq(perc25);
+    expect(await vaults[1].randomRedeemFee()).to.eq(perc25);
+    expect(await vaults[1].targetRedeemFee()).to.eq(perc25);
+    expect(await vaults[1].randomSwapFee()).to.eq(perc25);
+    expect(await vaults[1].targetSwapFee()).to.eq(perc25);
+  });
+
   it("Should allow ERC1155 with fee minting one at a time by alice", async () => {
     for (let i = 0; i < numLoops; i++) {
       const tokenId = i;
@@ -405,7 +417,7 @@ describe("Main", function () {
       expect(await erc1155.balanceOf(vaults[1].address, tokenId)).to.equal(1);
     }
     expect(await vaults[1].balanceOf(bob.address)).to.equal(
-      BASE.mul(numLoops).sub(PERC5_FEE.mul(numLoops))
+      BASE.mul(numLoops).sub(PERC25_FEE.mul(numLoops))
     );
   });
 
@@ -413,7 +425,7 @@ describe("Main", function () {
     for (let i = 0; i < numLoops - 2; i++) {
       await vaults[1].connect(alice).redeem(1, [i]);
       expect(await vaults[1].balanceOf(alice.address)).to.equal(
-        BASE.mul(numLoops - (i + 1)).sub(PERC5_FEE.mul(i + numLoops + 1))
+        BASE.mul(numLoops - (i + 1)).sub(PERC25_FEE.mul(i + numLoops + 1))
       );
     }
   });

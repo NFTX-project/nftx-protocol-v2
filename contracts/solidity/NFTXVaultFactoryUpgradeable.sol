@@ -18,15 +18,17 @@ contract NFTXVaultFactoryUpgradeable is
     UpgradeableBeacon,
     INFTXVaultFactory
 {
-    uint256 public override numVaults;
+    // Removed, no longer needed.
+    uint256 private NOT_USED1;
     address public override zapContract;
     address public override feeDistributor;
     address public override eligibilityManager;
 
-    mapping(uint256 => address) public override vault;
+    // Removed, no longer needed.
+    mapping(uint256 => address) private NOT_USED2;
     mapping(address => address[]) _vaultsForAsset;
     
-    address[] public allVaults;
+    address[] internal vaults;
 
     // v1.0.1
     mapping(address => bool) public override excludedFromFees;
@@ -37,18 +39,27 @@ contract NFTXVaultFactoryUpgradeable is
         uint64 mintFee;
         uint64 randomRedeemFee;
         uint64 targetRedeemFee;
+        uint64 randomSwapFee;
+        uint64 targetSwapFee;
     }
     mapping(uint256 => VaultFees) private _vaultFees;
     uint64 public override factoryMintFee;
     uint64 public override factoryRandomRedeemFee;
     uint64 public override factoryTargetRedeemFee;
+    uint64 public override factoryRandomSwapFee;
+    uint64 public override factoryTargetSwapFee;
 
     function __NFTXVaultFactory_init(address _vaultImpl, address _feeDistributor) public override initializer {
         __Pausable_init();
         // We use a beacon proxy so that every child contract follows the same implementation code.
         __UpgradeableBeacon__init(_vaultImpl);
         setFeeDistributor(_feeDistributor);
-        setFactoryFees(0.05 ether, 0.05 ether, 0.05 ether);
+        setFactoryFees(0.025 ether, 0.025 ether, 0.05 ether, 0.025 ether, 0.05 ether);
+    }
+
+    function assignFees() public {
+        require(factoryMintFee == 0 && factoryTargetRedeemFee == 0, "Assigned");
+        setFactoryFees(0.025 ether, 0.025 ether, 0.05 ether, 0.025 ether, 0.05 ether);
     }
 
     function createVault(
@@ -62,60 +73,70 @@ contract NFTXVaultFactoryUpgradeable is
         require(feeDistributor != address(0), "NFTX: Fee receiver unset");
         require(childImplementation() != address(0), "NFTX: Vault implementation unset");
         address vaultAddr = deployVault(name, symbol, _assetAddress, is1155, allowAllItems);
-        uint256 _vaultId = numVaults;
-        vault[_vaultId] = vaultAddr;
+        uint256 _vaultId = vaults.length;
         _vaultsForAsset[_assetAddress].push(vaultAddr);
-        allVaults.push(vaultAddr);
-        numVaults = _vaultId + 1;
+        vaults.push(vaultAddr);
         INFTXFeeDistributor(feeDistributor).initializeVaultReceivers(_vaultId);
         emit NewVault(_vaultId, vaultAddr, _assetAddress);
         return _vaultId;
     }
 
     function setFactoryFees(
-        uint64 mintFee, 
-        uint64 randomRedeemFee, 
-        uint64 targetRedeemFee
+        uint256 mintFee, 
+        uint256 randomRedeemFee, 
+        uint256 targetRedeemFee,
+        uint256 randomSwapFee, 
+        uint256 targetSwapFee
     ) public onlyOwner virtual override {
-        require(mintFee <= uint64(1 ether), "Cannot > 1 ether");
-        require(randomRedeemFee <= uint64(1 ether), "Cannot > 1 ether");
-        require(targetRedeemFee <= uint64(1 ether), "Cannot > 1 ether");
+        require(mintFee <= 1 ether, "Cannot > 1 ether");
+        require(randomRedeemFee <= 1 ether, "Cannot > 1 ether");
+        require(targetRedeemFee <= 1 ether, "Cannot > 1 ether");
+        require(randomSwapFee <= 1 ether, "Cannot > 1 ether");
+        require(targetSwapFee <= 1 ether, "Cannot > 1 ether");
 
-        factoryMintFee = mintFee;
-        factoryRandomRedeemFee = randomRedeemFee;
-        factoryTargetRedeemFee = targetRedeemFee;
+        factoryMintFee = uint64(mintFee);
+        factoryRandomRedeemFee = uint64(randomRedeemFee);
+        factoryTargetRedeemFee = uint64(targetRedeemFee);
+        factoryRandomSwapFee = uint64(randomSwapFee);
+        factoryTargetSwapFee = uint64(targetSwapFee);
 
-        emit UpdateFactoryFees(mintFee, randomRedeemFee, targetRedeemFee);
+        emit UpdateFactoryFees(mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
     }
 
     function setVaultFees(
         uint256 vaultId, 
-        uint64 mintFee, 
-        uint64 randomRedeemFee, 
-        uint64 targetRedeemFee
+        uint256 mintFee, 
+        uint256 randomRedeemFee, 
+        uint256 targetRedeemFee,
+        uint256 randomSwapFee, 
+        uint256 targetSwapFee
     ) public virtual override {
         if (msg.sender != owner()) {
-            address vaultAddr = vault[vaultId];
+            address vaultAddr = vaults[vaultId];
             require(msg.sender == vaultAddr, "Not from vault");
         } else {
             revert("Not owner");
         }
-        require(mintFee <= uint64(1 ether), "Cannot > 1 ether");
-        require(randomRedeemFee <= uint64(1 ether), "Cannot > 1 ether");
-        require(targetRedeemFee <= uint64(1 ether), "Cannot > 1 ether");
+        require(mintFee <= 1 ether, "Cannot > 1 ether");
+        require(randomRedeemFee <= 1 ether, "Cannot > 1 ether");
+        require(targetRedeemFee <= 1 ether, "Cannot > 1 ether");
+        require(randomSwapFee <= 1 ether, "Cannot > 1 ether");
+        require(targetSwapFee <= 1 ether, "Cannot > 1 ether");
 
         _vaultFees[vaultId] = VaultFees(
             true, 
-            mintFee,
-            randomRedeemFee,
-            targetRedeemFee
+            uint64(mintFee),
+            uint64(randomRedeemFee),
+            uint64(targetRedeemFee),
+            uint64(randomSwapFee), 
+            uint64(targetSwapFee)
         );
-        emit UpdateVaultFees(vaultId, uint256(mintFee), uint256(randomRedeemFee), uint256(targetRedeemFee));
+        emit UpdateVaultFees(vaultId, mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
     }
 
     function disableVaultFees(uint256 vaultId) public virtual override {
         if (msg.sender != owner()) {
-            INFTXVault vaultAddr = INFTXVault(vault[vaultId]);
+            INFTXVault vaultAddr = INFTXVault(vaults[vaultId]);
             require(msg.sender == vaultAddr.manager(), "Not vault manager");
         } else {
             revert("Not owner");
@@ -145,25 +166,39 @@ contract NFTXVaultFactoryUpgradeable is
         eligibilityManager = _eligibilityManager;
     }
 
-    function vaultFees(uint256 vaultId) external view virtual override returns (uint256, uint256, uint256) {
+    function vaultFees(uint256 vaultId) external view virtual override returns (uint256, uint256, uint256, uint256, uint256) {
         VaultFees memory fees = _vaultFees[vaultId];
         if (fees.active) {
-            return (uint256(fees.mintFee), uint256(fees.randomRedeemFee), uint256(fees.targetRedeemFee));
+            return (
+                uint256(fees.mintFee), 
+                uint256(fees.randomRedeemFee), 
+                uint256(fees.targetRedeemFee), 
+                uint256(fees.randomSwapFee), 
+                uint256(fees.targetSwapFee)
+            );
         }
         
-        return (
-            uint256(factoryMintFee),
-            uint256(factoryRandomRedeemFee),
-            uint256(factoryTargetRedeemFee)
-        );
+        return (uint256(factoryMintFee), uint256(factoryRandomRedeemFee), uint256(factoryTargetRedeemFee), uint256(factoryRandomSwapFee), uint256(factoryTargetSwapFee));
     }
 
     function isLocked(uint256 lockId) external view override virtual returns (bool) {
         return isPaused[lockId];
     }
 
-    function vaultsForAsset(address asset) external view override virtual returns (address[] memory) {
-        return _vaultsForAsset[asset];
+    function vaultsForAsset(address assetAddress) external view override virtual returns (address[] memory) {
+        return _vaultsForAsset[assetAddress];
+    }
+
+    function vault(uint256 vauldId) external view override virtual returns (address) {
+        return vaults[vauldId];
+    }
+
+    function allVaults() external view override virtual returns (address[] memory) {
+        return vaults;
+    }
+
+    function numVaults() external view override virtual returns (uint256) {
+        return vaults.length;
     }
     
     function deployVault(

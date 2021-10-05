@@ -8,6 +8,6 @@ import "../NFTXVaultFactoryUpgradeable.sol";
 
 contract NFTXVaultFactoryUpgradeable2 is NFTXVaultFactoryUpgradeable {
     function twiceNumVaults() public view returns (uint256) {
-        return numVaults * 2;
+        return vaults.length * 2;
     }
 }
