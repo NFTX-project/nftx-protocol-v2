@@ -66,7 +66,6 @@ contract NFTXLPStaking is PausableUpgradeable {
         stakingTokenProvider = StakingTokenProvider(newProvider);
     }
 
-    // Consider changing LP staking to take vault id into consideration, and access data from there.
     function addPoolForVault(uint256 vaultId) external onlyAdmin {
         require(address(nftxVaultFactory) != address(0), "LPStaking: Factory not set");
         require(vaultStakingInfo[vaultId].stakingToken == address(0), "LPStaking: Pool already exists");
@@ -90,13 +89,14 @@ contract NFTXLPStaking is PausableUpgradeable {
         // Not letting people use this function to create new pools.
         require(pool.stakingToken != address(0), "LPStaking: Pool doesn't exist");
         address _stakingToken = stakingTokenProvider.stakingTokenForVaultToken(pool.rewardToken);
-        // If the pool is already deployed, ignore the update.
         StakingPool memory newPool = StakingPool(_stakingToken, pool.rewardToken);
+        vaultStakingInfo[vaultId] = newPool;
+        
+        // If the pool is already deployed, ignore the update.
         address addr = address(_rewardDistributionTokenAddr(newPool));
         if (isContract(addr)) {
             return;
         }
-        vaultStakingInfo[vaultId] = newPool;
         address newRewardDistToken = _deployDividendToken(newPool);
         emit PoolUpdated(vaultId, newRewardDistToken);
     }
@@ -221,7 +221,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         if (pool.stakingToken == address(0)) {
             return IRewardDistributionToken(address(0));
         }
-        return _oldRewardDistributionTokenAddr(pool);
+        return _unusedRewardDistributionTokenAddr(pool);
     }
 
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address) {
