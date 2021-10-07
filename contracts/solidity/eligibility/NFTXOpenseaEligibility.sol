@@ -20,7 +20,7 @@ contract NFTXOpenseaEligibility is NFTXEligibility {
 
     uint256 public collectionId;
 
-    event NFTXEligibilityInit(address collectionId);
+    event NFTXEligibilityInit(uint256 collectionId);
 
     struct Config {
         uint256 collectionId;
