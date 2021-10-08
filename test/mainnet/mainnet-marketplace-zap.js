@@ -17,6 +17,7 @@ let zap, stakingZap;
 let staking;
 let erc721;
 let feeDistrib;
+let controller;
 let provider;
 const vaults = [];
 
@@ -78,6 +79,10 @@ describe("LP Zap Test", function () {
       "NFTXFeeDistributor",
       "0x7AE9D7Ee8489cAD7aFc84111b8b185EE594Ae090"
     );
+    controller = await ethers.getContractAt(
+      "ProxyController",
+      "0x4333d66Ec59762D1626Ec102d7700E64610437Df"
+    );
 
     let Zap = await ethers.getContractFactory("NFTXMarketplaceZap");
     zap = await Zap.deploy(
@@ -96,12 +101,18 @@ describe("LP Zap Test", function () {
     await nftx.connect(dao).setZapContract(stakingZap.address);
   });
 
-  it("Should upgrade to new vault", async () => {
-    const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable")
-    const vault = await Vault.deploy();
-    await vault.deployed();
-    await nftx.connect(dao).upgradeChildTo(vault.address);
-  })
+  it("Should upgrade the factory and child", async () => {
+    let NewFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
+    let newFactory = await NewFactory.deploy();
+    await newFactory.deployed();
+    await controller.connect(dao).upgradeProxyTo(0, newFactory.address);
+    let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
+    let newVault = await NewVault.deploy();
+    await newVault.deployed();
+    await nftx.connect(dao).upgradeChildTo(newVault.address);
+
+    await nftx.connect(dao).assignFees();
+  });
 
   it("Should enable fee distribution", async () => {
     await feeDistrib.connect(dao).pauseFeeDistribution(false);

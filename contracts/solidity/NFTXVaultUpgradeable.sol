@@ -383,7 +383,6 @@ contract NFTXVaultUpgradeable is
             address _assetAddress = assetAddress;
             for (uint256 i = 0; i < tokenIds.length; i++) {
                 uint256 tokenId = tokenIds[i];
-                // To add pulling. Make sure the vault can't allow the same NFT to be minted multiple times.
                 transferFromERC721(_assetAddress, tokenId);
                 holdings.add(tokenId);
             }
@@ -487,7 +486,14 @@ contract NFTXVaultUpgradeable is
             data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
         } else {
             // Default.
-            data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
+            // Allow other contracts to "push" into the vault, safely.
+            // If we already have the token requested, make sure we don't have it in the list to prevent duplicate minting.
+            if (IERC721Upgradeable(assetAddress).ownerOf(tokenId) == address(this)) {
+                require(!holdings.contains(tokenId), "Trying to use an owned NFT");
+                return;
+            } else {
+                data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
+            }
         }
         (bool success, bytes memory resultData) = address(assetAddr).call(data);
         require(success, string(resultData));

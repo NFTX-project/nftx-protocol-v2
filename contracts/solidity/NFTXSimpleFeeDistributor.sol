@@ -54,12 +54,23 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     } 
 
     uint256 length = feeReceivers.length;
+    uint256 leftover;
     for (uint256 i = 0; i < length; i++) {
       FeeReceiver memory _feeReceiver = feeReceivers[i];
-      uint256 amountToSend = (tokenBalance * _feeReceiver.allocPoint) / allocTotal;
+      uint256 amountToSend = leftover + ((tokenBalance * _feeReceiver.allocPoint) / allocTotal);
       uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
       amountToSend = amountToSend > currentTokenBalance ? currentTokenBalance : amountToSend;
-      _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
+      bool complete = _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
+      if (!complete) {
+        leftover += amountToSend;
+      } else {
+        leftover = 0;
+      }
+    }
+
+    if (leftover > 0) {
+      uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
+      IERC20Upgradeable(_vault).safeTransfer(treasury, currentTokenBalance);
     }
   }
 
@@ -132,7 +143,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     emit AddFeeReceiver(_receiver, _allocPoint);
   }
 
-  function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual {
+  function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual returns (bool) {
     if (_receiver.isContract) {
       IERC20Upgradeable(_vault).approve(_receiver.receiver, amountToSend);
       // If the receive is not properly processed, send it to the treasury instead.
@@ -140,11 +151,8 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       bytes memory payload = abi.encodeWithSelector(INFTXLPStaking.receiveRewards.selector, _vaultId, amountToSend);
       (bool success, ) = address(_receiver.receiver).call(payload);
 
-      // If the allowance has not been spent, it means we can pass it through the treasury instead.
-      if (!success || IERC20Upgradeable(_vault).allowance(address(this), _receiver.receiver) > 0) {
-        IERC20Upgradeable(_vault).safeTransfer(treasury, amountToSend);
-        IERC20Upgradeable(_vault).approve(_receiver.receiver, 0);
-      }
+      // If the allowance has not been spent, it means we can pass it forward to next.
+      return success && IERC20Upgradeable(_vault).allowance(address(this), _receiver.receiver) == 0;
     } else {
       IERC20Upgradeable(_vault).safeTransfer(_receiver.receiver, amountToSend);
     }

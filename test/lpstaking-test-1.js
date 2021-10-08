@@ -37,6 +37,7 @@ describe("LP Staking", function () {
     const Staking = await ethers.getContractFactory("NFTXLPStaking");
     staking = await upgrades.deployProxy(Staking, [provider.address], {
       initializer: "__NFTXLPStaking__init",
+      unsafeAllow: 'delegatecall'
     });
     await staking.deployed();
 
@@ -52,6 +53,7 @@ describe("LP Staking", function () {
       [staking.address, notZeroAddr],
       {
         initializer: "__SimpleFeeDistributor__init__",
+        unsafeAllow: 'delegatecall'
       }
     );
     await feeDistrib.deployed();
@@ -62,6 +64,7 @@ describe("LP Staking", function () {
       [vault.address, feeDistrib.address],
       {
         initializer: "__NFTXVaultFactory_init",
+        unsafeAllow: 'delegatecall'
       }
     );
     await nftx.deployed();
@@ -130,14 +133,14 @@ describe("LP Staking", function () {
   });
 
   it("Should set fees to 0", async () => {
-    await vaults[0].connect(primary).setFees(0, 0, 0);
+    await vaults[0].connect(primary).setFees(0, 0, 0, 0, 0);
     expect(await vaults[0].mintFee()).to.eq(0);
     expect(await vaults[0].randomRedeemFee()).to.eq(0);
     expect(await vaults[0].targetRedeemFee()).to.eq(0);
   });
 
   it("Should allow minting one at a time by alice after enabling", async () => {
-    for (let i = 0; i < numLoops; i++) {
+    for (let i = 0; i < numLoops-2; i++) {
       const tokenId = i;
       if (tokenId != 0) 
         await erc721.transferFrom(primary.address, alice.address, tokenId);
@@ -154,10 +157,42 @@ describe("LP Staking", function () {
 
   it("Should allow setting a mint and redeem fee", async () => {
     const fee = BigNumber.from(10).pow(17);
-    await vaults[0].connect(primary).setFees(fee, fee, fee);
+    await vaults[0].connect(primary).setFees(fee, fee, fee, fee, fee);
     expect(await vaults[0].mintFee()).to.equal(fee);
     expect(await vaults[0].randomRedeemFee()).to.equal(fee);
     expect(await vaults[0].targetRedeemFee()).to.equal(fee);
+  })
+
+  it("Should allow adding arbitrary receivers to distributor", async () => { 
+    await feeDistrib.connect(primary).addReceiver(ethers.utils.parseEther("0.2"), bob.address, false);
+    const receiver = await feeDistrib.feeReceivers(1);
+    expect(receiver.receiver).to.equal(bob.address);
+    expect(receiver.isContract).to.equal(false);
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.equal(0)
+  })
+
+  it("Should allow minting one at a time by alice after enabling", async () => {
+    let ii = 0;
+    for (let i = numLoops-2; i < numLoops-1; i++) {
+      const tokenId = i;
+      ii++
+      if (tokenId != 0) 
+        await erc721.transferFrom(primary.address, alice.address, tokenId);
+      expect(await erc721.balanceOf(alice.address)).to.equal(1);
+      await erc721.connect(alice).approve(vaults[0].address, tokenId);
+      await vaults[0].connect(alice).mint([tokenId], [1]);
+      expect(await erc721.balanceOf(alice.address)).to.equal(0);
+      expect(await erc721.balanceOf(vaults[0].address)).to.equal(i + 1);
+      expect(await vaults[0].balanceOf(alice.address)).to.equal(
+        BASE.mul(i + 1).sub(BASE.div(10).mul(ii))
+      );
+    }
+  });
+
+  it("Should distribute leftover rewards to other receiver", async () => {
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.equal(BASE.div(10));
   })
 
   it("Should not allow staking into depositFor", async () => {
@@ -195,30 +230,30 @@ describe("LP Staking", function () {
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
   });
 
-  it("Should allow adding arbitrary receivers to distributor", async () => { 
-    await feeDistrib.connect(primary).addReceiver(ethers.utils.parseEther("0.1"), bob.address, false);
-    const receiver = await feeDistrib.feeReceivers(1);
-    expect(receiver.receiver).to.equal(bob.address);
-    expect(receiver.isContract).to.equal(false);
-    const bal = await vaults[0].balanceOf(bob.address);
-    expect(bal).to.equal(0)
-  })
-
   it("Should allow direct redeeming one at a time by alice", async () => {
     const fee = BigNumber.from(10).pow(17);
 
     expect(await erc721.balanceOf(alice.address)).to.equal(0);
-    for (let i = 0; i < numLoops-2; i++) {
+    for (let i = 0; i < numLoops-3; i++) {
       expect(await erc721.balanceOf(alice.address)).to.equal(i);
       await vaults[0].connect(alice).redeem(1, [i]);
       expect(await erc721.balanceOf(alice.address)).to.equal(i+1);
     }
   });
 
+  it("Should distribute rewards properly to both receivers", async () => {
+    const bal = await vaults[0].balanceOf(bob.address);
+    expect(bal).to.equal(BASE.div(10).add(BASE.div(50).mul(numLoops-3)));
+    const id = await vaults[0].vaultId();
+    let distToken = await staking.newRewardDistributionToken(id)
+    const bal2 = await vaults[0].balanceOf(distToken);
+    expect(bal2).to.equal(BASE.mul(40).div(500).mul(numLoops-3));
+  })
+
   it("Should not allow random redeeming", async () => {
-    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-2);
+    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-3);
     await expectRevert(vaults[0].connect(alice).redeem(1, []), "NFTXVault: Random redeem not enabled");
-    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-2);
+    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-3);
   })
 
   it("Should enable random redeem feature", async () => {
@@ -229,9 +264,9 @@ describe("LP Staking", function () {
   });
 
   it("Should allow random redeeming", async () => {
-    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-2);
+    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-3);
     await vaults[0].connect(alice).redeem(1, []);
-    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-1);
+    expect(await erc721.balanceOf(alice.address)).to.equal(numLoops-2);
   })
   
   it("Should allow claiming from the staking contract", async () => {

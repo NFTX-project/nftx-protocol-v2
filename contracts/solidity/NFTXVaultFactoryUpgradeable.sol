@@ -114,8 +114,6 @@ contract NFTXVaultFactoryUpgradeable is
         if (msg.sender != owner()) {
             address vaultAddr = vaults[vaultId];
             require(msg.sender == vaultAddr, "Not from vault");
-        } else {
-            revert("Not owner");
         }
         require(mintFee <= 1 ether, "Cannot > 1 ether");
         require(randomRedeemFee <= 1 ether, "Cannot > 1 ether");

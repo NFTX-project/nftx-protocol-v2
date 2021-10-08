@@ -309,7 +309,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
     for (uint256 i = 0; i < ids.length; i++) {
-      transferFromERC721(assetAddress, ids[i]);
+      transferFromERC721(assetAddress, ids[i], vault);
       approveERC721(assetAddress, vault, ids[i]);
     }
     uint256[] memory emptyIds;
@@ -377,7 +377,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     return (amountToken, amountEth, liquidity);
   }
 
-  function transferFromERC721(address assetAddr, uint256 tokenId) internal virtual {
+  function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     bytes memory data;
@@ -394,7 +394,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
         data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
     } else {
         // Default.
-        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
+        // We push to the vault to avoid an unneeded transfer.
+        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
     }
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
@@ -411,11 +412,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
         // CryptoPunks.
         data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
     } else {
-        if (IERC721(assetAddr).isApprovedForAll(address(this), to)) {
-          return;
-        }
-        // Default.
-        data = abi.encodeWithSignature("setApprovalForAll(address,bool)", to, true);
+      // No longer needed to approve with pushing.
+      return;
     }
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));

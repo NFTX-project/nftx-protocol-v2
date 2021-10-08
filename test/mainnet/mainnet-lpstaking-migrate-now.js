@@ -127,6 +127,19 @@ describe("LP Staking Upgrade Migrate Test", function () {
     await controller.connect(dao).upgradeProxyTo(3, newStaking.address);
     await staking.assignNewImpl();
   });
+  
+  it("Should upgrade the factory and child", async () => {
+    let NewFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
+    let newFactory = await NewFactory.deploy();
+    await newFactory.deployed();
+    await controller.connect(dao).upgradeProxyTo(0, newFactory.address);
+    let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
+    let newVault = await NewVault.deploy();
+    await newVault.deployed();
+    await nftx.connect(dao).upgradeChildTo(newVault.address);
+
+    await nftx.connect(dao).assignFees();
+  });
 
   it("Should let v2 staker to migrate with claiming", async () => {
     let oldDisttoken = await staking.oldRewardDistributionToken(31);

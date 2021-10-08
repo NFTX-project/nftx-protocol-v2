@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@ethersproject/bignumber": "^5.4.2",
-    "@openzeppelin/contracts": "^3.4.2",
+    "@openzeppelin/contracts": "^3.4.1",
     "@openzeppelin/contracts-upgradeable": "^3.4.2",
     "@openzeppelin/hardhat-upgrades": "^1.10.0",
     "dotenv": "^10.0.0",

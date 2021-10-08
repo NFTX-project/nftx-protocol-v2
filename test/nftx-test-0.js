@@ -38,6 +38,7 @@ describe("Main", function () {
     const Staking = await ethers.getContractFactory("NFTXLPStaking");
     staking = await upgrades.deployProxy(Staking, [provider.address], {
       initializer: "__NFTXLPStaking__init",
+      unsafeAllow: 'delegatecall'
     });
     await staking.deployed();
 
@@ -53,6 +54,7 @@ describe("Main", function () {
       [staking.address, notZeroAddr],
       {
         initializer: "__FeeDistributor__init__",
+        unsafeAllow: 'delegatecall'
       }
     );
     await feeDistrib.deployed();
@@ -63,6 +65,7 @@ describe("Main", function () {
       [vault.address, feeDistrib.address],
       {
         initializer: "__NFTXVaultFactory_init",
+        unsafeAllow: 'delegatecall'
       }
     );
     await nftx.deployed();
@@ -196,13 +199,13 @@ describe("Main", function () {
     expect(await nftx.isPaused(1)).to.equal(false);
   });
 
-  it("Should allow minting one at a time by alice", async () => {
+  it("Should allow minting one at a time through pushing by alice", async () => {
     for (let i = 0; i < numLoops; i++) {
       const tokenId = i;
-      await erc721.transferFrom(primary.address, alice.address, tokenId);
-      expect(await erc721.balanceOf(alice.address)).to.equal(1);
-      await erc721.connect(alice).approve(vaults[0].address, tokenId);
+      await erc721.transferFrom(primary.address, vaults[0].address, tokenId);
       await vaults[0].connect(alice).mint([tokenId], [1]);
+      // Should reject minting again when pushing.
+      await expectException(vaults[0].connect(alice).mint([tokenId], [1]), "Trying to use an owned NFT")
       expect(await erc721.balanceOf(alice.address)).to.equal(0);
       expect(await erc721.balanceOf(vaults[0].address)).to.equal(i + 1);
       expect(await vaults[0].balanceOf(alice.address)).to.equal(
@@ -372,7 +375,25 @@ describe("Main", function () {
   });
 
   it("Should allow ERC1155 with fee minting one at a time by alice", async () => {
-    for (let i = 0; i < numLoops; i++) {
+    for (let i = 0; i < numLoops-5; i++) {
+      const tokenId = i;
+      await erc1155.safeTransferFrom(
+        primary.address,
+        alice.address,
+        tokenId,
+        1,
+        []
+      );
+      expect(await erc1155.balanceOf(alice.address, tokenId)).to.equal(1);
+      await erc1155.connect(alice).setApprovalForAll(vaults[1].address, true);
+      await vaults[1].connect(alice).mint([tokenId], [1]);
+      expect(await erc1155.balanceOf(alice.address, tokenId)).to.equal(0);
+      expect(await erc1155.balanceOf(vaults[1].address, tokenId)).to.equal(1);
+    }
+  });
+  
+  it("Should allow ERC1155 with fee minting one at a time by alice", async () => {
+    for (let i = numLoops-5; i < numLoops; i++) {
       const tokenId = i;
       await erc1155.safeTransferFrom(
         primary.address,
@@ -448,7 +469,9 @@ describe("Main", function () {
     await testFactoryUpgrade.deployed();
     const upgraded = await upgrades.upgradeProxy(
       nftx.address,
-      TestFactoryUpgrade
+      TestFactoryUpgrade, {
+        unsafeAllow: 'delegatecall'
+      }
     );
     expect(await upgraded.isUpgraded()).to.equal(true);
   });
