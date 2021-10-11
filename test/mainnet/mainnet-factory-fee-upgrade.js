@@ -159,7 +159,6 @@ describe("LP Staking Upgrade Migrate Test", function () {
     await ethers.provider.send("evm_mine", []);
   });
 
-
   let noPool1155NFT;
   let nft1155Id;
   it("Should create a vault for an ERC1155 token", async () => {
