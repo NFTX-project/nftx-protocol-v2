@@ -2,6 +2,7 @@ require("dotenv").config();
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
 require("hardhat-gas-reporter");
+require("solidity-coverage");
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -15,6 +16,11 @@ module.exports = {
     mainnet: {
       url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+    },
+    palm: {
+      url: `https://palm-mainnet.infura.io/v3/f03ea0b14ca841bb8f1a518d6de77acc`,
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      gasPrice: 100000
     },
     hardhat: {
       mining: {

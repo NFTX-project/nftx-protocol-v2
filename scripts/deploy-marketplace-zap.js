@@ -14,9 +14,9 @@ async function main() {
   );
 
   const MarketZap = await ethers.getContractFactory(
-    "NFTXMarketplaceZap"
+    "PalmNFTXMarketplaceZap"
   );
-  const zap = await MarketZap.deploy("0x8c9ECD518C7805e82cd6DC148e1c8902cb5d3655", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506");
+  const zap = await MarketZap.deploy("0xe01Cf5099e700c282A56E815ABd0C4948298Afae", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506");
   await zap.deployed();
   console.log("Marketplace Zap:", zap.address);
 }

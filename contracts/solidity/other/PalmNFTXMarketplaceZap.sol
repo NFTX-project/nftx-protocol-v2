@@ -2,18 +2,18 @@
 
 pragma solidity ^0.8.0;
 
-import "./interface/INFTXVault.sol";
-import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXFeeDistributor.sol";
-import "./interface/INFTXLPStaking.sol";
-import "./interface/ITimelockRewardDistributionToken.sol";
-import "./interface/IUniswapV2Router01.sol";
-import "./testing/IERC721.sol";
-import "./token/IERC1155Upgradeable.sol";
-import "./token/IERC20Upgradeable.sol";
-import "./token/ERC721HolderUpgradeable.sol";
-import "./token/ERC1155HolderUpgradeable.sol";
-import "./util/OwnableUpgradeable.sol";
+import "../interface/INFTXVault.sol";
+import "../interface/INFTXVaultFactory.sol";
+import "../interface/INFTXFeeDistributor.sol";
+import "../interface/INFTXLPStaking.sol";
+import "../interface/ITimelockRewardDistributionToken.sol";
+import "../interface/IUniswapV2Router01.sol";
+import "../testing/IERC721.sol";
+import "../token/IERC1155Upgradeable.sol";
+import "../token/IERC20Upgradeable.sol";
+import "../token/ERC721HolderUpgradeable.sol";
+import "../token/ERC1155HolderUpgradeable.sol";
+import "../util/OwnableUpgradeable.sol";
 
 // Authors: @0xKiwi_.
 
@@ -149,7 +149,7 @@ abstract contract Ownable {
     }
 }
 
-contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+contract PalmNFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
   IWETH public immutable WETH; 
   INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
@@ -162,26 +162,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
     WETH = IWETH(0x726138359C17F1E56bA8c4F737a7CAf724F6010b);
-    IERC20Upgradeable(0x726138359C17F1E56bA8c4F737a7CAf724F6010b).approve(_sushiRouter, type(uint256).max);
-  }
-
-  function mintAndSell721(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256 minWethOut, 
-    address[] calldata path,
-    address to
-  ) public nonReentrant {
-    require(to != address(0));
-    require(ids.length != 0);
-    (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
-    uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultBalance, path);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value, recipient may have reverted");
+    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
   }
 
   function mintAndSell721WETH(
@@ -197,137 +178,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultBalance, path);
     uint256 remaining = WETH.balanceOf(address(this));
     WETH.transfer(to, remaining);
-  }
-
-  function buyAndSwap721(
-    uint256 vaultId, 
-    uint256[] memory idsIn, 
-    uint256[] memory specificIds, 
-    address[] calldata path,
-    address to
-  ) public payable nonReentrant {
-    require(to != address(0));
-    require(idsIn.length != 0);
-    WETH.deposit{value: msg.value}();
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (idsIn.length - specificIds.length)
-    );
-    uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
-    _swap721(vaultId, idsIn, specificIds, to);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value, recipient may have reverted");
-  }
-
-  function buyAndSwap721WETH(
-    uint256 vaultId, 
-    uint256[] memory idsIn, 
-    uint256[] memory specificIds, 
-    uint256 maxWethIn, 
-    address[] calldata path,
-    address to
-  ) public nonReentrant {
-    require(to != address(0));
-    require(idsIn.length != 0);
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (idsIn.length - specificIds.length)
-    );
-    uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, maxWethIn, path);
-    _swap721(vaultId, idsIn, specificIds, to);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.transfer(to, remaining);
-  }
-
-  function buyAndSwap1155(
-    uint256 vaultId, 
-    uint256[] memory idsIn, 
-    uint256[] memory amounts, 
-    uint256[] memory specificIds, 
-    address[] calldata path,
-    address to
-  ) public payable nonReentrant {
-    require(to != address(0));
-    require(idsIn.length != 0);
-    WETH.deposit{value: msg.value}();
-    uint256 count;
-    for (uint256 i = 0; i < idsIn.length; i++) {
-        uint256 amount = amounts[i];
-        require(amount > 0, "Transferring < 1");
-        count += amount;
-    }
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (count - specificIds.length)
-    );
-    _buyVaultToken(address(vault), redeemFees, msg.value, path);
-    _swap1155(vaultId, idsIn, amounts, specificIds, to);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value, recipient may have reverted");
-  }
-
-  function buyAndSwap1155WETH(
-    uint256 vaultId, 
-    uint256[] memory idsIn, 
-    uint256[] memory amounts, 
-    uint256[] memory specificIds, 
-    uint256 maxWethIn, 
-    address[] calldata path,
-    address to
-  ) public payable nonReentrant {
-    require(to != address(0));
-    require(idsIn.length != 0);
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
-    uint256 count;
-    for (uint256 i = 0; i < idsIn.length; i++) {
-        uint256 amount = amounts[i];
-        require(amount > 0, "Transferring < 1");
-        count += amount;
-    }
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (count - specificIds.length)
-    );
-    _buyVaultToken(address(vault), redeemFees, msg.value, path);
-    _swap1155(vaultId, idsIn, amounts, specificIds, to);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.transfer(to, remaining);
-  }
-
-  function buyAndRedeem(
-    uint256 vaultId, 
-    uint256 amount,
-    uint256[] memory specificIds, 
-    address[] calldata path,
-    address to
-  ) public payable nonReentrant {
-    require(to != address(0));
-    require(amount != 0);
-    WETH.deposit{value: msg.value}();
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 totalFee = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (amount - specificIds.length)
-    );
-    uint256[] memory amounts = _buyVaultToken(address(vault), (amount*BASE)+totalFee, msg.value, path);
-    _redeem(vaultId, amount, specificIds, to);
-
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value, recipient may have reverted");
   }
 
   function buyAndRedeemWETH(
@@ -352,25 +202,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     WETH.transfer(to, remaining);
   }
 
-  function mintAndSell1155(
-    uint256 vaultId, 
-    uint256[] memory ids, 
-    uint256[] memory amounts,
-    uint256 minWethOut, 
-    address[] calldata path,
-    address to
-  ) public nonReentrant {
-    require(to != address(0));
-    require(ids.length != 0);
-    (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
-    uint256[] memory amounts = _sellVaultToken(vault, minWethOut, vaultTokenBalance, path);
-
-    // Return extras.
-    uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value, recipient may have reverted");
-  }
 
   function mintAndSell1155WETH(
     uint256 vaultId, 

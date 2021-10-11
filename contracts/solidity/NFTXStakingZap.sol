@@ -163,8 +163,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
-    WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
-    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
+    WETH = IWETH(0x726138359C17F1E56bA8c4F737a7CAf724F6010b);
+    IERC20Upgradeable(0x726138359C17F1E56bA8c4F737a7CAf724F6010b).approve(_sushiRouter, type(uint256).max);
   }
 
   function setLockTime(uint256 newLockTime) external onlyOwner {
@@ -353,7 +353,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
       address(vault), 
-      sushiRouter.WETH(),
+      address(WETH),
       minTokenIn, 
       wethIn, 
       minTokenIn,

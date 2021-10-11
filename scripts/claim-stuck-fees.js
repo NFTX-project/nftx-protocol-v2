@@ -13,14 +13,9 @@ async function main() {
     "\n"
   );
   
-  const factory = await ethers.getContractAt("NFTXVaultFactoryUpgradeable", "0xBE86f647b167567525cCAAfcd6f881F1Ee558216")
-  const numVaults = await factory.numVault(); 
+  const provider = await ethers.getContractAt("StakingTokenProvider", "0xe5AB394e284d095aDacff8A0fb486cb5a24b0b7a")
+  await provider.setDefaultPairedToken("0x726138359C17F1E56bA8c4F737a7CAf724F6010b", "x");
 
-  for (let i = ethers.BigNumber.from(0); i.lt(numVaults); i.add(1)) {
-    const vault = await ethers.getContractAt("NFTXVaultUpgradeable", await factory.vault(i))
-    await vault.saveStuckFees();
-  }
-  
 }
 
 main()
