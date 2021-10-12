@@ -180,7 +180,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = mintFee() * count;
         _chargeAndDistributeFees(to, totalFee);
 
-        emit Minted(tokenIds, amounts, totalFee, to);
+        emit Minted(tokenIds, amounts, to);
         return count;
     }
 
@@ -213,7 +213,7 @@ contract NFTXVaultUpgradeable is
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
-        emit Redeemed(redeemedIds, specificIds, totalFee, to);
+        emit Redeemed(redeemedIds, specificIds, to);
         return redeemedIds;
     }
     
@@ -257,7 +257,7 @@ contract NFTXVaultUpgradeable is
 
         receiveNFTs(tokenIds, amounts);
 
-        emit Swapped(tokenIds, amounts, specificIds, ids, redeemFee, to);
+        emit Swapped(tokenIds, amounts, specificIds, ids, to);
         return ids;
     }
 
