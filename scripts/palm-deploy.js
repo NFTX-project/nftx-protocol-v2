@@ -108,7 +108,7 @@ async function main() {
   const MarketZap = await ethers.getContractFactory("PalmNFTXMarketplaceZap");
   const marketZap = await MarketZap.deploy(nftx.address, "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506");
   await marketZap.deployed();
-  console.log("Marketplace Zap: ", zap.address);
+  console.log("Marketplace Zap: ", marketZap.address);
 
   await nftx.setZapContract(zap.address);
   await nftx.setFeeExclusion(zap.address, true);  
