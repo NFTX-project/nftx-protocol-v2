@@ -228,10 +228,11 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(idsIn.length != 0);
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
+    uint256 mintFees = idsIn.length * vault.mintFee();
     uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
         vault.randomRedeemFee() * (idsIn.length - specificIds.length)
     );
-    uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, maxWethIn, path);
+    uint256[] memory amounts = _buyVaultToken(address(vault), mintFees + redeemFees, maxWethIn, path);
     _swap721(vaultId, idsIn, specificIds, to);
 
     // Return extras.
