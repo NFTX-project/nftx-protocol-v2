@@ -202,8 +202,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(idsIn.length != 0);
     WETH.deposit{value: msg.value}();
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (idsIn.length - specificIds.length)
+    uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
+        vault.randomSwapFee() * (idsIn.length - specificIds.length)
     );
     uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap721(vaultId, idsIn, specificIds, to);
@@ -227,8 +227,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(idsIn.length != 0);
     IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (idsIn.length - specificIds.length)
+    uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
+        vault.randomSwapFee() * (idsIn.length - specificIds.length)
     );
     uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, maxWethIn, path);
     _swap721(vaultId, idsIn, specificIds, to);
@@ -256,8 +256,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
         count += amount;
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (count - specificIds.length)
+    uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
+        vault.randomSwapFee() * (count - specificIds.length)
     );
     _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
@@ -288,8 +288,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
         count += amount;
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 redeemFees = (vault.targetRedeemFee() * specificIds.length) + (
-        vault.randomRedeemFee() * (count - specificIds.length)
+    uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
+        vault.randomSwapFee() * (count - specificIds.length)
     );
     _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
