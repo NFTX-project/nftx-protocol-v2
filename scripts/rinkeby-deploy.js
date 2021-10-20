@@ -106,6 +106,13 @@ async function main() {
   await nftx.setZapContract(zap.address);
   await nftx.setFeeExclusion(zap.address, true);  
 
+  const MarketZap = await ethers.getContractFactory("NFTXMarketplaceZap");
+  const marketZap = await MarketZap.deploy(nftx.address, "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506");
+  await marketZap.deployed();
+
+  console.log("Staking Zap:", zap.address);
+  console.log("Marketplace Zap:", marketZap.address);
+  
   const ProxyController = await ethers.getContractFactory("ProxyController");
 
   const proxyController = await ProxyController.deploy(
