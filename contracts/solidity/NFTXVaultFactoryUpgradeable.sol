@@ -136,8 +136,6 @@ contract NFTXVaultFactoryUpgradeable is
         if (msg.sender != owner()) {
             INFTXVault vaultAddr = INFTXVault(vaults[vaultId]);
             require(msg.sender == vaultAddr.manager(), "Not vault manager");
-        } else {
-            revert("Not owner");
         }
         delete _vaultFees[vaultId];
         emit DisableVaultFees(vaultId);

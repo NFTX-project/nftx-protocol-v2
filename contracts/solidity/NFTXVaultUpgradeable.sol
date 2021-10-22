@@ -232,8 +232,10 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
-        require(enableMint && (enableRandomRedeem || enableTargetRedeem), "NFTXVault: Mint & Redeem enabled");
-        
+        require(enableMint, "NFTXVault: Mint disabled");
+        if (specificIds.length > 0) {
+            require(enableTargetRedeem, "NFTXVault: Target redeem disabled");
+        } 
         uint256 count;
         if (is1155) {
             for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -244,8 +246,10 @@ contract NFTXVaultUpgradeable is
         } else {
             count = tokenIds.length;
         }
+        if (count > specificIds.length) {
+            require(enableRandomRedeem, "NFTXVault: Random redeem disabled");
+        }
 
-        // Pay the toll. Mint and Redeem fees here since its a swap.
         // We burn all from sender and mint to fee receiver to reduce costs.
         uint256 redeemFee = (targetSwapFee() * specificIds.length) + (
             randomSwapFee() * (count - specificIds.length)
