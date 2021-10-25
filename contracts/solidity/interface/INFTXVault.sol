@@ -7,18 +7,20 @@ import "../token/IERC20Upgradeable.sol";
 import "../interface/INFTXVaultFactory.sol";
 
 interface INFTXVault is IERC20Upgradeable {
-    function manager() external returns (address);
-    function assetAddress() external returns (address);
-    function vaultFactory() external returns (INFTXVaultFactory);
-    function eligibilityStorage() external returns (INFTXEligibility);
+    function manager() external view returns (address);
+    function assetAddress() external view returns (address);
+    function vaultFactory() external view returns (INFTXVaultFactory);
+    function eligibilityStorage() external view returns (INFTXEligibility);
 
-    function is1155() external returns (bool);
-    function allowAllItems() external returns (bool);
-    function enableMint() external returns (bool);
-    function enableRandomRedeem() external returns (bool);
-    function enableTargetRedeem() external returns (bool);
+    function is1155() external view returns (bool);
+    function allowAllItems() external view returns (bool);
+    function enableMint() external view returns (bool);
+    function enableRandomRedeem() external view returns (bool);
+    function enableTargetRedeem() external view returns (bool);
+    function enableRandomSwap() external view returns (bool);
+    function enableTargetSwap() external view returns (bool);
 
-    function vaultId() external returns (uint256);
+    function vaultId() external view returns (uint256);
     function nftIdAt(uint256 holdingsIndex) external view returns (uint256);
     function allHoldings() external view returns (uint256[] memory);
     function totalHoldings() external view returns (uint256);
@@ -43,6 +45,8 @@ interface INFTXVault is IERC20Upgradeable {
     event EnableMintUpdated(bool enabled);
     event EnableRandomRedeemUpdated(bool enabled);
     event EnableTargetRedeemUpdated(bool enabled);
+    event EnableRandomSwapUpdated(bool enabled);
+    event EnableTargetSwapUpdated(bool enabled);
 
     event Minted(uint256[] nftIds, uint256[] amounts, address to);
     event Redeemed(uint256[] nftIds, uint256[] specificIds, address to);
@@ -72,7 +76,9 @@ interface INFTXVault is IERC20Upgradeable {
     function setVaultFeatures(
         bool _enableMint,
         bool _enableRandomRedeem,
-        bool _enableTargetRedeem
+        bool _enableTargetRedeem,
+        bool _enableRandomSwap,
+        bool _enableTargetSwap
     ) external;
 
     function setFees(

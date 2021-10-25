@@ -52,6 +52,9 @@ contract NFTXVaultUpgradeable is
     EnumerableSetUpgradeable.UintSet holdings;
     mapping(uint256 => uint256) quantity1155;
 
+    bool public override enableRandomSwap;
+    bool public override enableTargetSwap;
+
     function __NFTXVault_init(
         string memory _name,
         string memory _symbol,
@@ -68,7 +71,7 @@ contract NFTXVaultUpgradeable is
         is1155 = _is1155;
         allowAllItems = _allowAllItems;
         emit VaultInit(vaultId, _assetAddress, _is1155, _allowAllItems);
-        setVaultFeatures(true /*enableMint*/, true /*enableRandomRedeem*/, true /*enableTargetRedeem*/);
+        setVaultFeatures(true /*enableMint*/, true /*enableRandomRedeem*/, true /*enableTargetRedeem*/, true /*enableRandomSwap*/, true /*enableTargetSwap*/);
     }
 
     function finalizeVault() external override virtual {
@@ -87,16 +90,22 @@ contract NFTXVaultUpgradeable is
     function setVaultFeatures(
         bool _enableMint,
         bool _enableRandomRedeem,
-        bool _enableTargetRedeem
+        bool _enableTargetRedeem,
+        bool _enableRandomSwap,
+        bool _enableTargetSwap
     ) public override virtual {
         onlyPrivileged();
         enableMint = _enableMint;
         enableRandomRedeem = _enableRandomRedeem;
         enableTargetRedeem = _enableTargetRedeem;
+        enableRandomSwap = _enableRandomSwap;
+        enableTargetSwap = _enableTargetSwap;
 
         emit EnableMintUpdated(_enableMint);
         emit EnableRandomRedeemUpdated(_enableRandomRedeem);
         emit EnableTargetRedeemUpdated(_enableTargetRedeem);
+        emit EnableRandomSwapUpdated(_enableRandomSwap);
+        emit EnableTargetSwapUpdated(_enableTargetSwap);
     }
 
     function setFees(
@@ -201,7 +210,14 @@ contract NFTXVaultUpgradeable is
         returns (uint256[] memory)
     {
         onlyOwnerIfPaused(2);
-        require(enableRandomRedeem || enableTargetRedeem, "Redeeming not enabled");
+        require(
+            amount == specificIds.length || enableRandomRedeem,
+            "NFTXVault: Random redeem not enabled"
+        );
+        require(
+            specificIds.length == 0 || enableTargetRedeem,
+            "NFTXVault: Target redeem not enabled"
+        );
         
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
@@ -234,7 +250,7 @@ contract NFTXVaultUpgradeable is
         onlyOwnerIfPaused(3);
         require(enableMint, "NFTXVault: Mint disabled");
         if (specificIds.length > 0) {
-            require(enableTargetRedeem, "NFTXVault: Target redeem disabled");
+            require(enableTargetSwap, "NFTXVault: Target swap disabled");
         } 
         uint256 count;
         if (is1155) {
@@ -247,7 +263,7 @@ contract NFTXVaultUpgradeable is
             count = tokenIds.length;
         }
         if (count > specificIds.length) {
-            require(enableRandomRedeem, "NFTXVault: Random redeem disabled");
+            require(enableRandomSwap, "NFTXVault: Random redeem swap");
         }
 
         // We burn all from sender and mint to fee receiver to reduce costs.
@@ -387,6 +403,12 @@ contract NFTXVaultUpgradeable is
             address _assetAddress = assetAddress;
             for (uint256 i = 0; i < tokenIds.length; i++) {
                 uint256 tokenId = tokenIds[i];
+                // We may already own the NFT here so we check in order:
+                // Does the vault own it?
+                //   - If so, check if its in holdings list
+                //      - If so, we reject. 
+                //      - If not, it means we have not yet accounted for this NFT, so we continue.
+                //   -If not, we "pull" it from the msg.sender and add to holdings.
                 transferFromERC721(_assetAddress, tokenId);
                 holdings.add(tokenId);
             }
@@ -399,15 +421,6 @@ contract NFTXVaultUpgradeable is
         uint256[] memory specificIds,
         address to
     ) internal virtual returns (uint256[] memory) {
-        require(
-            amount == specificIds.length || enableRandomRedeem,
-            "NFTXVault: Random redeem not enabled"
-        );
-        require(
-            specificIds.length == 0 || enableTargetRedeem,
-            "NFTXVault: Target redeem not enabled"
-        );
-
         bool _is1155 = is1155;
         address _assetAddress = assetAddress;
         uint256[] memory redeemedIds = new uint256[](amount);

@@ -146,10 +146,12 @@ describe("Main", function () {
   });
 
   it("Should allow all vault features", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(true, true, true);
+    await vaults[0].connect(primary).setVaultFeatures(true, true, true, true, true);
     expect(await vaults[0].enableMint()).to.eq(true);
     expect(await vaults[0].enableRandomRedeem()).to.eq(true);
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
+    expect(await vaults[0].enableRandomSwap()).to.eq(true);
+    expect(await vaults[0].enableTargetSwap()).to.eq(true);
   });
 
   it("Should set fees to 0", async () => {
@@ -358,10 +360,12 @@ describe("Main", function () {
   });
 
   it("Should allow all ERC1155 vault features", async () => {
-    await vaults[1].connect(primary).setVaultFeatures(true, true, true);
+    await vaults[1].connect(primary).setVaultFeatures(true, true, true, true, true);
     expect(await vaults[1].enableMint()).to.eq(true);
     expect(await vaults[1].enableRandomRedeem()).to.eq(true);
     expect(await vaults[1].enableTargetRedeem()).to.eq(true);
+    expect(await vaults[1].enableRandomSwap()).to.eq(true);
+    expect(await vaults[1].enableTargetSwap()).to.eq(true);
   });
 
   it("Should set fees to 0", async () => {
