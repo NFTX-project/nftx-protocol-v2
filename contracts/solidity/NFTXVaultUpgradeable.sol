@@ -234,6 +234,7 @@ contract NFTXVaultUpgradeable is
         
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
+
         // Pay the tokens + toll.
         uint256 totalFee = (targetRedeemFee() * specificIds.length) + (
             randomRedeemFee() * (amount - specificIds.length)
@@ -281,11 +282,10 @@ contract NFTXVaultUpgradeable is
             "NFTXVault: Target swap disabled"
         );
 
-        // We burn all from sender and mint to fee receiver to reduce costs.
-        uint256 redeemFee = (targetSwapFee() * specificIds.length) + (
+        uint256 totalFee = (targetSwapFee() * specificIds.length) + (
             randomSwapFee() * (count - specificIds.length)
         );
-        _chargeAndDistributeFees(msg.sender, redeemFee);
+        _chargeAndDistributeFees(msg.sender, totalFee);
         
         // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
