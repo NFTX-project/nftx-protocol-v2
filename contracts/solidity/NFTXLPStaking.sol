@@ -269,7 +269,8 @@ contract NFTXLPStaking is PausableUpgradeable {
     function _deposit(StakingPool memory pool, uint256 amount) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
-        _rewardDistributionTokenAddr(pool).mint(msg.sender, amount);
+        // Timelock for 2 seconds to prevent flash loans.
+        _rewardDistributionTokenAddr(pool).timelockMint(msg.sender, amount, 2);
     }
 
     function _claimRewards(StakingPool memory pool, address account) internal {
