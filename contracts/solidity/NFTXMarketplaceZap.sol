@@ -157,6 +157,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
 
   uint256 constant BASE = 10**18;
 
+  event Buy(uint256 count, uint256 ethSpent, address to);
+  event Sell(uint256 count, uint256 ethReceived, address to);
+  event Swap(uint256 count, uint256 ethSpent, address to);
+
   constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
@@ -175,7 +179,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(to != address(0));
     require(ids.length != 0);
     (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
-    _sellVaultTokenETH(vault, minWethOut, vaultBalance, path, to);
+    uint256[] memory amounts = _sellVaultTokenETH(vault, minWethOut, vaultBalance, path, to);
+    emit Sell(ids.length, amounts[1], to);
   }
 
   function mintAndSell721WETH(
@@ -188,7 +193,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(to != address(0));
     require(ids.length != 0);
     (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
-    _sellVaultTokenWETH(vault, minWethOut, vaultBalance, path, to);
+    uint256[] memory amounts = _sellVaultTokenWETH(vault, minWethOut, vaultBalance, path, to);
+    emit Sell(ids.length, amounts[1], to);
   }
 
   function buyAndSwap721(
@@ -207,6 +213,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     );
     uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap721(vaultId, idsIn, specificIds, to);
+
+    emit Swap(idsIn.length, amounts[0], to);
 
     // Return extras.
     uint256 remaining = WETH.balanceOf(address(this));
@@ -232,6 +240,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     );
     uint256[] memory amounts = _buyVaultToken(address(vault), redeemFees, maxWethIn, path);
     _swap721(vaultId, idsIn, specificIds, to);
+
+    emit Swap(idsIn.length, amounts[0], to);
 
     // Return extras.
     uint256 remaining = WETH.balanceOf(address(this));
@@ -259,8 +269,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
         vault.randomSwapFee() * (count - specificIds.length)
     );
-    _buyVaultToken(address(vault), redeemFees, msg.value, path);
+    uint256[] memory swapAmounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
+
+    emit Swap(count, swapAmounts[0], to);
 
     // Return extras.
     uint256 remaining = WETH.balanceOf(address(this));
@@ -291,8 +303,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
         vault.randomSwapFee() * (count - specificIds.length)
     );
-    _buyVaultToken(address(vault), redeemFees, msg.value, path);
+    uint256[] memory swapAmounts = _buyVaultToken(address(vault), redeemFees, msg.value, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
+
+    emit Swap(count, swapAmounts[0], to);
 
     // Return extras.
     uint256 remaining = WETH.balanceOf(address(this));
@@ -315,6 +329,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     );
     uint256[] memory amounts = _buyVaultToken(address(vault), (amount*BASE)+totalFee, msg.value, path);
     _redeem(vaultId, amount, specificIds, to);
+
+    emit Buy(amount, amounts[0], to);
 
     uint256 remaining = WETH.balanceOf(address(this));
     WETH.withdraw(remaining);
@@ -340,6 +356,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = _buyVaultToken(address(vault), (amount*BASE) + totalFee, maxWethIn, path);
     _redeem(vaultId, amount, specificIds, to);
 
+    emit Buy(amount, amounts[0], to);
+
     uint256 remaining = WETH.balanceOf(address(this));
     WETH.transfer(to, remaining);
   }
@@ -355,7 +373,13 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(to != address(0));
     require(ids.length != 0);
     (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
-    _sellVaultTokenETH(vault, minWethOut, vaultTokenBalance, path, to);
+    uint256[] memory amounts = _sellVaultTokenETH(vault, minWethOut, vaultTokenBalance, path, to);
+
+    uint256 count;
+    for (uint256 i = 0; i < ids.length; i++) {
+        count += amounts[i];
+    }
+    emit Sell(count, amounts[1], to);
   }
 
   function mintAndSell1155WETH(
@@ -370,6 +394,12 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(ids.length != 0);
     (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
     _sellVaultTokenWETH(vault, minWethOut, vaultTokenBalance, path, to);
+
+    uint256 count;
+    for (uint256 i = 0; i < ids.length; i++) {
+        count += amounts[i];
+    }
+    emit Sell(count, amounts[1], to);
   }
 
   function _mint721(

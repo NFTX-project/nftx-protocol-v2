@@ -108,6 +108,14 @@ contract NFTXVaultUpgradeable is
         emit EnableTargetSwapUpdated(_enableTargetSwap);
     }
 
+    function assignDefaultFeatures() external {
+        require(msg.sender == 0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a, "Not dev");
+        enableRandomSwap = enableRandomRedeem;
+        enableTargetSwap = enableTargetRedeem;
+        emit EnableRandomSwapUpdated(enableRandomSwap);
+        emit EnableTargetSwapUpdated(enableTargetSwap);
+    }
+
     function setFees(
         uint256 _mintFee,
         uint256 _randomRedeemFee,
@@ -117,6 +125,11 @@ contract NFTXVaultUpgradeable is
     ) public override virtual {
         onlyPrivileged();
         vaultFactory.setVaultFees(vaultId, _mintFee, _randomRedeemFee, _targetRedeemFee, _randomSwapFee, _targetSwapFee);
+    }
+
+    function disableVaultFees() public override virtual {
+        onlyPrivileged();
+        vaultFactory.disableVaultFees(vaultId);
     }
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
@@ -248,10 +261,6 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
-        require(enableMint, "NFTXVault: Mint disabled");
-        if (specificIds.length > 0) {
-            require(enableTargetSwap, "NFTXVault: Target swap disabled");
-        } 
         uint256 count;
         if (is1155) {
             for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -262,9 +271,15 @@ contract NFTXVaultUpgradeable is
         } else {
             count = tokenIds.length;
         }
-        if (count > specificIds.length) {
-            require(enableRandomSwap, "NFTXVault: Random redeem swap");
-        }
+
+        require(
+            count == specificIds.length || enableRandomSwap,
+            "NFTXVault: Random swap disabled"
+        );
+        require(
+            specificIds.length == 0 || enableTargetSwap,
+            "NFTXVault: Target swap disabled"
+        );
 
         // We burn all from sender and mint to fee receiver to reduce costs.
         uint256 redeemFee = (targetSwapFee() * specificIds.length) + (
@@ -406,7 +421,7 @@ contract NFTXVaultUpgradeable is
                 // We may already own the NFT here so we check in order:
                 // Does the vault own it?
                 //   - If so, check if its in holdings list
-                //      - If so, we reject. 
+                //      - If so, we reject. This means the NFT has already been claimed for.
                 //      - If not, it means we have not yet accounted for this NFT, so we continue.
                 //   -If not, we "pull" it from the msg.sender and add to holdings.
                 transferFromERC721(_assetAddress, tokenId);

@@ -10,7 +10,7 @@ const zeroAddr = "0x0000000000000000000000000000000000000000";
 const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
 let primary, alice, bob, kiwi;
-let dao;
+let dao, dev;
 
 let nftx;
 let zap, stakingZap;
@@ -49,6 +49,10 @@ describe("LP Zap Test", function () {
       method: "hardhat_impersonateAccount",
       params: ["0x40d73df4f99bae688ce3c23a01022224fe16c7b2"],
     });
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a"],
+    });
 
     kiwi = await ethers.provider.getSigner(
       "0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48"
@@ -56,7 +60,9 @@ describe("LP Zap Test", function () {
     dao = await ethers.provider.getSigner(
       "0x40d73df4f99bae688ce3c23a01022224fe16c7b2"
     );
-
+    dev = await ethers.provider.getSigner(
+      "0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a"
+    );
     vault = await ethers.getContractAt(
       "NFTXVaultUpgradeable",
       "0x114f1388fab456c4ba31b1850b244eedcd024136"
@@ -211,7 +217,9 @@ describe("LP Zap Test", function () {
     expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
   })
 
+
   it("Should successfully buy and swap 721", async () => {
+    await vaults[0].connect(dev).assignDefaultFeatures();
     const assetAddress = await vaults[0].assetAddress();
     const coolCats = await ethers.getContractAt("ERC721", assetAddress);
     expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
@@ -311,7 +319,7 @@ describe("LP Zap Test", function () {
     expect(bal).to.equal(4)
   })
 
-  it("Should successfully swap and buy 1155", async () => {
+  it("Should successfully swap 1155", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
     const WETH = await router.WETH();
     const stakingProvider = await ethers.getContractAt("StakingTokenProvider", "0x5fAD0e4cc9925365b9B0bbEc9e0C3536c0B1a5C7");

@@ -88,6 +88,7 @@ interface INFTXVault is IERC20Upgradeable {
         uint256 _randomSwapFee,
         uint256 _targetSwapFee
     ) external;
+    function disableVaultFees() external;
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
     // It takes in ABI encoded parameters for the desired module. This is to make sure they can all follow

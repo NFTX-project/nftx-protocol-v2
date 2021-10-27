@@ -18,9 +18,8 @@ async function main() {
 
   for (let i = ethers.BigNumber.from(0); i.lt(numVaults); i.add(1)) {
     const vault = await ethers.getContractAt("NFTXVaultUpgradeable", await factory.vault(i))
-    await vault.saveStuckFees();
+    await vault.assignDefaultFeatures();
   }
-  
 }
 
 main()

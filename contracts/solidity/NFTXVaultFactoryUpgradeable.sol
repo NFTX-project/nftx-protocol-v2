@@ -18,14 +18,12 @@ contract NFTXVaultFactoryUpgradeable is
     UpgradeableBeacon,
     INFTXVaultFactory
 {
-    // Removed, no longer needed.
-    uint256 private NOT_USED1;
+    uint256 private NOT_USED1; // Removed, no longer needed.
     address public override zapContract;
     address public override feeDistributor;
     address public override eligibilityManager;
 
-    // Removed, no longer needed.
-    mapping(uint256 => address) private NOT_USED2;
+    mapping(uint256 => address) private NOT_USED2; // Removed, no longer needed.
     mapping(address => address[]) _vaultsForAsset;
     
     address[] internal vaults;
@@ -54,12 +52,18 @@ contract NFTXVaultFactoryUpgradeable is
         // We use a beacon proxy so that every child contract follows the same implementation code.
         __UpgradeableBeacon__init(_vaultImpl);
         setFeeDistributor(_feeDistributor);
-        setFactoryFees(0.025 ether, 0.025 ether, 0.05 ether, 0.025 ether, 0.05 ether);
+        setFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
     }
 
     function assignFees() public {
         require(factoryMintFee == 0 && factoryTargetRedeemFee == 0, "Assigned");
-        setFactoryFees(0.025 ether, 0.025 ether, 0.05 ether, 0.025 ether, 0.05 ether);
+        factoryMintFee = uint64(0.1 ether);
+        factoryRandomRedeemFee = uint64(0.05 ether);
+        factoryTargetRedeemFee = uint64(0.1 ether);
+        factoryRandomSwapFee = uint64(0.05 ether);
+        factoryTargetSwapFee = uint64(0.1 ether);
+
+        emit UpdateFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
     }
 
     function createVault(
@@ -134,8 +138,8 @@ contract NFTXVaultFactoryUpgradeable is
 
     function disableVaultFees(uint256 vaultId) public virtual override {
         if (msg.sender != owner()) {
-            INFTXVault vaultAddr = INFTXVault(vaults[vaultId]);
-            require(msg.sender == vaultAddr.manager(), "Not vault manager");
+            address vaultAddr = vaults[vaultId];
+            require(msg.sender == vaultAddr, "Not vault");
         }
         delete _vaultFees[vaultId];
         emit DisableVaultFees(vaultId);
@@ -185,8 +189,8 @@ contract NFTXVaultFactoryUpgradeable is
         return _vaultsForAsset[assetAddress];
     }
 
-    function vault(uint256 vauldId) external view override virtual returns (address) {
-        return vaults[vauldId];
+    function vault(uint256 vaultId) external view override virtual returns (address) {
+        return vaults[vaultId];
     }
 
     function allVaults() external view override virtual returns (address[] memory) {

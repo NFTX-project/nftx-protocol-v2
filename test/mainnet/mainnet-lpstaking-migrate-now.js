@@ -138,7 +138,7 @@ describe("LP Staking Upgrade Migrate Test", function () {
     await newVault.deployed();
     await nftx.connect(dao).upgradeChildTo(newVault.address);
 
-    await nftx.connect(dao).assignFees();
+    await nftx.assignFees();
   });
 
   it("Should let v2 staker to migrate with claiming", async () => {

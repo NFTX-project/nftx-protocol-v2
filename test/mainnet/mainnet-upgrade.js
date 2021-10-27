@@ -93,6 +93,8 @@ describe("LP Staking Upgrade Migrate Test", function () {
   });
 
   it("Should upgrade the factory and child", async () => {
+    let oldVaultAddr = await nftx.vault(179);
+    let oldVaultNum = await nftx.numVaults();
     let NewFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
     let newFactory = await NewFactory.deploy();
     await newFactory.deployed();
@@ -101,15 +103,58 @@ describe("LP Staking Upgrade Migrate Test", function () {
     let newVault = await NewVault.deploy();
     await newVault.deployed();
     await nftx.connect(dao).upgradeChildTo(newVault.address);
-
-    await nftx.connect(dao).assignFees();
+    await nftx.assignFees();
+    let newVaultAddr = await nftx.vault(179);
+    let newVaultNum = await nftx.numVaults();
+    expect(oldVaultAddr).to.equal(newVaultAddr);
+    expect(newVaultNum).to.equal(oldVaultNum);
   });
 
-  it("Should add liquidity with 721 on existing pool", async () => {
+  it("Should report accurate storage", async () => {
     vault = await ethers.getContractAt(
       "NFTXVaultUpgradeable",
       "0x5cE188B44266c7B4bbC67Afa3D16b2eB24eD1065"
     );
+    let fees = await vault.vaultFees();
+    expect(fees[0]).to.equal(await nftx.factoryMintFee()); 
+    expect(fees[1]).to.equal(await nftx.factoryRandomRedeemFee()); 
+    expect(fees[2]).to.equal(await nftx.factoryTargetRedeemFee()); 
+    expect(fees[3]).to.equal(await nftx.factoryRandomSwapFee()); 
+    expect(fees[4]).to.equal(await nftx.factoryTargetSwapFee()); 
+    expect(await vault.mintFee()).to.equal(await nftx.factoryMintFee()); 
+    expect(await vault.randomRedeemFee()).to.equal(await nftx.factoryRandomRedeemFee()); 
+    expect(await vault.targetRedeemFee()).to.equal(await nftx.factoryTargetRedeemFee()); 
+    expect(await vault.randomSwapFee()).to.equal(await nftx.factoryRandomSwapFee()); 
+    expect(await vault.targetSwapFee()).to.equal(await nftx.factoryTargetSwapFee()); 
+
+    await nftx.connect(dao).setVaultFees(179, BASE.div(20), BASE.div(25), BASE.div(10), BASE.div(25), BASE.div(20))
+    let newFees = await vault.vaultFees();
+    expect(newFees[0]).to.equal(BASE.div(20)); 
+    expect(newFees[1]).to.equal(BASE.div(25)); 
+    expect(newFees[2]).to.equal(BASE.div(10)); 
+    expect(newFees[3]).to.equal(BASE.div(25)); 
+    expect(newFees[4]).to.equal(BASE.div(20)); 
+    expect(await vault.mintFee()).to.equal(BASE.div(20)); 
+    expect(await vault.randomRedeemFee()).to.equal(BASE.div(25)); 
+    expect(await vault.targetRedeemFee()).to.equal(BASE.div(10)); 
+    expect(await vault.randomSwapFee()).to.equal(BASE.div(25)); 
+    expect(await vault.targetSwapFee()).to.equal(BASE.div(20)); 
+
+    await nftx.connect(dao).disableVaultFees(179);
+    let disabledFees = await vault.vaultFees();
+    expect(disabledFees[0]).to.equal(await nftx.factoryMintFee()); 
+    expect(disabledFees[1]).to.equal(await nftx.factoryRandomRedeemFee()); 
+    expect(disabledFees[2]).to.equal(await nftx.factoryTargetRedeemFee()); 
+    expect(disabledFees[3]).to.equal(await nftx.factoryRandomSwapFee()); 
+    expect(disabledFees[4]).to.equal(await nftx.factoryTargetSwapFee()); 
+    expect(await vault.mintFee()).to.equal(await nftx.factoryMintFee()); 
+    expect(await vault.randomRedeemFee()).to.equal(await nftx.factoryRandomRedeemFee()); 
+    expect(await vault.targetRedeemFee()).to.equal(await nftx.factoryTargetRedeemFee()); 
+    expect(await vault.randomSwapFee()).to.equal(await nftx.factoryRandomSwapFee()); 
+    expect(await vault.targetSwapFee()).to.equal(await nftx.factoryTargetSwapFee()); 
+  })
+
+  it("Should add liquidity with 721 on existing pool", async () => {
     vaults.push(vault);
     const assetAddress = await vaults[0].assetAddress();
     const uwus = await ethers.getContractAt("ERC721", assetAddress);
