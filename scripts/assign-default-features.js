@@ -14,11 +14,13 @@ async function main() {
   );
   
   const factory = await ethers.getContractAt("NFTXVaultFactoryUpgradeable", "0xBE86f647b167567525cCAAfcd6f881F1Ee558216")
-  const numVaults = await factory.numVault(); 
+  const vaults = await factory.allVaults(); 
 
-  for (let i = ethers.BigNumber.from(0); i.lt(numVaults); i.add(1)) {
-    const vault = await ethers.getContractAt("NFTXVaultUpgradeable", await factory.vault(i))
-    await vault.assignDefaultFeatures();
+  for (let i = 152; i < vaults.length; i++) {
+    const vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaults[i])
+    console.log(vaults[i])
+    let tx = await vault.assignDefaultFeatures();
+    await tx.wait();
   }
 }
 
