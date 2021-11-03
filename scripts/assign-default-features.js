@@ -16,11 +16,15 @@ async function main() {
   const factory = await ethers.getContractAt("NFTXVaultFactoryUpgradeable", "0xBE86f647b167567525cCAAfcd6f881F1Ee558216")
   const vaults = await factory.allVaults(); 
 
-  for (let i = 152; i < vaults.length; i++) {
+  for (let i = 0; i < vaults.length; i++) {
     const vault = await ethers.getContractAt("NFTXVaultUpgradeable", vaults[i])
-    console.log(vaults[i])
-    let tx = await vault.assignDefaultFeatures();
-    await tx.wait();
+    const randomRedeem = await vault.enableRandomRedeem()
+    const randomSwap = await vault.enableRandomSwap(); 
+    if (randomRedeem != randomSwap) {
+      console.log(i, await vault.symbol(), vaults[i])
+      let tx = await vault.assignDefaultFeatures();
+      await tx.wait();
+    }
   }
 }
 
