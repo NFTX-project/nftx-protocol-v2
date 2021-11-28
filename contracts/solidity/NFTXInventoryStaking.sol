@@ -93,7 +93,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         vault.mintTo(ids, amounts, address(xToken));
         uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
         require(newBal == oldBal + ids.length*BASE, "Not deposited");
-        _timelockMintFor(vaultId, msg.sender, ids.length, lockTime);
     }
 
     function zapDeposit1155(uint256 vaultId, uint256[] memory ids, uint256[] memory amounts) public {
@@ -106,7 +105,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         vault.mintTo(ids, amounts, address(xToken));
         uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
         require(newBal == oldBal + ids.length*BASE, "Not deposited");
-        _timelockMintFor(vaultId, msg.sender, ids.length, lockTime);
     }
 
     // Enter the bar. Staking, get minted shares and .
