@@ -205,9 +205,12 @@ describe("LP Staking", function () {
   })
 
   it("Should withdraw and include rewards", async () => {
-
+    const id = await vaults[0].vaultId();
+    let xToken = await inventoryStaking.vaultXToken(id)
+    const xTokenContract = await ethers.getContractAt("XTokenUpgradeable", xToken);
+    await inventoryStaking.connect(alice).withdraw(id, await xTokenContract.balanceOf(alice.getAddress()))
   })
-  
+
   it("Should enable direct redeem feature", async () => {
     await vaults[0].connect(primary).setVaultFeatures(true, false, true, false, false);
     expect(await vaults[0].enableMint()).to.eq(true);

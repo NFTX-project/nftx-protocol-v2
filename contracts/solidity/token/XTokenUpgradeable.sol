@@ -44,6 +44,10 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         emit Timelocked(account, timelockFinish);
     }
 
+    function transferBaseToken(address to, uint256 amount) public onlyOwner {
+        baseToken.transfer(to, amount);
+    }
+
     function burn(address who, uint256 amount) public onlyOwner {
         require(block.timestamp > timelock[who], "User locked");
         _burn(who, amount);

@@ -26,7 +26,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
 
     uint256 public constant BASE = 10**18;
     // Small locktime to prevent flash deposits.
-    uint256 public constant DEFAULT_LOCKTIME = 5;
+    uint256 public constant DEFAULT_LOCKTIME = 2;
 
     uint256 public lockTime;
 
@@ -128,7 +128,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         // Calculates the amount of base tokens the xToken is worth
         uint256 what = (_share * baseToken.balanceOf(address(xToken))) / totalShares;
         xToken.burn(msg.sender, _share);
-        baseToken.safeTransfer(msg.sender, what);
+        xToken.transferBaseToken(msg.sender, what);
     }
 
    function xTokenShareValue(uint256 vaultId) external view returns (uint256) {
