@@ -7,6 +7,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXFeeDistributor.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/IERC20Metadata.sol";
+import "./token/IERC721Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
@@ -87,12 +88,16 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         uint256 count = ids.length;
         INFTXVault vault = INFTXVault(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = vaultXToken[vaultId];
-        _mintXTokens(IERC20Upgradeable(vault), xToken, msg.sender, count, 600);
+        _mintXTokens(IERC20Upgradeable(vault), xToken, msg.sender, count*BASE, 600);
         uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
         uint256[] memory amounts = new uint256[](0);
+        IERC721Upgradeable nft = IERC721Upgradeable(vault.assetAddress());
+        for (uint256 i = 0; i < ids.length; i++) {
+            nft.safeTransferFrom(msg.sender, address(vault), ids[i]);
+        }
         vault.mintTo(ids, amounts, address(xToken));
         uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
-        require(newBal == oldBal + ids.length*BASE, "Not deposited");
+        require(newBal == oldBal + count*BASE, "Not deposited");
     }
 
     function zapDeposit1155(uint256 vaultId, uint256[] memory ids, uint256[] memory amounts) public {

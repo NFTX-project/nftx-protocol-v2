@@ -228,4 +228,16 @@ describe("LP Staking", function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(i+1);
     }
   });
+
+  it("Should allow to zap deposit with 721", async () => {
+    const id = await vaults[0].vaultId();
+    let xToken = await inventoryStaking.vaultXToken(id)
+    const xTokenContract = await ethers.getContractAt("XTokenUpgradeable", xToken);
+    const oldBal = await xTokenContract.balanceOf(alice.getAddress());
+    await erc721.connect(alice).approve(inventoryStaking.address, 0);
+    await erc721.connect(alice).approve(inventoryStaking.address, 1);
+    await inventoryStaking.connect(alice).zapDeposit721(await vaults[0].vaultId(), [0, 1]);
+    const newBal = await xTokenContract.balanceOf(alice.getAddress());
+    expect(newBal).to.equal(oldBal+ethers.utils.parseEther("1").mul(2))
+  })
 });
