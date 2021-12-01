@@ -82,6 +82,16 @@ describe("LP Staking", function () {
     await staking.connect(primary).setNFTXVaultFactory(nftx.address);
     await inventoryStaking.connect(primary).setNFTXVaultFactory(nftx.address);
 
+
+    let Zap = await ethers.getContractFactory("NFTXStakingZap");
+    zap = await Zap.deploy(
+      nftx.address,
+      "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F" /* Sushi Router */
+    );
+    await zap.deployed();
+    await nftx.connect(primary).setZapContract(zap.address);
+    await nftx.connect(primary).setFeeExclusion(zap.address, true);
+
     await feeDistrib.addReceiver(ethers.utils.parseEther("0.8"), inventoryStaking.address, true);
 
     const Erc721 = await ethers.getContractFactory("ERC721");
@@ -234,9 +244,9 @@ describe("LP Staking", function () {
     let xToken = await inventoryStaking.vaultXToken(id)
     const xTokenContract = await ethers.getContractAt("XTokenUpgradeable", xToken);
     const oldBal = await xTokenContract.balanceOf(alice.getAddress());
-    await erc721.connect(alice).approve(inventoryStaking.address, 0);
-    await erc721.connect(alice).approve(inventoryStaking.address, 1);
-    await inventoryStaking.connect(alice).zapDeposit721(await vaults[0].vaultId(), [0, 1]);
+    await erc721.connect(alice).approve(zap.address, 0);
+    await erc721.connect(alice).approve(zap.address, 1);
+    await zap.connect(alice).provideInventory721(await vaults[0].vaultId(), [0, 1]);
     const newBal = await xTokenContract.balanceOf(alice.getAddress());
     expect(newBal).to.equal(oldBal+ethers.utils.parseEther("1").mul(2))
   })

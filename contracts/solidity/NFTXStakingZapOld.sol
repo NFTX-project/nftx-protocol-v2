@@ -4,9 +4,8 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXSimpleFeeDistributor.sol";
+import "./interface/INFTXFeeDistributor.sol";
 import "./interface/INFTXLPStaking.sol";
-import "./interface/INFTXInventoryStaking.sol";
 import "./interface/ITimelockRewardDistributionToken.sol";
 import "./interface/IUniswapV2Router01.sol";
 import "./testing/IERC721.sol";
@@ -149,71 +148,29 @@ abstract contract Ownable {
     }
 }
 
-contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+contract NFTXStakingZapOld is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
   IWETH public immutable WETH; 
   INFTXLPStaking public immutable lpStaking;
-  INFTXInventoryStaking public immutable inventoryStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
 
-  uint256 public lpLockTime = 48 hours; 
-  uint256 public inventoryLockTime = 7 days; 
+  uint256 public lockTime = 48 hours; 
   uint256 constant BASE = 10**18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
 
   constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
-    lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
-    inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).inventoryStaking());
+    lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
-    WETH = IWETH(_sushiRouter);
+    WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
     IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
   }
 
-  function setLPLockTime(uint256 newLPLockTime) external onlyOwner {
-    require(newLPLockTime <= 7 days, "Lock too long");
-    lpLockTime = newLPLockTime;
+  function setLockTime(uint256 newLockTime) external onlyOwner {
+    require(newLockTime <= 7 days, "Lock too long");
+    lockTime = newLockTime;
   } 
-
-  function setInventoryLockTime(uint256 newInventoryLockTime) external onlyOwner {
-    require(newInventoryLockTime <= 14 days, "Lock too long");
-    inventoryLockTime = newInventoryLockTime;
-  }
-
-  function provideInventory721(uint256 vaultId, uint256[] memory tokenIds) public {
-    uint256 count = tokenIds.length;
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, 600);
-    address xToken = inventoryStaking.vaultXToken(vaultId);
-    uint256 oldBal = IERC20Upgradeable(vault).balanceOf(xToken);
-    uint256[] memory amounts = new uint256[](0);
-    address assetAddress = vault.assetAddress();
-    for (uint256 i = 0; i < tokenIds.length; i++) {
-      transferFromERC721(assetAddress, tokenIds[i], address(vault));
-      approveERC721(assetAddress, address(vault), tokenIds[i]);
-    }
-    vault.mintTo(tokenIds, amounts, address(xToken));
-    uint256 newBal = IERC20Upgradeable(vault).balanceOf(xToken);
-    require(newBal == oldBal + count*BASE, "Not deposited");
-  }
-
-  function provideInventory1155(uint256 vaultId, uint256[] memory tokenIds, uint256[] memory amounts) public {
-    uint256 count;
-    for (uint256 i = 0; i < tokenIds.length; i++) {
-      count += amounts[i];
-    }
-    INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    address xToken = inventoryStaking.vaultXToken(vaultId);
-    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, 600);
-    uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
-    IERC1155Upgradeable nft = IERC1155Upgradeable(vault.assetAddress());
-    nft.safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, "");
-    nft.setApprovalForAll(address(vault), true);
-    vault.mintTo(tokenIds, amounts, address(xToken));
-    uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
-    require(newBal == oldBal + tokenIds.length*BASE, "Not deposited");
-  }
 
   function addLiquidity721ETH(
     uint256 vaultId, 
@@ -409,13 +366,13 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
-    lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
+    lpStaking.timelockDepositFor(vaultId, to, liquidity, lockTime);
     
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(to, minTokenIn-amountToken);
     }
 
-    uint256 lockEndTime = block.timestamp + lpLockTime;
+    uint256 lockEndTime = block.timestamp + lockTime;
     emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
     return (amountToken, amountEth, liquidity);
   }
@@ -482,9 +439,5 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
   receive() external payable {
 
-  }
-
-  function rescue(address token) external onlyOwner {
-    IERC20Upgradeable(token).transfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
   }
 }
