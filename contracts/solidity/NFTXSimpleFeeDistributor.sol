@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXLPStaking.sol";
 import "./interface/INFTXSimpleFeeDistributor.sol";
+import "./interface/INFTXInventoryStaking.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
@@ -24,8 +25,11 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   uint256 public override allocTotal;
   FeeReceiver[] public feeReceivers;
 
+  address public override inventoryStaking;
+
   event UpdateTreasuryAddress(address newTreasury);
   event UpdateLPStakingAddress(address newLPStaking);
+  event UpdateInventoryStakingAddress(address newLPStaking);
   event UpdateNFTXVaultFactory(address factory);
   event PauseDistribution(bool paused); 
 
@@ -62,7 +66,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       amountToSend = amountToSend > currentTokenBalance ? currentTokenBalance : amountToSend;
       bool complete = _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
       if (!complete) {
-        leftover += amountToSend;
+        leftover = amountToSend;
       } else {
         leftover = 0;
       }
@@ -81,6 +85,8 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   function initializeVaultReceivers(uint256 _vaultId) external override {
     require(msg.sender == nftxVaultFactory, "FeeReceiver: not factory");
     INFTXLPStaking(lpStaking).addPoolForVault(_vaultId);
+    if (inventoryStaking != address(0))
+      INFTXInventoryStaking(inventoryStaking).deployXTokenForVault(_vaultId);
   }
 
   function changeReceiverAlloc(uint256 _receiverIdx, uint256 _allocPoint) public override virtual onlyOwner {
@@ -119,6 +125,11 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     require(_lpStaking != address(0), "LPStaking != address(0)");
     lpStaking = _lpStaking;
     emit UpdateLPStakingAddress(_lpStaking);
+  }
+
+  function setInventoryStakingAddress(address _inventoryStaking) public override onlyOwner {
+    inventoryStaking = _inventoryStaking;
+    emit UpdateInventoryStakingAddress(_inventoryStaking);
   }
 
   function setNFTXVaultFactory(address _factory) external override onlyOwner {
