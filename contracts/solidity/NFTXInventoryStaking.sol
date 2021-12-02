@@ -93,7 +93,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
         // Lock the base token in the xtoken contract
         baseToken.safeTransferFrom(msg.sender, address(xToken), _amount);
-        emit Deposit(vaultId, _amount, xTokensMinted, 600, msg.sender);
+        emit Deposit(vaultId, _amount, xTokensMinted, DEFAULT_LOCKTIME, msg.sender);
     }
 
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
