@@ -184,7 +184,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   function provideInventory721(uint256 vaultId, uint256[] memory tokenIds) public {
     uint256 count = tokenIds.length;
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, 600);
+    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, inventoryLockTime);
     address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(xToken);
     uint256[] memory amounts = new uint256[](0);
@@ -205,14 +205,14 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
     address xToken = inventoryStaking.vaultXToken(vaultId);
-    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, 600);
+    uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, inventoryLockTime);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
     IERC1155Upgradeable nft = IERC1155Upgradeable(vault.assetAddress());
     nft.safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, "");
     nft.setApprovalForAll(address(vault), true);
     vault.mintTo(tokenIds, amounts, address(xToken));
     uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
-    require(newBal == oldBal + tokenIds.length*BASE, "Not deposited");
+    require(newBal == oldBal + count*BASE, "Not deposited");
   }
 
   function addLiquidity721ETH(

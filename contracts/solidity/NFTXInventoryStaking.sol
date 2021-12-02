@@ -40,8 +40,9 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
     event Withdraw(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, address sender);
 
-    function __NFTXInventoryStaking__init() external virtual override initializer {
+    function __NFTXInventoryStaking_init(address _nftxVaultFactory) external virtual override initializer {
         __Ownable_init();
+        nftxVaultFactory = INFTXVaultFactory(_nftxVaultFactory);
         address xTokenImpl = address(new XTokenUpgradeable());
         __UpgradeableBeacon__init(xTokenImpl);
     }
@@ -127,20 +128,18 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
             : multiplier;
     }
 
-    function timelockUntil(uint256 vaultId, address who) external view  returns (uint256) {
+    function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
+        XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken[vaultId]);
+        return xToken.timelockUntil(who);
+    }
 
+    function balanceOf(uint256 vaultId, address who) external view returns (uint256) {
+        XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken[vaultId]);
+        return xToken.balanceOf(who);
     }
 
     // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
     function xTokenAddr(address baseToken) public view virtual override returns (address) {
-        bytes32 salt = keccak256(abi.encodePacked(baseToken));
-        address tokenAddr = Create2.computeAddress(salt, keccak256(type(Create2BeaconProxy).creationCode));
-        return tokenAddr;
-    }
-
-    // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
-    function xTokenAddr(uint256 vaultId) external view virtual override returns (address) {
-        address baseToken = nftxVaultFactory.vault(vaultId);
         bytes32 salt = keccak256(abi.encodePacked(baseToken));
         address tokenAddr = Create2.computeAddress(salt, keccak256(type(Create2BeaconProxy).creationCode));
         return tokenAddr;

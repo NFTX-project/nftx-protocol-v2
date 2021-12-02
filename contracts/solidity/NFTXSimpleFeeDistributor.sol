@@ -29,7 +29,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   event UpdateTreasuryAddress(address newTreasury);
   event UpdateLPStakingAddress(address newLPStaking);
-  event UpdateInventoryStakingAddress(address newLPStaking);
+  event UpdateInventoryStakingAddress(address newInventoryStaking);
   event UpdateNFTXVaultFactory(address factory);
   event PauseDistribution(bool paused); 
 
