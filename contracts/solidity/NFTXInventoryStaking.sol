@@ -31,8 +31,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Small locktime to prevent flash deposits.
     uint256 public constant DEFAULT_LOCKTIME = 2;
 
-    uint256 public override lockTime;
-
     INFTXVaultFactory public override nftxVaultFactory;
     mapping(uint256 => address) public override vaultXToken;
 
