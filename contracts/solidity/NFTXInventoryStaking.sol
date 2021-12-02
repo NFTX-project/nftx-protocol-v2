@@ -91,10 +91,19 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Enter staking. Staking, get minted shares and
     // locks base tokens and mints xTokens.
     function deposit(uint256 vaultId, uint256 _amount) public virtual override {
+        onlyOwnerIfPaused(10);
         (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
         // Lock the base token in the xtoken contract
         baseToken.safeTransferFrom(msg.sender, address(xToken), _amount);
         emit Deposit(vaultId, _amount, xTokensMinted, 600, msg.sender);
+    }
+
+    function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
+        onlyOwnerIfPaused(10);
+        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not a zap");
+        (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
+        emit Deposit(vaultId, amount, xTokensMinted, timelockLength, to);
+        return xTokensMinted;
     }
 
     // Leave the bar. Claim back your tokens.
@@ -110,13 +119,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         xToken.burn(msg.sender, _share);
         xToken.transferBaseToken(msg.sender, what);
         emit Withdraw(vaultId, what, _share, msg.sender);
-    }
-
-    function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
-        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not a zap");
-        (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
-        emit Deposit(vaultId, amount, xTokensMinted, timelockLength, to);
-        return xTokensMinted;
     }
 
    function xTokenShareValue(uint256 vaultId) external view virtual override returns (uint256) {

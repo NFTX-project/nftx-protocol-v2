@@ -130,7 +130,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
-        require(msg.sender == nftxVaultFactory.zapContract(), "Not zap");
+        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not zap");
         onlyOwnerIfPaused(10);
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
