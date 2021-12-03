@@ -204,8 +204,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       count += amounts[i];
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 xTokensMinted = inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, inventoryLockTime);
+    address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
     IERC1155Upgradeable nft = IERC1155Upgradeable(vault.assetAddress());
     nft.safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, "");
