@@ -195,7 +195,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     }
     vault.mintTo(tokenIds, amounts, address(xToken));
     uint256 newBal = IERC20Upgradeable(vault).balanceOf(xToken);
-    require(newBal == oldBal + count*BASE, "Not deposited");
+    require(newBal == oldBal + count*BASE, "Incorrect vtokens minted");
   }
 
   function provideInventory1155(uint256 vaultId, uint256[] memory tokenIds, uint256[] memory amounts) public {
@@ -212,7 +212,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     nft.setApprovalForAll(address(vault), true);
     vault.mintTo(tokenIds, amounts, address(xToken));
     uint256 newBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
-    require(newBal == oldBal + count*BASE, "Not deposited");
+    require(newBal == oldBal + count*BASE, "Incorrect vtokens minted");
   }
 
   function addLiquidity721ETH(
