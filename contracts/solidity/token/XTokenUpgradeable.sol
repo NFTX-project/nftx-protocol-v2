@@ -52,7 +52,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         // Calculates the amount of base tokens the xToken is worth
         uint256 what = (_share * baseToken.balanceOf(address(this))) / totalShares;
         _burn(who, _share);
-        baseToken.transfer(to, amount);
+        baseToken.transfer(who, what);
         return what;
     }
 
