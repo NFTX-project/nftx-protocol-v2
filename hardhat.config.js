@@ -18,7 +18,7 @@ module.exports = {
       gasPrice: 200000000000,
     },
     palm: {
-      url: `https://palm-mainnet.infura.io/v3/f03ea0b14ca841bb8f1a518d6de77acc`,
+      url: `https://palm-mainnet.infura.io/v3/${process.env.PALM_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
     },
     hardhat: {
