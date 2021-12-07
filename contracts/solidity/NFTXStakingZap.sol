@@ -167,7 +167,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).inventoryStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
-    WETH = IWETH(_sushiRouter);
+    WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
     IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
   }
 
@@ -324,19 +324,6 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     }
 
     return liquidity;
-  }
-
-  function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
-    address xLPToken = lpStaking.newRewardDistributionToken(vaultId);
-    return ITimelockRewardDistributionToken(xLPToken).timelockUntil(who);
-  }
-
-  function lockedLPBalance(uint256 vaultId, address who) external view returns (uint256) {
-    ITimelockRewardDistributionToken xLPToken = ITimelockRewardDistributionToken(lpStaking.newRewardDistributionToken(vaultId));
-    if(block.timestamp > xLPToken.timelockUntil(who)) {
-      return 0;
-    }
-    return xLPToken.balanceOf(who);
   }
 
   function _addLiquidity721WETH(

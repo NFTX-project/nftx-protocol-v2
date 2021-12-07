@@ -32,7 +32,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     uint256 public constant DEFAULT_LOCKTIME = 2;
 
     INFTXVaultFactory public override nftxVaultFactory;
-    mapping(uint256 => address) internal _vaultXToken;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
@@ -64,17 +63,11 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         }
 
         address xToken = _deployXToken(baseToken);
-        vaultXToken[vaultId] = xToken;
         emit XTokenCreated(vaultId, baseToken, xToken);
     }
 
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual override onlyAdmin returns (bool) {
         address baseToken = nftxVaultFactory.vault(vaultId);
-        if (address(vaultXToken[vaultId]) == address(0)) {
-            // In case the xToken isnt deployed
-            return false;
-        }
-        
         address deployedXToken = xTokenAddr(address(baseToken));
         // Don't distribute rewards unless there are people to distribute to.
         // Also added here if the distribution token is not deployed, just forfeit rewards for now.
@@ -146,16 +139,17 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         return tokenAddr;
     }
     
-    function vaultXToken(uint256 vaultId) public view returns (address) {
-        address xToken = _vaultXToken[vaultId];
-        require(xToken != address(0), "XToken not deployed");
+    function vaultXToken(uint256 vaultId) public view virtual override returns (address) {
+        address baseToken = nftxVaultFactory.vault(vaultId);
+        address xToken = xTokenAddr(baseToken);
+        require(isContract(xToken), "XToken not deployed");
         return xToken;
     } 
 
     function _timelockMintFor(uint256 vaultId, address account, uint256 _amount, uint256 timelockLength) internal returns (IERC20Upgradeable, XTokenUpgradeable, uint256) {
         deployXTokenForVault(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
-        XTokenUpgradeable xToken = XTokenUpgradeable((vaultXToken[vaultId]));
+        XTokenUpgradeable xToken = XTokenUpgradeable((vaultXToken(vaultId)));
 
         uint256 xTokensMinted = _mintXTokens(baseToken, xToken, account, _amount, timelockLength);
         return (baseToken, xToken, xTokensMinted);

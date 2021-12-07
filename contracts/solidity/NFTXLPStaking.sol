@@ -266,6 +266,22 @@ contract NFTXLPStaking is PausableUpgradeable {
         return dist.balanceOf(addr);
     }
 
+
+    function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
+        return dist.timelockUntil(who);
+    }
+
+    function lockedLPBalance(uint256 vaultId, address who) external view returns (uint256) {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
+        if(block.timestamp > dist.timelockUntil(who)) {
+            return 0;
+        }
+        return dist.balanceOf(who);
+    }
+
     function _deposit(StakingPool memory pool, uint256 amount) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
