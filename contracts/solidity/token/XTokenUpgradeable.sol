@@ -27,15 +27,33 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         baseToken = IERC20Upgradeable(_baseToken);
     }
 
-    function mint(address who, uint256 amount) public onlyOwner {
-        _mint(who, amount);
+    // Needs ot be called BEFORE new base tokens are deposited.
+    function mintXTokens(address account, uint256 _amount, uint256 timelockLength) external onlyOwner returns (uint256) {
+        // Gets the amount of Base Token locked in the contract
+        uint256 totalBaseToken = baseToken.balanceOf(address(this));
+        // Gets the amount of xTokens in existence
+        uint256 totalShares = totalSupply();
+        // If no xTokens exist, mint it 1:1 to the amount put in
+        if (totalShares == 0 || totalBaseToken == 0) {
+            _timelockMint(account, _amount, timelockLength);
+            return _amount;
+        }
+        // Calculate and mint the amount of xTokens the base tokens are worth. The ratio will change overtime, as xTokens are burned/minted and base tokens deposited + gained from fees / withdrawn.
+        else {
+            uint256 what = (_amount * totalShares) / totalBaseToken;
+            _timelockMint(account, what, timelockLength);
+            return what;
+        }
     }
 
-    function timelockMint(address account, uint256 amount, uint256 timelockLength) public onlyOwner virtual {
-        uint256 timelockFinish = block.timestamp + timelockLength;
-        timelock[account] = timelockFinish;
-        emit Timelocked(account, timelockFinish);
-        _mint(account, amount);
+    function burnXTokens(address who, uint256 _share) external onlyOwner returns (uint256) {
+        // Gets the amount of xToken in existence
+        uint256 totalShares = totalSupply();
+        // Calculates the amount of base tokens the xToken is worth
+        uint256 what = (_share * baseToken.balanceOf(address(this))) / totalShares;
+        _burn(who, _share);
+        transferBaseToken(who, what);
+        return what;
     }
 
     function timelockAccount(address account , uint256 timelockLength) public onlyOwner virtual {
@@ -48,13 +66,20 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         baseToken.transfer(to, amount);
     }
 
-    function burn(address who, uint256 amount) public onlyOwner {
+    function _burn(address who, uint256 amount) internal override {
         require(block.timestamp > timelock[who], "User locked");
-        _burn(who, amount);
+        super._burn(who, amount);
     }
 
     function timelockUntil(address account) public view returns (uint256) {
         return timelock[account];
+    }
+
+    function _timelockMint(address account, uint256 amount, uint256 timelockLength) internal virtual {
+        uint256 timelockFinish = block.timestamp + timelockLength;
+        timelock[account] = timelockFinish;
+        emit Timelocked(account, timelockFinish);
+        _mint(account, amount);
     }
     
     function _transfer(address from, address to, uint256 value) internal override {

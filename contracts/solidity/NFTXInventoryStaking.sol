@@ -70,6 +70,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual override onlyAdmin returns (bool) {
         address baseToken = nftxVaultFactory.vault(vaultId);
         address deployedXToken = xTokenAddr(address(baseToken));
+        
         // Don't distribute rewards unless there are people to distribute to.
         // Also added here if the distribution token is not deployed, just forfeit rewards for now.
         if (!isContract(deployedXToken) || XTokenUpgradeable(deployedXToken).totalSupply() == 0) {
@@ -84,6 +85,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // locks base tokens and mints xTokens.
     function deposit(uint256 vaultId, uint256 _amount) public virtual override {
         onlyOwnerIfPaused(10);
+
         (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
         // Lock the base token in the xtoken contract
         baseToken.safeTransferFrom(msg.sender, address(xToken), _amount);
@@ -93,6 +95,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
         onlyOwnerIfPaused(10);
         require(nftxVaultFactory.excludedFromFees(msg.sender), "Not a zap");
+
         (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
         emit Deposit(vaultId, amount, xTokensMinted, timelockLength, to);
         return xTokensMinted;
@@ -104,19 +107,15 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
-        // Gets the amount of xToken in existence
-        uint256 totalShares = xToken.totalSupply();
-        // Calculates the amount of base tokens the xToken is worth
-        uint256 what = (_share * baseToken.balanceOf(address(xToken))) / totalShares;
-        xToken.burn(msg.sender, _share);
-        xToken.transferBaseToken(msg.sender, what);
-        emit Withdraw(vaultId, what, _share, msg.sender);
+        uint256 baseTokensRedeemed = xToken.burnXTokens(msg.sender, _share);
+        emit Withdraw(vaultId, baseTokensRedeemed, _share, msg.sender);
     }
 
    function xTokenShareValue(uint256 vaultId) external view virtual override returns (uint256) {
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
         require(address(xToken) != address(0), "XToken not deployed");
+
         uint256 multiplier = 10 ** 18;
         return xToken.totalSupply() > 0 
             ? multiplier * baseToken.balanceOf(address(xToken)) / xToken.totalSupply() 
@@ -152,26 +151,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable((xTokenAddr(address(baseToken))));
 
-        uint256 xTokensMinted = _mintXTokens(baseToken, xToken, account, _amount, timelockLength);
+        uint256 xTokensMinted = xToken.mintXTokens(account, _amount, timelockLength);
         return (baseToken, xToken, xTokensMinted);
-    }
-
-    function _mintXTokens(IERC20Upgradeable baseToken, XTokenUpgradeable xToken, address account, uint256 _amount, uint256 timelockLength) internal returns (uint256) {
-        // Gets the amount of Base Token locked in the contract
-        uint256 totalBaseToken = baseToken.balanceOf(address(xToken));
-        // Gets the amount of xTokens in existence
-        uint256 totalShares = xToken.totalSupply();
-        // If no xTokens exist, mint it 1:1 to the amount put in
-        if (totalShares == 0 || totalBaseToken == 0) {
-            xToken.timelockMint(account, _amount, timelockLength);
-            return _amount;
-        }
-        // Calculate and mint the amount of xTokens the base tokens are worth. The ratio will change overtime, as xTokens are burned/minted and base tokens deposited + gained from fees / withdrawn.
-        else {
-            uint256 what = (_amount * totalShares) / totalBaseToken;
-            xToken.timelockMint(account, what, timelockLength);
-            return what;
-        }
     }
 
     function _deployXToken(address vaultToken) internal returns (address) {
