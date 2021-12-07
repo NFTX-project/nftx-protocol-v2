@@ -32,6 +32,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     uint256 public constant DEFAULT_LOCKTIME = 2;
 
     INFTXVaultFactory public override nftxVaultFactory;
+    mapping(uint256 => address) internal UNUSED;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
