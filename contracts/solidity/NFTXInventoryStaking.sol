@@ -102,7 +102,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Unlocks the staked + gained tokens and burns xTokens.
     function withdraw(uint256 vaultId, uint256 _share) public virtual override {
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
-        XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
         // Gets the amount of xToken in existence
         uint256 totalShares = xToken.totalSupply();
@@ -115,7 +115,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
    function xTokenShareValue(uint256 vaultId) external view virtual override returns (uint256) {
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
-        XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
         require(address(xToken) != address(0), "XToken not deployed");
         uint256 multiplier = 10 ** 18;
         return xToken.totalSupply() > 0 
@@ -150,7 +150,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function _timelockMintFor(uint256 vaultId, address account, uint256 _amount, uint256 timelockLength) internal returns (IERC20Upgradeable, XTokenUpgradeable, uint256) {
         deployXTokenForVault(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
-        XTokenUpgradeable xToken = XTokenUpgradeable((vaultXToken(vaultId)));
+        XTokenUpgradeable xToken = XTokenUpgradeable((xTokenAddr(address(baseToken))));
 
         uint256 xTokensMinted = _mintXTokens(baseToken, xToken, account, _amount, timelockLength);
         return (baseToken, xToken, xTokensMinted);
