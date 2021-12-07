@@ -52,7 +52,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         // Calculates the amount of base tokens the xToken is worth
         uint256 what = (_share * baseToken.balanceOf(address(this))) / totalShares;
         _burn(who, _share);
-        transferBaseToken(who, what);
+        baseToken.transfer(to, amount);
         return what;
     }
 
@@ -60,10 +60,6 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         uint256 timelockFinish = block.timestamp + timelockLength;
         timelock[account] = timelockFinish;
         emit Timelocked(account, timelockFinish);
-    }
-
-    function transferBaseToken(address to, uint256 amount) public onlyOwner {
-        baseToken.transfer(to, amount);
     }
 
     function _burn(address who, uint256 amount) internal override {
