@@ -1,10 +1,8 @@
 const { expect } = require("chai");
-const { expectRevert } = require("../utils/expectRevert");
+const { expectRevert } = require("../../utils/expectRevert");
 
 const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers, upgrades } = require("hardhat");
-
-const addresses = require("../addresses/rinkeby.json");
 
 const BASE = BigNumber.from(10).pow(18);
 const PERC1_FEE = BASE.div(100);

@@ -27,7 +27,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         baseToken = IERC20Upgradeable(_baseToken);
     }
 
-    // Needs ot be called BEFORE new base tokens are deposited.
+    // Needs to be called BEFORE new base tokens are deposited.
     function mintXTokens(address account, uint256 _amount, uint256 timelockLength) external onlyOwner returns (uint256) {
         // Gets the amount of Base Token locked in the contract
         uint256 totalBaseToken = baseToken.balanceOf(address(this));

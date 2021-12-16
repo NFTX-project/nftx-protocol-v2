@@ -8,8 +8,6 @@ import "./interface/INFTXFeeDistributor.sol";
 import "./interface/INFTXInventoryStaking.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/IERC20Metadata.sol";
-import "./token/IERC721Upgradeable.sol";
-import "./token/IERC1155Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
