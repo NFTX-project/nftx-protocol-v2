@@ -25,7 +25,7 @@ let feeDistrib;
 let controller;
 const vaults = [];
 
-describe("Inventory Staking Test", function () {
+describe("Mainnet Inventory Staking Test", function () {
   before("Setup", async () => {
     await network.provider.request({
       method: "hardhat_reset",

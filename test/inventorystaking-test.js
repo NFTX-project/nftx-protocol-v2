@@ -22,7 +22,7 @@ const vaults = [];
 const numTokenIds = 20;
 const numLoops = 10;
 
-describe("LP Staking", function () {
+describe("Inventory Staking Cold Test", function () {
   before("Setup", async () => {
     signers = await ethers.getSigners();
     primary = signers[0];
@@ -41,13 +41,6 @@ describe("LP Staking", function () {
       unsafeAllow: 'delegatecall'
     });
     await staking.deployed();
-
-    const InventoryStaking = await ethers.getContractFactory("NFTXInventoryStaking");
-    inventoryStaking = await upgrades.deployProxy(InventoryStaking, [], {
-      initializer: "__NFTXInventoryStaking__init",
-      unsafeAllow: 'delegatecall'
-    });
-    await inventoryStaking.deployed();
 
     const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable");
     const vault = await Vault.deploy();
@@ -71,11 +64,22 @@ describe("LP Staking", function () {
       Nftx,
       [vault.address, feeDistrib.address],
       {
-        initializer: "__NFTXInventoryStaking__init",
+        initializer: "__NFTXVaultFactory_init",
         unsafeAllow: 'delegatecall'
       }
     );
     await nftx.deployed();
+
+    const InventoryStaking = await ethers.getContractFactory("NFTXInventoryStaking");
+    inventoryStaking = await upgrades.deployProxy(
+      InventoryStaking,
+      [nftx.address],
+      {
+        initializer: "__NFTXInventoryStaking_init",
+        unsafeAllow: 'delegatecall'
+      }
+    );
+    await inventoryStaking.deployed();
 
     await feeDistrib.connect(primary).setNFTXVaultFactory(nftx.address);
     await feeDistrib.connect(primary).setInventoryStakingAddress(inventoryStaking.address);

@@ -25,7 +25,7 @@ let controller;
 let liveBugUser, liveZapLockUser;
 const vaults = [];
 
-describe("LP Staking Upgrade Migrate Test", function () {
+describe("LP Staking Upgrade Migrate Now Test", function () {
   before("Setup", async () => {
     await network.provider.request({
       method: "hardhat_reset",

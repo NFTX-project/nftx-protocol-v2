@@ -7,7 +7,7 @@ const { ethers, upgrades } = require("hardhat");
 const addresses = require("../addresses/rinkeby.json");
 
 const BASE = BigNumber.from(10).pow(18);
-const PERC1_FEE = BASE.div(100);
+const PERC1_FEE = BASE.div(10);
 const zeroAddr = "0x0000000000000000000000000000000000000000";
 const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
@@ -52,6 +52,7 @@ describe("Main Eligibility", function () {
       [vault.address, mockFeeDistrib.address],
       {
         initializer: "__NFTXVaultFactory_init",
+        unsafeAllow: 'delegatecall'
       }
     );
     await nftx.deployed();
@@ -62,6 +63,7 @@ describe("Main Eligibility", function () {
       [],
       {
         initializer: "__NFTXEligibilityManager_init",
+        unsafeAllow: 'delegatecall'
       }
     );
     await eligManager.deployed();
@@ -109,14 +111,14 @@ describe("Main Eligibility", function () {
   });
 
   it("Should allow all vault features", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(true, true, true);
+    await vaults[0].connect(primary).setVaultFeatures(true, true, true, true, true);
     expect(await vaults[0].enableMint()).to.eq(true);
     expect(await vaults[0].enableRandomRedeem()).to.eq(true);
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
   });
 
   it("Should set fees to 0", async () => {
-    await vaults[0].connect(primary).setFees(0, 0, 0);
+    await vaults[0].connect(primary).setFees(0, 0, 0, 0, 0);
     expect(await vaults[0].mintFee()).to.eq(0);
     expect(await vaults[0].randomRedeemFee()).to.eq(0);
     expect(await vaults[0].targetRedeemFee()).to.eq(0);
@@ -199,7 +201,7 @@ describe("Main Eligibility", function () {
   });
 
   it("Should allow all ERC1155 vault features", async () => {
-    await vaults[1].connect(primary).setVaultFeatures(true, true, true);
+    await vaults[1].connect(primary).setVaultFeatures(true, true, true, true, true);
     expect(await vaults[1].enableMint()).to.eq(true);
     expect(await vaults[1].enableRandomRedeem()).to.eq(true);
     expect(await vaults[1].enableTargetRedeem()).to.eq(true);
@@ -221,46 +223,5 @@ describe("Main Eligibility", function () {
       expect(await erc1155.balanceOf(alice.address, tokenId)).to.equal(0);
       expect(await erc1155.balanceOf(vaults[1].address, tokenId)).to.equal(1);
     }
-  });
-
-  // Test default fee rate.
-  it("Should allow ERC1155 minting with fee in bulk by bob", async () => {
-    const tokenIds = [];
-    for (let i = 0; i < numLoops; i++) {
-      const tokenId = numLoops + i;
-      await erc1155.safeTransferFrom(
-        primary.address,
-        bob.address,
-        tokenId,
-        1,
-        []
-      );
-      tokenIds.push(tokenId);
-      expect(await erc1155.balanceOf(bob.address, tokenId)).to.equal(1);
-    }
-
-    await erc1155.connect(bob).setApprovalForAll(vaults[1].address, true);
-    await vaults[1].connect(bob).mint(
-      tokenIds,
-      tokenIds.map(() => 1)
-    );
-
-    for (let i = 0; i < tokenIds.length; i++) {
-      const tokenId = tokenIds[i];
-      expect(await erc1155.balanceOf(bob.address, tokenId)).to.equal(0);
-      expect(await erc1155.balanceOf(vaults[1].address, tokenId)).to.equal(1);
-    }
-    expect(await vaults[1].balanceOf(bob.address)).to.equal(BASE.mul(numLoops).sub(PERC1_FEE.mul(numLoops)));
-  });
-
-  it("Should allow ERC1155 target redeeming with fee one at a time by alice", async () => {
-    for (let i = 0; i < numLoops-2; i++) {
-      await vaults[1].connect(alice).redeem(1, [i]);
-      expect(await vaults[1].balanceOf(alice.address)).to.equal(
-        BASE.mul(numLoops - (i + 1)).sub(PERC1_FEE.mul(5).mul(i + 3))
-      );
-    }
-    await vaults[1].connect(alice).redeem(1, []);
-    expect(await vaults[1].balanceOf(alice.address)).to.equal(PERC1_FEE.mul(50));
   });
 });

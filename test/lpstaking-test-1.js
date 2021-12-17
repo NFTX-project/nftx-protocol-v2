@@ -108,10 +108,12 @@ describe("LP Staking", function () {
   });
 
   it("Should disable minting feature", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(false, false, false);
+    await vaults[0].connect(primary).setVaultFeatures(false, false, false, false, false);
     expect(await vaults[0].enableMint()).to.eq(false);
     expect(await vaults[0].enableRandomRedeem()).to.eq(false);
     expect(await vaults[0].enableTargetRedeem()).to.eq(false);
+    expect(await vaults[0].enableRandomSwap()).to.eq(false);
+    expect(await vaults[0].enableTargetSwap()).to.eq(false);
   });
 
   it("Should not allow minting", async () => {
@@ -126,10 +128,12 @@ describe("LP Staking", function () {
   })
 
   it("Should enable minting feature", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(true, false, false);
+    await vaults[0].connect(primary).setVaultFeatures(true, false, false, false, false);
     expect(await vaults[0].enableMint()).to.eq(true);
     expect(await vaults[0].enableRandomRedeem()).to.eq(false);
     expect(await vaults[0].enableTargetRedeem()).to.eq(false);
+    expect(await vaults[0].enableRandomSwap()).to.eq(false);
+    expect(await vaults[0].enableTargetSwap()).to.eq(false);
   });
 
   it("Should set fees to 0", async () => {
@@ -224,10 +228,12 @@ describe("LP Staking", function () {
   })
 
   it("Should enable direct redeem feature", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(true, false, true);
+    await vaults[0].connect(primary).setVaultFeatures(true, false, true, false, false);
     expect(await vaults[0].enableMint()).to.eq(true);
     expect(await vaults[0].enableRandomRedeem()).to.eq(false);
     expect(await vaults[0].enableTargetRedeem()).to.eq(true);
+    expect(await vaults[0].enableRandomSwap()).to.eq(false);
+    expect(await vaults[0].enableTargetSwap()).to.eq(false);
   });
 
   it("Should allow direct redeeming one at a time by alice", async () => {
@@ -257,10 +263,12 @@ describe("LP Staking", function () {
   })
 
   it("Should enable random redeem feature", async () => {
-    await vaults[0].connect(primary).setVaultFeatures(true, true, false);
+    await vaults[0].connect(primary).setVaultFeatures(true, true, false, false, false);
     expect(await vaults[0].enableMint()).to.eq(true);
     expect(await vaults[0].enableRandomRedeem()).to.eq(true);
     expect(await vaults[0].enableTargetRedeem()).to.eq(false);
+    expect(await vaults[0].enableRandomSwap()).to.eq(false);
+    expect(await vaults[0].enableTargetSwap()).to.eq(false);
   });
 
   it("Should allow random redeeming", async () => {

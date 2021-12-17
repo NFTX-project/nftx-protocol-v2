@@ -24,7 +24,7 @@ let controller;
 let liveBugUser, liveZapLockUser;
 const vaults = [];
 
-describe("LP Staking Upgrade Migrate Test", function () {
+describe("Mainnet Upgrade Test", function () {
   before("Setup", async () => {
     await network.provider.request({
       method: "hardhat_reset",
@@ -82,6 +82,8 @@ describe("LP Staking Upgrade Migrate Test", function () {
       "ProxyController",
       "0x4333d66Ec59762D1626Ec102d7700E64610437Df"
     );
+
+    await nftx.connect(dao).setFeeExclusion(staking.address, true)
   });
 
   it("Should set state fields", async () => {
@@ -174,16 +176,6 @@ describe("LP Staking Upgrade Migrate Test", function () {
     const postDepositBal = await pair.balanceOf(staking.address);
   });
 
-  it("Should have locked balance", async () => {
-    let newDisttoken = await staking.newRewardDistributionToken(179);
-    let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
-    const locked = await zap.lockedUntil(179, kiwi.getAddress());
-    expect(await zap.lockedLPBalance(179, kiwi.getAddress())).to.equal(
-      await distToken.balanceOf(kiwi.getAddress())
-    );
-    expect(locked).to.be.gt(1633644400);
-  });
-
   it("Should mint to generate some rewards", async () => {
     let newDisttoken = await staking.newRewardDistributionToken(179);
     let oldBal = await vaults[0].balanceOf(newDisttoken);
@@ -262,7 +254,7 @@ describe("LP Staking Upgrade Migrate Test", function () {
     await staking.connect(kiwi).claimMultipleRewards([179, nft1155Id]);
     let newBal = await vaults[0].balanceOf(kiwi.getAddress());
     expect(newBal).to.not.equal(oldBal);
-    expect(await zap.lockedLPBalance(31, kiwi.getAddress())).to.equal(0);
+    // expect(await staking.lockedLPBalance(31, kiwi.getAddress())).to.equal(0);
   });
 
   it("Should pass some time", async () => {

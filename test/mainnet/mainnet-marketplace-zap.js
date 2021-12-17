@@ -21,7 +21,7 @@ let controller;
 let provider;
 const vaults = [];
 
-describe("LP Zap Test", function () {
+describe("Marketplace Zap Test", function () {
   before("Setup", async () => {
     await network.provider.request({
       method: "hardhat_reset",
@@ -29,7 +29,7 @@ describe("LP Zap Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 13140440,
+            blockNumber: 13819694,
           },
         },
       ],
@@ -65,7 +65,7 @@ describe("LP Zap Test", function () {
     );
     vault = await ethers.getContractAt(
       "NFTXVaultUpgradeable",
-      "0x114f1388fab456c4ba31b1850b244eedcd024136"
+      "0x5ce188b44266c7b4bbc67afa3d16b2eb24ed1065"
     );
     vaults.push(vault);
 
@@ -82,14 +82,25 @@ describe("LP Zap Test", function () {
       "0x688c3E4658B5367da06fd629E41879beaB538E37"
     );
     feeDistrib = await ethers.getContractAt(
-      "NFTXFeeDistributor",
-      "0x7AE9D7Ee8489cAD7aFc84111b8b185EE594Ae090"
+      "NFTXSimpleFeeDistributor",
+      "0xFD8a76dC204e461dB5da4f38687AdC9CC5ae4a86"
     );
     controller = await ethers.getContractAt(
       "ProxyController",
       "0x4333d66Ec59762D1626Ec102d7700E64610437Df"
     );
+  });
 
+
+  it("Should upgrade the Fee Distributor", async () => {
+    let NewFeeDistro = await ethers.getContractFactory("NFTXSimpleFeeDistributor");
+    let feeDistro = await NewFeeDistro.connect(alice).deploy();
+    await feeDistro.deployed();
+    let proxyAdmin = await ethers.getContractAt("ProxyControllerSimple", "0x8e7488E4cEC0381e7Ac758234E1A8A793bE2fF30");
+    await proxyAdmin.connect(dev).upgradeProxyTo(feeDistro.address, {gasLimit: 100000});
+  });
+
+  it("Should deploy the zaps", async () => {
     let Zap = await ethers.getContractFactory("NFTXMarketplaceZap");
     zap = await Zap.deploy(
       "0xBE86f647b167567525cCAAfcd6f881F1Ee558216",
@@ -103,26 +114,7 @@ describe("LP Zap Test", function () {
       "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F" /* Sushi Router */
     );
     await stakingZap.deployed();
-
-    await nftx.connect(dao).setZapContract(stakingZap.address);
-  });
-
-  it("Should upgrade the factory and child", async () => {
-    let NewFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
-    let newFactory = await NewFactory.deploy();
-    await newFactory.deployed();
-    await controller.connect(dao).upgradeProxyTo(0, newFactory.address);
-    let NewVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
-    let newVault = await NewVault.deploy();
-    await newVault.deployed();
-    await nftx.connect(dao).upgradeChildTo(newVault.address);
-
-    await nftx.connect(dao).assignFees();
-  });
-
-  it("Should enable fee distribution", async () => {
-    await feeDistrib.connect(dao).pauseFeeDistribution(false);
-  });
+  })
 
   it("Should exclude the zap from fees", async () => {
     await nftx.connect(dao).setFeeExclusion(stakingZap.address, true);
@@ -138,15 +130,15 @@ describe("LP Zap Test", function () {
 
   it("Should mint some 721", async () => {
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    await coolCats.connect(kiwi).setApprovalForAll(zap.address, true);
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    await uwus.connect(kiwi).setApprovalForAll(zap.address, true);
     await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
-    await vaults[0].connect(kiwi).mint([2271], [])
+    await vaults[0].connect(kiwi).mint([5994], [])
   });
 
   it("Should successfully mint and sell 721", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
     const {
       reserve0,
       reserve1,
@@ -155,20 +147,20 @@ describe("LP Zap Test", function () {
     const amountIn = BASE.mul(2).sub((await vaults[0].mintFee()).mul(2));
     const amountETH = await router.getAmountOut(amountIn, reserve0, reserve1);
     let preBal = await ethers.provider.getBalance(kiwi.getAddress());
-    await zap.connect(kiwi).mintAndSell721(31, [7565,2533], amountETH, [vaults[0].address, await router.WETH()], kiwi.getAddress());
+    await zap.connect(kiwi).mintAndSell721(179, [3993,7741], amountETH, [vaults[0].address, await router.WETH()], kiwi.getAddress());
     let postBal = await ethers.provider.getBalance(kiwi.getAddress());
     expect(preBal).to.not.equal(postBal);
     expect(postBal).to.be.gt(preBal);
 
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    expect((await coolCats.ownerOf(7565)).toLowerCase()).to.equal(vaults[0].address)
-    expect((await coolCats.ownerOf(2533)).toLowerCase()).to.equal(vaults[0].address)
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    expect((await uwus.ownerOf(3993)).toLowerCase()).to.equal(vaults[0].address)
+    expect((await uwus.ownerOf(7741)).toLowerCase()).to.equal(vaults[0].address)
   })
 
   it("Should successfully mint and sell 721 using weth", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
     const {
       reserve0,
       reserve1,
@@ -179,7 +171,7 @@ describe("LP Zap Test", function () {
     const amountIn = BASE.mul(2).sub((await vaults[0].mintFee()).mul(2));
     const amountETH = await router.getAmountOut(amountIn, reserve0, reserve1);
     let preBal = await weth.balanceOf(kiwi.getAddress());
-    await zap.connect(kiwi).mintAndSell721WETH(31, [7984,7412], amountETH, [vaults[0].address, await router.WETH()], kiwi.getAddress());
+    await zap.connect(kiwi).mintAndSell721WETH(179, [827,8832], amountETH, [vaults[0].address, await router.WETH()], kiwi.getAddress());
     let postBal = await weth.balanceOf(kiwi.getAddress());
     let zapBal = await weth.balanceOf(zap.address);
     expect(zapBal).to.equal(0);
@@ -187,14 +179,14 @@ describe("LP Zap Test", function () {
     expect(postBal).to.be.gt(preBal);
 
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    const owner = await coolCats.ownerOf(7984);
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    const owner = await uwus.ownerOf(8832);
     expect(owner.toLowerCase()).to.equal(vaults[0].address)
   })
   
   it("Should successfully buy and redeem 721", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
     const {
       reserve0,
       reserve1,
@@ -203,7 +195,7 @@ describe("LP Zap Test", function () {
     const amountOut = BASE.mul(2).add((await vaults[0].targetRedeemFee()).mul(2));
     const amountETH = await router.getAmountIn(amountOut, reserve1, reserve0);
     let preBal = await ethers.provider.getBalance(kiwi.getAddress());
-    await zap.connect(kiwi).buyAndRedeem(31, 2, [7565,2533], [await router.WETH(), vaults[0].address], await kiwi.getAddress(), {value: amountETH});
+    await zap.connect(kiwi).buyAndRedeem(179, 2, [9335,9179], [await router.WETH(), vaults[0].address], await kiwi.getAddress(), {value: amountETH});
     let postBal = await ethers.provider.getBalance(kiwi.getAddress());
 
     expect(await ethers.provider.getBalance(zap.address)).to.equal(BigNumber.from(0));
@@ -212,29 +204,29 @@ describe("LP Zap Test", function () {
     expect(postBal).to.be.lt(preBal.sub(BASE.div(10)));
 
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    expect(await coolCats.ownerOf(7565)).to.equal(await kiwi.getAddress())
-    expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    expect(await uwus.ownerOf(9335)).to.equal(await kiwi.getAddress())
+    expect(await uwus.ownerOf(9179)).to.equal(await kiwi.getAddress())
   })
 
 
   it("Should successfully buy and swap 721", async () => {
     await vaults[0].connect(dev).assignDefaultFeatures();
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    expect(await coolCats.ownerOf(2533)).to.equal(await kiwi.getAddress())
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    expect(await uwus.ownerOf(2834)).to.equal(await kiwi.getAddress())
 
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
     const {
       reserve0,
       reserve1,
     } = await pair.getReserves();
-    
-    const amountOut = (await vaults[0].targetRedeemFee()).add(await vaults[0].mintFee());
+
+    const amountOut = await vaults[0].targetSwapFee();
     const amountETH = await router.getAmountIn(amountOut, reserve1, reserve0);
     let preBal = await ethers.provider.getBalance(kiwi.getAddress());
-    await zap.connect(kiwi).buyAndSwap721(31, [2533], [2271], [await router.WETH(), vaults[0].address], await kiwi.getAddress(), {value: amountETH});
+    await zap.connect(kiwi).buyAndSwap721(179, [4532], [8579], [await router.WETH(), vaults[0].address], await kiwi.getAddress(), {value: amountETH});
     let postBal = await ethers.provider.getBalance(kiwi.getAddress());
 
     expect(await ethers.provider.getBalance(zap.address)).to.equal(BigNumber.from(0));
@@ -242,12 +234,12 @@ describe("LP Zap Test", function () {
     expect(preBal).to.not.equal(postBal);
     expect(postBal).to.be.lt(preBal.sub(BASE.div(10)));
 
-    expect(await coolCats.ownerOf(2271)).to.equal(await kiwi.getAddress())
+    expect(await uwus.ownerOf(8579)).to.equal(await kiwi.getAddress())
   })
   
   it("Should successfully buy and redeem 721 using WETH", async () => {
     const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0x0225e940deecc32a8d7c003cfb7dae22af18460c")
+    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
     const {
       reserve0,
       reserve1,
@@ -263,7 +255,7 @@ describe("LP Zap Test", function () {
     await weth20.connect(kiwi).approve(zap.address, BASE.mul(500))
 
     let preBal = await weth.balanceOf(kiwi.getAddress());
-    await zap.connect(kiwi).buyAndRedeemWETH(31, 2, [7984,7412], amountETH, [await router.WETH(), vaults[0].address], kiwi.getAddress());
+    await zap.connect(kiwi).buyAndRedeemWETH(179, 2, [9174,1254], amountETH, [await router.WETH(), vaults[0].address], kiwi.getAddress());
     let postBal = await weth.balanceOf(kiwi.getAddress());
 
     expect(await weth.balanceOf(zap.address)).to.equal(BigNumber.from(0));
@@ -272,8 +264,8 @@ describe("LP Zap Test", function () {
     expect(postBal).to.be.lt(preBal);
 
     const assetAddress = await vaults[0].assetAddress();
-    const coolCats = await ethers.getContractAt("ERC721", assetAddress);
-    expect(await coolCats.ownerOf(7984)).to.equal(await kiwi.getAddress())
+    const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    expect(await uwus.ownerOf(9174)).to.equal(await kiwi.getAddress())
   })
 
   let noPool1155NFT;
