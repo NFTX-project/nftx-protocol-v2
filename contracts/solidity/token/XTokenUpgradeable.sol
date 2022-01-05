@@ -11,7 +11,7 @@ import "../util/OwnableUpgradeable.sol";
 //     function nftxVaultFactory() external view returns (INFTXVaultFactory);
 // }
 
-// SushiBar is the coolest bar in town. You come in with some Sushi, and leave with more! The longer you stay, the more Sushi you get.
+// XTokens let uou come in with some vault tokens, and leave with more! The longer you stay, the more vault tokens you get.
 //
 // This contract handles swapping to and from xSushi, SushiSwap's staking token.
 contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {

@@ -155,7 +155,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   IUniswapV2Router01 public immutable sushiRouter;
 
   uint256 public lockTime = 48 hours; 
-  uint256 constant BASE = 10**18;
+  uint256 constant BASE = 10e18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
 
@@ -253,7 +253,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
-    for (uint256 i = 0; i < ids.length; i++) {
+    for (uint256 i; i < ids.length; i++) {
       transferFromERC721(assetAddress, ids[i]);
       approveERC721(assetAddress, vault, ids[i]);
     }

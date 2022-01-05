@@ -55,17 +55,6 @@ contract NFTXVaultFactoryUpgradeable is
         setFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
     }
 
-    function assignFees() public {
-        require(factoryMintFee == 0 && factoryTargetRedeemFee == 0, "Assigned");
-        factoryMintFee = uint64(0.1 ether);
-        factoryRandomRedeemFee = uint64(0.05 ether);
-        factoryTargetRedeemFee = uint64(0.1 ether);
-        factoryRandomSwapFee = uint64(0.05 ether);
-        factoryTargetSwapFee = uint64(0.1 ether);
-
-        emit UpdateFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
-    }
-
     function createVault(
         string memory name,
         string memory symbol,

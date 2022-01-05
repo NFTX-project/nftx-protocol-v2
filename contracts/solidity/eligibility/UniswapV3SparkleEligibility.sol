@@ -129,7 +129,7 @@ contract UniswapV3SparkleEligibility is NFTXEligibility, OwnableUpgradeable {
     }
 
     function addValidPools(address[] memory newPools) public onlyOwner {
-        for (uint256 i = 0; i < newPools.length; i++) {
+        for (uint256 i; i < newPools.length; i++) {
             validPools[newPools[i]] = true;
         }
         emit PoolsAdded(newPools);
