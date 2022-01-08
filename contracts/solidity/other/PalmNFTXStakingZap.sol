@@ -327,9 +327,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     require(success, string(resultData));
   }
 
-  function approveERC721(address assetAddr, address to, uint256 tokenId) internal virtual {
-    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
-    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+  function approveERC721(address assetAddr, address to, uint256 /*tokenId*/) internal virtual {
     if (IERC721(assetAddr).isApprovedForAll(address(this), to)) {
       return;
     }

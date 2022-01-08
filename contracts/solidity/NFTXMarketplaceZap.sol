@@ -336,9 +336,11 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     emit Buy(amount, amounts[0], to);
 
     uint256 remaining = WETH.balanceOf(address(this));
-    WETH.withdraw(remaining);
-    (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value");
+    if (remaining != 0) {
+      WETH.withdraw(remaining);
+      (bool success, ) = payable(to).call{value: remaining}("");
+      require(success, "Address: unable to send value");
+    }
   }
 
   function buyAndRedeemWETH(
