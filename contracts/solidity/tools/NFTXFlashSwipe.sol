@@ -13,7 +13,7 @@ interface ClaimToken {
 // Author: 0xKiwi. 
 
 contract NFTXFlashSwipe is IERC3156FlashBorrowerUpgradeable {
-  uint256 constant BASE = 10e18;
+  uint256 constant BASE = 1e18;
   INFTXVaultFactory public nftxFactory;
   
   ClaimToken NCT = ClaimToken(0x8A9c4dfe8b9D8962B31e4e16F8321C44d48e246E);

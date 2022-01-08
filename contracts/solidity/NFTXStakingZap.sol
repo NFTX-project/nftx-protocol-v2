@@ -14,6 +14,7 @@ import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
+import "./util/SafeERC20Upgradeable.sol";
 
 // Authors: @0xKiwi_.
 
@@ -149,6 +150,8 @@ abstract contract Ownable {
 }
 
 contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+
   IWETH public immutable WETH; 
   INFTXLPStaking public immutable lpStaking;
   INFTXInventoryStaking public immutable inventoryStaking;
@@ -157,7 +160,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
   uint256 public lpLockTime = 48 hours; 
   uint256 public inventoryLockTime = 7 days; 
-  uint256 constant BASE = 10e18;
+  uint256 constant BASE = 1e18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
 
@@ -167,7 +170,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).inventoryStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
     WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
-    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
+    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).safeApprove(_sushiRouter, type(uint256).max);
   }
 
   function setLPLockTime(uint256 newLPLockTime) external onlyOwner {
@@ -231,6 +234,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 minWethIn,
     address to
   ) public payable nonReentrant returns (uint256) {
+    require(to != address(0) && to != address(this));
     WETH.deposit{value: msg.value}();
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, msg.value, to);
 
@@ -260,6 +264,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 minEthIn,
     address to
   ) public payable nonReentrant returns (uint256) {
+    require(to != address(0) && to != address(this));
     WETH.deposit{value: msg.value}();
     // Finish this.
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minEthIn, msg.value, to);
@@ -290,7 +295,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) public nonReentrant returns (uint256) {
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
+    require(to != address(0) && to != address(this));
+    IERC20Upgradeable(address(WETH)).safeTransferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity721WETH(vaultId, ids, minWethIn, wethIn, to);
 
     // Return extras.
@@ -320,7 +326,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) public nonReentrant returns (uint256) {
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), wethIn);
+    require(to != address(0) && to != address(this));
+    IERC20Upgradeable(address(WETH)).safeTransferFrom(msg.sender, address(this), wethIn);
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn, to);
 
     // Return extras.
@@ -339,6 +346,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) internal returns (uint256, uint256, uint256) {
+    require(nftxFactory.excludedFromFees(address(this)));
+    require(to != address(0) && to != address(this));
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
 
@@ -350,9 +359,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       approveERC721(assetAddress, vault, ids[i]);
     }
     uint256[] memory emptyIds;
-    uint256 count = INFTXVault(vault).mint(ids, emptyIds);
-    uint256 balance = (count * BASE); // We should not be experiencing fees.
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
+    INFTXVault(vault).mint(ids, emptyIds);
+    uint256 balance = length * BASE; // We should not be experiencing fees.
     
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
@@ -365,6 +373,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 wethIn,
     address to
   ) internal returns (uint256, uint256, uint256) {
+    require(nftxFactory.excludedFromFees(address(this)));
     address vault = nftxFactory.vault(vaultId);
     require(vault != address(0), "NFTXZap: Vault does not exist");
 
@@ -372,9 +381,9 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+    
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
@@ -388,7 +397,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address to
   ) internal returns (uint256, uint256, uint256) {
     // Provide liquidity.
-    IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
+    IERC20Upgradeable(vault).safeApprove(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
       address(vault),
       address(WETH),
@@ -402,12 +411,12 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
-    IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
+    IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
     
     uint256 remaining = minTokenIn-amountToken;
     if (remaining != 0) {
-      IERC20Upgradeable(vault).transfer(to, remaining);
+      IERC20Upgradeable(vault).safeTransfer(to, remaining);
     }
 
     uint256 lockEndTime = block.timestamp + lpLockTime;
@@ -421,14 +430,14 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     bytes memory data;
     if (assetAddr == kitties) {
         // Cryptokitties.
-        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
+        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
     } else if (assetAddr == punks) {
         // CryptoPunks.
         // Fix here for frontrun attack. Added in v1.0.2.
         bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
         (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-        (address owner) = abi.decode(result, (address));
-        require(checkSuccess && owner == msg.sender, "Not the owner");
+        (address nftOwner) = abi.decode(result, (address));
+        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
         data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
     } else {
         // Default.
@@ -445,7 +454,9 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     bytes memory data;
     if (assetAddr == kitties) {
         // Cryptokitties.
-        data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
+        // data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
+        // No longer needed to approve with pushing.
+        return;
     } else if (assetAddr == punks) {
         // CryptoPunks.
         data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
@@ -476,10 +487,15 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   receive() external payable {
-
+    require(msg.sender == address(WETH), "Only WETH");
   }
 
   function rescue(address token) external onlyOwner {
-    IERC20Upgradeable(token).transfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
+    if (token == address(0)) {
+      (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+      require(success, "Address: unable to send value");
+    } else {
+      IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
+    }
   }
 }

@@ -155,7 +155,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   IUniswapV2Router01 public immutable sushiRouter;
 
   uint256 public lockTime = 48 hours; 
-  uint256 constant BASE = 10e18;
+  uint256 constant BASE = 1e18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
 
@@ -258,9 +258,8 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
       approveERC721(assetAddress, vault, ids[i]);
     }
     uint256[] memory emptyIds;
-    uint256 count = INFTXVault(vault).mint(ids, emptyIds);
-    uint256 balance = (count * BASE); // We should not be experiencing fees.
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
+    INFTXVault(vault).mint(ids, emptyIds);
+    uint256 balance = (ids.length * BASE); // We should not be experiencing fees.
     
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
@@ -280,9 +279,9 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }

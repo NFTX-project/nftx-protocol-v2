@@ -44,11 +44,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
     }
-    
-    function setNFTXVaultFactory(address newFactory) external virtual override onlyOwner {
-        require(newFactory != address(0));
-        nftxVaultFactory = INFTXVaultFactory(newFactory);
-    }
 
     function deployXTokenForVault(uint256 vaultId) public virtual override {
         address baseToken = nftxVaultFactory.vault(vaultId);

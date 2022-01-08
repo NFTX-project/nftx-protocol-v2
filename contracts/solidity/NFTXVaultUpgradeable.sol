@@ -226,8 +226,9 @@ contract NFTXVaultUpgradeable is
         _burn(msg.sender, base * amount);
 
         // Pay the tokens + toll.
-        uint256 totalFee = (targetRedeemFee() * specificIds.length) + (
-            randomRedeemFee() * (amount - specificIds.length)
+        (, uint256 randomRedeemFee, uint256 targetRedeemFee, ,) = vaultFees();
+        uint256 totalFee = (targetRedeemFee * specificIds.length) + (
+            randomRedeemFee * (amount - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
 
@@ -272,8 +273,9 @@ contract NFTXVaultUpgradeable is
             "NFTXVault: Target swap disabled"
         );
 
-        uint256 totalFee = (targetSwapFee() * specificIds.length) + (
-            randomSwapFee() * (count - specificIds.length)
+        (, , ,uint256 randomSwapFee, uint256 targetSwapFee) = vaultFees();
+        uint256 totalFee = (targetSwapFee * specificIds.length) + (
+            randomSwapFee * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
         
@@ -492,8 +494,8 @@ contract NFTXVaultUpgradeable is
             // Default.
             data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", address(this), to, tokenId);
         }
-        (bool success,) = address(assetAddr).call(data);
-        require(success);
+        (bool success, bytes memory returnData) = address(assetAddr).call(data);
+        require(success, string(returnData));
     }
 
     function transferFromERC721(address assetAddr, uint256 tokenId) internal virtual {
@@ -508,8 +510,8 @@ contract NFTXVaultUpgradeable is
             // Fix here for frontrun attack. Added in v1.0.2.
             bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
             (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-            (address owner) = abi.decode(result, (address));
-            require(checkSuccess && owner == msg.sender, "Not the owner");
+            (address nftOwner) = abi.decode(result, (address));
+            require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
             data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
         } else {
             // Default.

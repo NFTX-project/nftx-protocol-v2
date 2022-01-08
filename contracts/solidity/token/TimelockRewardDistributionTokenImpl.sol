@@ -109,15 +109,10 @@ contract TimelockRewardDistributionTokenImpl is OwnableUpgradeable, ERC20Upgrade
   }
 
   /**
-    * @dev Destroys `amount` tokens from `account`, deducting from the caller's
-    * allowance.
+    * @dev Destroys `amount` tokens from `account`, without deducting from the caller's
+    * allowance. Dangerous.
     *
     * See {ERC20-_burn} and {ERC20-allowance}.
-    *
-    * Requirements:
-    *
-    * - the caller must have allowance for ``accounts``'s tokens of at least
-    * `amount`.
     */
   function burnFrom(address account, uint256 amount) public virtual onlyOwner {
       _burn(account, amount);

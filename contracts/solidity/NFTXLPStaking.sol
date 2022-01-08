@@ -55,7 +55,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function setNFTXVaultFactory(address newFactory) external onlyOwner {
-        require(newFactory != address(0));
+        require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
         nftxVaultFactory = INFTXVaultFactory(newFactory);
     }
 
@@ -133,6 +133,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
+        require(timelockLength < 2592000, "Timelock too long");
         require(nftxVaultFactory.excludedFromFees(msg.sender), "Not zap");
         onlyOwnerIfPaused(10);
         // Check the pool in case its been updated.
@@ -197,6 +198,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function withdraw(uint256 vaultId, uint256 amount) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _claimRewards(pool, msg.sender);
         _withdraw(pool, amount, msg.sender);
     }
 

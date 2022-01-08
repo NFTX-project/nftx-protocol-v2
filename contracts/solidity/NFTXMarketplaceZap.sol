@@ -11,6 +11,7 @@ import "./token/IERC1155Upgradeable.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
+import "./util/SafeERC20Upgradeable.sol";
 
 // Authors: @0xKiwi_.
 
@@ -147,12 +148,14 @@ abstract contract Ownable {
 }
 
 contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+  
   IWETH public immutable WETH; 
   INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
 
-  uint256 constant BASE = 10e18;
+  uint256 constant BASE = 1e18;
 
   event Buy(uint256 count, uint256 ethSpent, address to);
   event Sell(uint256 count, uint256 ethReceived, address to);
@@ -163,21 +166,21 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
     WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
-    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).approve(_sushiRouter, type(uint256).max);
+    IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).safeApprove(_sushiRouter, type(uint256).max);
   }
 
   function mintAndSell721(
     uint256 vaultId, 
     uint256[] calldata ids, 
-    uint256 minWethOut, 
+    uint256 minEthOut, 
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(ids.length != 0);
     (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
-    uint256[] memory amounts = _sellVaultTokenETH(vault, minWethOut, vaultBalance, path, to);
-    emit Sell(ids.length, amounts[1], to);
+    uint256[] memory amounts = _sellVaultTokenETH(vault, minEthOut, vaultBalance, path, to);
+    emit Sell(ids.length, amounts[amounts.length-1], to);
   }
 
   function mintAndSell721WETH(
@@ -187,11 +190,11 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(ids.length != 0);
     (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
     uint256[] memory amounts = _sellVaultTokenWETH(vault, minWethOut, vaultBalance, path, to);
-    emit Sell(ids.length, amounts[1], to);
+    emit Sell(ids.length, amounts[amounts.length-1], to);
   }
 
   function buyAndSwap721(
@@ -201,7 +204,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external payable nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(idsIn.length != 0);
     WETH.deposit{value: msg.value}();
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
@@ -228,9 +231,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(idsIn.length != 0);
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
+    IERC20Upgradeable(address(WETH)).safeTransferFrom(msg.sender, address(this), maxWethIn);
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
     uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
         vault.randomSwapFee() * (idsIn.length - specificIds.length)
@@ -255,7 +258,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external payable nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     uint256 length = idsIn.length;
     require(length != 0);
     WETH.deposit{value: msg.value}();
@@ -290,7 +293,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external payable nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(idsIn.length != 0);
     uint256 count;
     for (uint256 i = 0; i < idsIn.length; i++) {
@@ -302,8 +305,8 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (
         vault.randomSwapFee() * (count - specificIds.length)
     );
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
-    uint256[] memory swapAmounts = _buyVaultToken(redeemFees, msg.value, path);
+    IERC20Upgradeable(address(WETH)).safeTransferFrom(msg.sender, address(this), maxWethIn);
+    uint256[] memory swapAmounts = _buyVaultToken(redeemFees, maxWethIn, path);
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
 
     emit Swap(count, swapAmounts[0], to);
@@ -320,7 +323,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external payable nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(amount != 0);
     WETH.deposit{value: msg.value}();
     (, uint256 randomRedeemFee, uint256 targetRedeemFee, ,) = nftxFactory.vaultFees(vaultId);
@@ -346,7 +349,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(amount != 0);
     uint256 totalFee;
     {
@@ -355,13 +358,15 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
         randomRedeemFee * (amount - specificIds.length)
     );
     }
-    IERC20Upgradeable(address(WETH)).transferFrom(msg.sender, address(this), maxWethIn);
+    IERC20Upgradeable(address(WETH)).safeTransferFrom(msg.sender, address(this), maxWethIn);
     uint256[] memory amounts = _buyVaultToken((amount*BASE) + totalFee, maxWethIn, path);
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, amounts[0], to);
 
     uint256 remaining = WETH.balanceOf(address(this));
-    WETH.transfer(to, remaining);
+    if (remaining != 0) {
+      WETH.transfer(to, remaining);
+    }
   }
 
   function mintAndSell1155(
@@ -372,17 +377,17 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(ids.length != 0);
     (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
-    uint256[] memory amounts = _sellVaultTokenETH(vault, minWethOut, vaultTokenBalance, path, to);
+    uint256[] memory uniAmounts = _sellVaultTokenETH(vault, minWethOut, vaultTokenBalance, path, to);
 
     uint256 count;
     uint256 length = ids.length;
     for (uint256 i; i < length; ++i) {
         count += amounts[i];
     }
-    emit Sell(count, amounts[1], to);
+    emit Sell(count, uniAmounts[uniAmounts.length-1], to);
   }
 
   function mintAndSell1155WETH(
@@ -393,7 +398,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) external nonReentrant {
-    require(to != address(0));
+    require(to != address(0) && to != address(this));
     require(ids.length != 0);
     (address vault, uint256 vaultTokenBalance) = _mint1155(vaultId, ids, amounts);
     _sellVaultTokenWETH(vault, minWethOut, vaultTokenBalance, path, to);
@@ -403,7 +408,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     for (uint256 i; i < length; ++i) {
         count += amounts[i];
     }
-    emit Sell(count, amounts[1], to);
+    emit Sell(count, amounts[amounts.length-1], to);
   }
 
   function _mint721(
@@ -411,7 +416,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory ids
   ) internal returns (address, uint256) {
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
@@ -421,9 +425,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
       approveERC721(assetAddress, vault, ids[i]);
     }
     uint256[] memory emptyIds;
-    uint256 count = INFTXVault(vault).mint(ids, emptyIds);
+    INFTXVault(vault).mint(ids, emptyIds);
+    uint256 count = ids.length;
     uint256 balance = (count * BASE) - (count * INFTXVault(vault).mintFee()); 
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
     
     return (vault, balance);
   }
@@ -435,7 +439,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address to
   ) internal returns (address) {
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
@@ -458,7 +461,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address to
   ) internal returns (address) {
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
@@ -476,7 +478,6 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address to
   ) internal {
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
     INFTXVault(vault).redeemTo(amount, specificIds, to);
   }
 
@@ -492,9 +493,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+
     uint256 count = INFTXVault(vault).mint(ids, amounts);
-    uint256 balance = (count * BASE) - INFTXVault(vault).mintFee()*count;
-    require(balance == IERC20Upgradeable(vault).balanceOf(address(this)), "Did not receive expected balance");
+    uint256 balance = (count * BASE) - (INFTXVault(vault).mintFee()*count);
     
     return (vault, balance);
   }
@@ -521,7 +522,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address[] calldata path,
     address to
   ) internal returns (uint256[] memory) {
-    IERC20Upgradeable(vault).approve(address(sushiRouter), maxTokenIn);
+    IERC20Upgradeable(vault).safeApprove(address(sushiRouter), maxTokenIn);
     uint256[] memory amounts = sushiRouter.swapExactTokensForTokens(
       maxTokenIn,
       minWethOut,
@@ -535,15 +536,15 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
 
   function _sellVaultTokenETH(
     address vault, 
-    uint256 minWethOut, 
+    uint256 minEthOut, 
     uint256 maxTokenIn, 
     address[] calldata path,
     address to
   ) internal returns (uint256[] memory) {
-    IERC20Upgradeable(vault).approve(address(sushiRouter), maxTokenIn);
+    IERC20Upgradeable(vault).safeApprove(address(sushiRouter), maxTokenIn);
     uint256[] memory amounts = sushiRouter.swapExactTokensForETH(
       maxTokenIn,
-      minWethOut,
+      minEthOut,
       path, 
       to,
       block.timestamp
@@ -558,14 +559,14 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     bytes memory data;
     if (assetAddr == kitties) {
         // Cryptokitties.
-        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), tokenId);
+        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
     } else if (assetAddr == punks) {
         // CryptoPunks.
         // Fix here for frontrun attack. Added in v1.0.2.
         bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
         (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-        (address owner) = abi.decode(result, (address));
-        require(checkSuccess && owner == msg.sender, "Not the owner");
+        (address nftOwner) = abi.decode(result, (address));
+        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
         data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
     } else {
         // Default.
@@ -581,8 +582,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     bytes memory data;
     if (assetAddr == kitties) {
-        // Cryptokitties.
-        data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
+        // // Cryptokitties.
+        // data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
+        // No longer needed to approve with pushing.
+        return;
     } else if (assetAddr == punks) {
         // CryptoPunks.
         data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
@@ -612,7 +615,16 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
       require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
   }
 
-  receive() external payable {
+  function rescue(address token) external onlyOwner {
+    if (token == address(0)) {
+      (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+      require(success, "Address: unable to send value");
+    } else {
+      IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
+    }
+  }
 
+  receive() external payable {
+    require(msg.sender == address(WETH), "Only WETH");
   }
 }
