@@ -32,7 +32,7 @@ describe("Mainnet Upgrade Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 13361600,
+            blockNumber: 13959470,
           },
         },
       ],
@@ -105,7 +105,6 @@ describe("Mainnet Upgrade Test", function () {
     let newVault = await NewVault.deploy();
     await newVault.deployed();
     await nftx.connect(dao).upgradeChildTo(newVault.address);
-    await nftx.assignFees();
     let newVaultAddr = await nftx.vault(179);
     let newVaultNum = await nftx.numVaults();
     expect(oldVaultAddr).to.equal(newVaultAddr);
@@ -172,14 +171,14 @@ describe("Mainnet Upgrade Test", function () {
     const amountToLP = BASE.mul(2); //.sub(mintFee.mul(5)) no fee anymore
     const amountETH = await router.quote(amountToLP, reserve0, reserve1)
     await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
-    await zap.connect(kiwi).addLiquidity721ETH(179, [6663, 1679], amountETH.sub(500), {value: amountETH})
+    await zap.connect(kiwi).addLiquidity721ETH(179, [6663, 8294], amountETH.sub(500), {value: amountETH})
     const postDepositBal = await pair.balanceOf(staking.address);
   });
 
   it("Should mint to generate some rewards", async () => {
     let newDisttoken = await staking.newRewardDistributionToken(179);
     let oldBal = await vaults[0].balanceOf(newDisttoken);
-    await vaults[0].connect(kiwi).mint([1747], [1]);
+    await vaults[0].connect(kiwi).mint([4528], [1]);
     let newBal = await vaults[0].balanceOf(newDisttoken);
     expect(oldBal).to.not.equal(newBal);
   })
