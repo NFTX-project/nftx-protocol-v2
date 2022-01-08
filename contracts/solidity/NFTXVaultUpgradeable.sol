@@ -226,9 +226,9 @@ contract NFTXVaultUpgradeable is
         _burn(msg.sender, base * amount);
 
         // Pay the tokens + toll.
-        (, uint256 randomRedeemFee, uint256 targetRedeemFee, ,) = vaultFees();
-        uint256 totalFee = (targetRedeemFee * specificIds.length) + (
-            randomRedeemFee * (amount - specificIds.length)
+        (, uint256 _randomRedeemFee, uint256 _targetRedeemFee, ,) = vaultFees();
+        uint256 totalFee = (_targetRedeemFee * specificIds.length) + (
+            _randomRedeemFee * (amount - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
 
@@ -273,9 +273,9 @@ contract NFTXVaultUpgradeable is
             "NFTXVault: Target swap disabled"
         );
 
-        (, , ,uint256 randomSwapFee, uint256 targetSwapFee) = vaultFees();
-        uint256 totalFee = (targetSwapFee * specificIds.length) + (
-            randomSwapFee * (count - specificIds.length)
+        (, , ,uint256 _randomSwapFee, uint256 _targetSwapFee) = vaultFees();
+        uint256 totalFee = (_targetSwapFee * specificIds.length) + (
+            _randomSwapFee * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
         
