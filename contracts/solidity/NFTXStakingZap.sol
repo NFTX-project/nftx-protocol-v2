@@ -242,7 +242,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 remaining = msg.value-amountEth;
     if (remaining != 0) {
       WETH.withdraw(remaining);
-      payable(to).call{value: remaining};
+      (bool success, ) = payable(to).call{value: remaining}("");
+      require(success, "Address: unable to send value");
     }
 
     return liquidity;
@@ -273,7 +274,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256 remaining = msg.value-amountEth;
     if (remaining != 0) {
       WETH.withdraw(remaining);
-      payable(to).call{value: remaining};
+      (bool success, ) = payable(to).call{value: remaining}("");
+      require(success, "Address: unable to send value");
     }
 
     return liquidity;

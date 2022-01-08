@@ -128,8 +128,19 @@ contract NFTXLPStaking is PausableUpgradeable {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
-        // Timelock for 2 seconds to prevent flash loans.
-        _rewardDistributionTokenAddr(pool).timelockMint(msg.sender, amount, 2);
+        TimelockRewardDistributionTokenImpl xSLPToken = _rewardDistributionTokenAddr(pool);
+
+        // If the user has an existing timelock, check if it is in the future.
+        uint256 currentTimelock = xSLPToken.timelockUntil(msg.sender);
+        if (currentTimelock > block.timestamp) {
+            // Maintain the same timelock if they already have one.
+            // We do this instead of patching in the token because
+            // the xSLP contracts as currently deployed are not upgradeable.
+            xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
+        } else {
+            // Timelock for 2 seconds to prevent flash loans.
+            xSLPToken.timelockMint(msg.sender, amount, 2);
+        }
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {

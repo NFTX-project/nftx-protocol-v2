@@ -56,10 +56,13 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         return what;
     }
 
-    function timelockAccount(address account , uint256 timelockLength) public onlyOwner virtual {
+    function timelockAccount(address account, uint256 timelockLength) public onlyOwner virtual {
+        require(timelockLength < MAX_TIMELOCK, "Too long lock");
         uint256 timelockFinish = block.timestamp + timelockLength;
-        timelock[account] = timelockFinish;
-        emit Timelocked(account, timelockFinish);
+        if(timelockFinish > timelock[account]){
+            timelock[account] = timelockFinish;
+            emit Timelocked(account, timelockFinish);
+        }
     }
 
     function _burn(address who, uint256 amount) internal override {
@@ -72,10 +75,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
     }
 
     function _timelockMint(address account, uint256 amount, uint256 timelockLength) internal virtual {
-        require(timelockLength < MAX_TIMELOCK, "Too long lock");
-        uint256 timelockFinish = block.timestamp + timelockLength;
-        timelock[account] = timelockFinish;
-        emit Timelocked(account, timelockFinish);
+        timelockAccount(account, timelockLength);
         _mint(account, amount);
     }
     
