@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "./OwnableUpgradeable.sol";
-import "./SafeMathUpgradeable.sol";
 
 contract PausableUpgradeable is OwnableUpgradeable {
 

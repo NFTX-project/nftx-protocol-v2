@@ -11,6 +11,7 @@ import "./util/SafeERC20Upgradeable.sol";
 import "./util/SafeMathUpgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
+import "./util/SafeERC20Upgradeable.sol";
 
 contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardUpgradeable, PausableUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -59,20 +60,22 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
     uint256 length = feeReceivers.length;
     uint256 leftover;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       FeeReceiver memory _feeReceiver = feeReceivers[i];
       uint256 amountToSend = leftover + ((tokenBalance * _feeReceiver.allocPoint) / allocTotal);
       uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
       amountToSend = amountToSend > currentTokenBalance ? currentTokenBalance : amountToSend;
       bool complete = _sendForReceiver(_feeReceiver, vaultId, _vault, amountToSend);
       if (!complete) {
-        leftover = amountToSend;
+        uint256 remaining = IERC20Upgradeable(_vault).allowance(address(this), _feeReceiver.receiver);
+        IERC20Upgradeable(_vault).safeApprove(_feeReceiver.receiver, 0);
+        leftover = remaining;
       } else {
         leftover = 0;
       }
     }
 
-    if (leftover > 0) {
+    if (leftover != 0) {
       uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
       IERC20Upgradeable(_vault).safeTransfer(treasury, currentTokenBalance);
     }
@@ -90,6 +93,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   }
 
   function changeReceiverAlloc(uint256 _receiverIdx, uint256 _allocPoint) public override virtual onlyOwner {
+    require(_receiverIdx < feeReceivers.length, "FeeDistributor: Out of bounds");
     FeeReceiver storage feeReceiver = feeReceivers[_receiverIdx];
     allocTotal -= feeReceiver.allocPoint;
     feeReceiver.allocPoint = _allocPoint;
@@ -133,13 +137,14 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   }
 
   function setNFTXVaultFactory(address _factory) external override onlyOwner {
+    require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
     nftxVaultFactory = _factory;
     emit UpdateNFTXVaultFactory(_factory);
   }
 
-  function pauseFeeDistribution(bool pause) external onlyOwner {
-    distributionPaused = pause;
-    emit PauseDistribution(pause);
+  function pauseFeeDistribution(bool _pause) external onlyOwner {
+    distributionPaused = _pause;
+    emit PauseDistribution(_pause);
   }
 
   function rescueTokens(address _address) external override onlyOwner {
@@ -156,8 +161,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual returns (bool) {
     if (_receiver.isContract) {
-      IERC20Upgradeable(_vault).approve(_receiver.receiver, amountToSend);
-      // If the receive is not properly processed, send it to the treasury instead.
+      IERC20Upgradeable(_vault).safeApprove(_receiver.receiver, amountToSend);
        
       bytes memory payload = abi.encodeWithSelector(INFTXLPStaking.receiveRewards.selector, _vaultId, amountToSend);
       (bool success, ) = address(_receiver.receiver).call(payload);
@@ -166,6 +170,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       return success && IERC20Upgradeable(_vault).allowance(address(this), _receiver.receiver) == 0;
     } else {
       IERC20Upgradeable(_vault).safeTransfer(_receiver.receiver, amountToSend);
+      return true;
     }
   }
 } 

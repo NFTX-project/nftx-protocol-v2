@@ -19,11 +19,11 @@ contract NFTXVaultFactoryUpgradeable is
     INFTXVaultFactory
 {
     uint256 private NOT_USED1; // Removed, no longer needed.
-    address public override zapContract;
+    address public override zapContract; // No longer needed, but keeping for compatibility.
     address public override feeDistributor;
     address public override eligibilityManager;
 
-    mapping(uint256 => address) private NOT_USED2; // Removed, no longer needed.
+    mapping(uint256 => address) private NOT_USED3; // Removed, no longer needed.
     mapping(address => address[]) _vaultsForAsset;
     
     address[] internal vaults;
@@ -55,17 +55,6 @@ contract NFTXVaultFactoryUpgradeable is
         setFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
     }
 
-    function assignFees() public {
-        require(factoryMintFee == 0 && factoryTargetRedeemFee == 0, "Assigned");
-        factoryMintFee = uint64(0.1 ether);
-        factoryRandomRedeemFee = uint64(0.05 ether);
-        factoryTargetRedeemFee = uint64(0.1 ether);
-        factoryRandomSwapFee = uint64(0.05 ether);
-        factoryTargetSwapFee = uint64(0.1 ether);
-
-        emit UpdateFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
-    }
-
     function createVault(
         string memory name,
         string memory symbol,
@@ -92,11 +81,11 @@ contract NFTXVaultFactoryUpgradeable is
         uint256 randomSwapFee, 
         uint256 targetSwapFee
     ) public onlyOwner virtual override {
-        require(mintFee <= 1 ether, "Cannot > 1 ether");
-        require(randomRedeemFee <= 1 ether, "Cannot > 1 ether");
-        require(targetRedeemFee <= 1 ether, "Cannot > 1 ether");
-        require(randomSwapFee <= 1 ether, "Cannot > 1 ether");
-        require(targetSwapFee <= 1 ether, "Cannot > 1 ether");
+        require(mintFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
 
         factoryMintFee = uint64(mintFee);
         factoryRandomRedeemFee = uint64(randomRedeemFee);
@@ -119,11 +108,11 @@ contract NFTXVaultFactoryUpgradeable is
             address vaultAddr = vaults[vaultId];
             require(msg.sender == vaultAddr, "Not from vault");
         }
-        require(mintFee <= 1 ether, "Cannot > 1 ether");
-        require(randomRedeemFee <= 1 ether, "Cannot > 1 ether");
-        require(targetRedeemFee <= 1 ether, "Cannot > 1 ether");
-        require(randomSwapFee <= 1 ether, "Cannot > 1 ether");
-        require(targetSwapFee <= 1 ether, "Cannot > 1 ether");
+        require(mintFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
 
         _vaultFees[vaultId] = VaultFees(
             true, 

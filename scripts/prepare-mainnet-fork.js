@@ -86,7 +86,6 @@ async function main() {
     console.log("Zap deployed: ", zap.address);
     await zap.deployed();
 
-    await nftx.connect(dao).setZapContract(zap.address);
     await nftx.connect(dao).setFeeExclusion(zap.address, true);
 
     expect(await zap.nftxFactory()).to.equal(nftx.address);

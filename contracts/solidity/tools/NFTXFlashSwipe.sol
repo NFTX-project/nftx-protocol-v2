@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
 import "../interface/INFTXVault.sol";
@@ -13,7 +15,7 @@ interface ClaimToken {
 // Author: 0xKiwi. 
 
 contract NFTXFlashSwipe is IERC3156FlashBorrowerUpgradeable {
-  uint256 constant BASE = 10**18;
+  uint256 constant BASE = 1e18;
   INFTXVaultFactory public nftxFactory;
   
   ClaimToken NCT = ClaimToken(0x8A9c4dfe8b9D8962B31e4e16F8321C44d48e246E);
@@ -65,8 +67,8 @@ contract NFTXFlashSwipe is IERC3156FlashBorrowerUpgradeable {
 
   function onFlashLoan(
     address initiator,
-    address token,
-    uint256 amount,
+    address /*token*/,
+    uint256 /*amount*/,
     uint256 /* fee */,
     bytes calldata data
   ) external override returns (bytes32) {

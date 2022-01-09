@@ -99,7 +99,6 @@ async function main() {
   await zap.setLockTime(600); // 10 minutes.
   console.log("Staking Zap: ", zap.address);
 
-  await nftx.setZapContract(zap.address);
   await nftx.setFeeExclusion(zap.address, true);  
 
   const ProxyController = await ethers.getContractFactory("ProxyController");

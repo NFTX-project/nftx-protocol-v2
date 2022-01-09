@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
 import "./token/IERC20Upgradeable.sol";
@@ -41,7 +43,7 @@ contract NFTXV1Buyout is PausableUpgradeable, ReentrancyGuardUpgradeable {
     uint256 amount = ethAvailiable[v1TokenAddr];
     require(amount > 0, "Cannot remove 0");
     ethAvailiable[v1TokenAddr] = 0;
-    payable(msg.sender).transfer(amount);
+    sendValue(payable(msg.sender), amount);
     emit BuyoutComplete(v1TokenAddr);
   }
 
@@ -63,5 +65,13 @@ contract NFTXV1Buyout is PausableUpgradeable, ReentrancyGuardUpgradeable {
     if (ethAvailiable[v1TokenAddr] == 0) {
       emit BuyoutComplete(v1TokenAddr);
     }
+  }
+
+  function sendValue(address payable recipient, uint256 amount) internal {
+    require(address(this).balance >= amount, "Address: insufficient balance");
+
+    // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+    (bool success, ) = recipient.call{ value: amount }("");
+    require(success, "Address: unable to send value, recipient may have reverted");
   }
 }

@@ -3,14 +3,12 @@
 pragma solidity ^0.8.0;
 
 import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXFeeDistributor.sol";
 import "./interface/IRewardDistributionToken.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
 import "./proxy/ClonesUpgradeable.sol";
-import "./proxy/Initializable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
 
@@ -41,12 +39,8 @@ contract NFTXLPStaking is PausableUpgradeable {
     function __NFTXLPStaking__init(address _stakingTokenProvider) external initializer {
         __Ownable_init();
         require(_stakingTokenProvider != address(0), "Provider != address(0)");
-        assignNewImpl();
-        stakingTokenProvider = StakingTokenProvider(_stakingTokenProvider);
-    }
-
-    function assignNewImpl() public {
         require(address(newTimelockRewardDistTokenImpl) == address(0), "Already assigned");
+        stakingTokenProvider = StakingTokenProvider(_stakingTokenProvider);
         newTimelockRewardDistTokenImpl = new TimelockRewardDistributionTokenImpl();
         newTimelockRewardDistTokenImpl.__TimelockRewardDistributionToken_init(IERC20Upgradeable(address(0)), "", "");
     }
@@ -57,7 +51,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function setNFTXVaultFactory(address newFactory) external onlyOwner {
-        require(newFactory != address(0));
+        require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
         nftxVaultFactory = INFTXVaultFactory(newFactory);
     }
 
@@ -78,7 +72,8 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function updatePoolForVaults(uint256[] calldata vaultIds) external {
-        for (uint256 i = 0; i < vaultIds.length; i++) {
+        uint256 length = vaultIds.length;
+        for (uint256 i; i < length; ++i) {
             updatePoolForVault(vaultIds[i]);
         }
     }
@@ -125,11 +120,27 @@ contract NFTXLPStaking is PausableUpgradeable {
         onlyOwnerIfPaused(10);
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
+
         StakingPool memory pool = vaultStakingInfo[vaultId];
-        _deposit(pool, amount);
+        require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
+        IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        TimelockRewardDistributionTokenImpl xSLPToken = _rewardDistributionTokenAddr(pool);
+
+        // If the user has an existing timelock, check if it is in the future.
+        uint256 currentTimelock = xSLPToken.timelockUntil(msg.sender);
+        if (currentTimelock > block.timestamp) {
+            // Maintain the same timelock if they already have one.
+            // We do this instead of patching in the token because
+            // the xSLP contracts as currently deployed are not upgradeable.
+            xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
+        } else {
+            // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
+            xSLPToken.timelockMint(msg.sender, amount, 2);
+        }
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
+        require(timelockLength < 2592000, "Timelock too long");
         require(nftxVaultFactory.excludedFromFees(msg.sender), "Not zap");
         onlyOwnerIfPaused(10);
         // Check the pool in case its been updated.
@@ -194,6 +205,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function withdraw(uint256 vaultId, uint256 amount) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _claimRewards(pool, msg.sender);
         _withdraw(pool, amount, msg.sender);
     }
 
@@ -202,8 +214,9 @@ contract NFTXLPStaking is PausableUpgradeable {
         _claimRewards(pool, msg.sender);
     }
 
-    function claimMultipleRewards(uint256[] memory vaultIds) external {
-        for (uint256 i = 0; i < vaultIds.length; i++) {
+    function claimMultipleRewards(uint256[] calldata vaultIds) external {
+        uint256 length = vaultIds.length;
+        for (uint256 i; i < length; ++i) {
             claimRewards(vaultIds[i]);
         }
     }
@@ -240,8 +253,8 @@ contract NFTXLPStaking is PausableUpgradeable {
         return address(_unusedRewardDistributionTokenAddr(pool));
     }
 
-    function rewardDistributionTokenAddr(address stakingToken, address rewardToken) public view returns (address) {
-        StakingPool memory pool = StakingPool(stakingToken, rewardToken);
+    function rewardDistributionTokenAddr(address stakedToken, address rewardToken) public view returns (address) {
+        StakingPool memory pool = StakingPool(stakedToken, rewardToken);
         return address(_rewardDistributionTokenAddr(pool));
     }
 
@@ -280,13 +293,6 @@ contract NFTXLPStaking is PausableUpgradeable {
             return 0;
         }
         return dist.balanceOf(who);
-    }
-
-    function _deposit(StakingPool memory pool, uint256 amount) internal {
-        require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
-        IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
-        // Timelock for 2 seconds to prevent flash loans.
-        _rewardDistributionTokenAddr(pool).timelockMint(msg.sender, amount, 2);
     }
 
     function _claimRewards(StakingPool memory pool, address account) internal {

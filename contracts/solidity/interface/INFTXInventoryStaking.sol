@@ -12,7 +12,6 @@ interface INFTXInventoryStaking {
 
     function __NFTXInventoryStaking_init(address nftxFactory) external;
     
-    function setNFTXVaultFactory(address newFactory) external;
     function deployXTokenForVault(uint256 vaultId) external;
     function receiveRewards(uint256 vaultId, uint256 amount) external returns (bool);
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external returns (uint256);

@@ -18,15 +18,17 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   }
 
   function checkEligible(uint256[] calldata tokenIds) external override virtual view returns (bool[] memory) {
-      bool[] memory eligibile = new bool[](tokenIds.length);
-      for (uint256 i = 0; i < tokenIds.length; i++) {
+      uint256 length = tokenIds.length;
+      bool[] memory eligibile = new bool[](length);
+      for (uint256 i; i < length; i++) {
           eligibile[i] = _checkIfEligible(tokenIds[i]);
       }
       return eligibile;
   }
 
   function checkAllEligible(uint256[] calldata tokenIds) external override virtual view returns (bool) {
-      for (uint256 i = 0; i < tokenIds.length; i++) {
+      uint256 length = tokenIds.length;
+      for (uint256 i; i < length; i++) {
           // If any are not eligible, end the loop and return false.
           if (!_checkIfEligible(tokenIds[i])) {
               return false;
@@ -38,7 +40,8 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   // Checks if all provided NFTs are NOT eligible. This is needed for mint requesting where all NFTs 
   // provided must be ineligible.
   function checkAllIneligible(uint256[] calldata tokenIds) external override virtual view returns (bool) {
-      for (uint256 i = 0; i < tokenIds.length; i++) {
+      uint256 length = tokenIds.length;
+      for (uint256 i; i < length; i++) {
           // If any are eligible, end the loop and return false.
           if (_checkIfEligible(tokenIds[i])) {
               return false;

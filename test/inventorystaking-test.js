@@ -84,7 +84,6 @@ describe("Inventory Staking Cold Test", function () {
     await feeDistrib.connect(primary).setNFTXVaultFactory(nftx.address);
     await feeDistrib.connect(primary).setInventoryStakingAddress(inventoryStaking.address);
     await staking.connect(primary).setNFTXVaultFactory(nftx.address);
-    await inventoryStaking.connect(primary).setNFTXVaultFactory(nftx.address);
 
 
     let Zap = await ethers.getContractFactory("NFTXStakingZap");
@@ -93,7 +92,6 @@ describe("Inventory Staking Cold Test", function () {
       "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F" /* Sushi Router */
     );
     await zap.deployed();
-    await nftx.connect(primary).setZapContract(zap.address);
     await nftx.connect(primary).setFeeExclusion(zap.address, true);
 
     await feeDistrib.addReceiver(ethers.utils.parseEther("0.8"), inventoryStaking.address, true);

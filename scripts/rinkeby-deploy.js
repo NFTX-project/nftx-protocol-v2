@@ -103,7 +103,6 @@ async function main() {
   await zap.deployed();
   await zap.setLockTime(600); // 10 minutes.
 
-  await nftx.setZapContract(zap.address);
   await nftx.setFeeExclusion(zap.address, true);  
 
   const MarketZap = await ethers.getContractFactory("NFTXMarketplaceZap");

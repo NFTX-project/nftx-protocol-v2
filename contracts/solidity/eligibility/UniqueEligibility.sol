@@ -24,7 +24,7 @@ contract UniqueEligibility {
     ) internal virtual {
         uint256 cachedWord = eligibleBitMap[0];
         uint256 cachedIndex = 0;
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             uint256 eligibilityWordIndex = tokenId / 256;
             if (eligibilityWordIndex != cachedIndex) {

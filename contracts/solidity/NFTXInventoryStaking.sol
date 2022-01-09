@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXVault.sol";
-import "./interface/INFTXFeeDistributor.sol";
 import "./interface/INFTXInventoryStaking.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/IERC20Metadata.sol";
@@ -12,7 +11,6 @@ import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
 import "./util/Create2.sol";
-import "./proxy/Initializable.sol";
 import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
@@ -25,12 +23,11 @@ import "./token/XTokenUpgradeable.sol";
 contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXInventoryStaking {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    uint256 public constant BASE = 10**18;
     // Small locktime to prevent flash deposits.
-    uint256 public constant DEFAULT_LOCKTIME = 2;
+    uint256 internal constant DEFAULT_LOCKTIME = 2;
+    bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
 
     INFTXVaultFactory public override nftxVaultFactory;
-    mapping(uint256 => address) internal UNUSED;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
@@ -46,11 +43,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     modifier onlyAdmin() {
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
-    }
-    
-    function setNFTXVaultFactory(address newFactory) external virtual override onlyOwner {
-        require(newFactory != address(0));
-        nftxVaultFactory = INFTXVaultFactory(newFactory);
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual override {
@@ -81,7 +73,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
     // Enter staking. Staking, get minted shares and
     // locks base tokens and mints xTokens.
-    function deposit(uint256 vaultId, uint256 _amount) public virtual override {
+    function deposit(uint256 vaultId, uint256 _amount) external virtual override {
         onlyOwnerIfPaused(10);
 
         (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
@@ -101,7 +93,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
     // Leave the bar. Claim back your tokens.
     // Unlocks the staked + gained tokens and burns xTokens.
-    function withdraw(uint256 vaultId, uint256 _share) public virtual override {
+    function withdraw(uint256 vaultId, uint256 _share) external virtual override {
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
@@ -153,12 +145,12 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         return (baseToken, xToken, xTokensMinted);
     }
 
-    function _deployXToken(address vaultToken) internal returns (address) {
-        string memory symbol = IERC20Metadata(vaultToken).symbol();
+    function _deployXToken(address baseToken) internal returns (address) {
+        string memory symbol = IERC20Metadata(baseToken).symbol();
         symbol = string(abi.encodePacked("x", symbol));
-        bytes32 salt = keccak256(abi.encodePacked(vaultToken));
-        address deployedXToken = Create2.deploy(0, salt, type(Create2BeaconProxy).creationCode);
-        XTokenUpgradeable(deployedXToken).__XToken_init(vaultToken, symbol, symbol);
+        bytes32 salt = keccak256(abi.encodePacked(baseToken));
+        address deployedXToken = Create2.deploy(0, salt, beaconCode);
+        XTokenUpgradeable(deployedXToken).__XToken_init(baseToken, symbol, symbol);
         return deployedXToken;
     }
 
@@ -170,6 +162,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         uint256 size;
         // solhint-disable-next-line no-inline-assembly
         assembly { size := extcodesize(account) }
-        return size > 0;
+        return size != 0;
     }
 }

@@ -59,7 +59,6 @@ contract NFTXMintRequestEligibility is
     event AllowTrustedApprovalsSet(bool allow);
 
     event Request(address sender, uint256[] nftIds, uint256[] amounts);
-    event Reject(uint256[] nftIds);
     event Approve(uint256[] nftIds);
 
     function __NFTXEligibility_init_bytes(bytes memory _configData)
@@ -118,7 +117,7 @@ contract NFTXMintRequestEligibility is
         require(tokenIds.length == amounts.length);
         bool _is1155 = is1155;
         address _assetAddress = vault.assetAddress();
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             uint256 amount = amounts[i];
             require(
@@ -158,7 +157,7 @@ contract NFTXMintRequestEligibility is
             onlyPrivileged();
         }
         INFTXVault _vault = vault;
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             uint256 amount = mintRequests[addresses[i]][tokenId];
             require(amount > 0, "No requests");
@@ -184,7 +183,7 @@ contract NFTXMintRequestEligibility is
     ) external virtual {
         require(tokenIds.length == addresses.length);
         INFTXVault _vault = vault;
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             uint256 amount = mintRequests[addresses[i]][tokenId];
             require(amount > 0, "No requests");
@@ -206,7 +205,7 @@ contract NFTXMintRequestEligibility is
     {
         address _assetAddress = vault.assetAddress();
         bool _is1155 = is1155;
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             uint256 amount = mintRequests[msg.sender][tokenId];
             require(amount > 0, "NFTXVault: nothing to reclaim");

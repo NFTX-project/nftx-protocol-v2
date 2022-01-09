@@ -6,9 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXEligibility.sol";
 import "./interface/INFTXEligibilityManager.sol";
-import "./interface/INFTXLPStaking.sol";
 import "./interface/INFTXFeeDistributor.sol";
-import "./interface/IERC165Upgradeable.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
 import "./token/ERC721SafeHolderUpgradeable.sol";
 import "./token/ERC1155SafeHolderUpgradeable.sol";
@@ -80,9 +78,9 @@ contract NFTXVaultUpgradeable is
 
     // Added in v1.0.3.
     function setVaultMetadata(
-        string memory name_, 
-        string memory symbol_
-    ) public override virtual {
+        string calldata name_, 
+        string calldata symbol_
+    ) external override virtual {
         onlyPrivileged();
         _setMetadata(name_, symbol_);
     }
@@ -106,14 +104,6 @@ contract NFTXVaultUpgradeable is
         emit EnableTargetRedeemUpdated(_enableTargetRedeem);
         emit EnableRandomSwapUpdated(_enableRandomSwap);
         emit EnableTargetSwapUpdated(_enableTargetSwap);
-    }
-
-    function assignDefaultFeatures() external {
-        require(msg.sender == 0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a, "Not dev");
-        enableRandomSwap = enableRandomRedeem;
-        enableTargetSwap = enableTargetRedeem;
-        emit EnableRandomSwapUpdated(enableRandomSwap);
-        emit EnableTargetSwapUpdated(enableTargetSwap);
     }
 
     function setFees(
@@ -236,8 +226,9 @@ contract NFTXVaultUpgradeable is
         _burn(msg.sender, base * amount);
 
         // Pay the tokens + toll.
-        uint256 totalFee = (targetRedeemFee() * specificIds.length) + (
-            randomRedeemFee() * (amount - specificIds.length)
+        (, uint256 _randomRedeemFee, uint256 _targetRedeemFee, ,) = vaultFees();
+        uint256 totalFee = (_targetRedeemFee * specificIds.length) + (
+            _randomRedeemFee * (amount - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
 
@@ -264,9 +255,9 @@ contract NFTXVaultUpgradeable is
         onlyOwnerIfPaused(3);
         uint256 count;
         if (is1155) {
-            for (uint256 i = 0; i < tokenIds.length; i++) {
+            for (uint256 i; i < tokenIds.length; ++i) {
                 uint256 amount = amounts[i];
-                require(amount > 0, "NFTXVault: transferring < 1");
+                require(amount != 0, "NFTXVault: transferring < 1");
                 count += amount;
             }
         } else {
@@ -282,8 +273,9 @@ contract NFTXVaultUpgradeable is
             "NFTXVault: Target swap disabled"
         );
 
-        uint256 totalFee = (targetSwapFee() * specificIds.length) + (
-            randomSwapFee() * (count - specificIds.length)
+        (, , ,uint256 _randomSwapFee, uint256 _targetSwapFee) = vaultFees();
+        uint256 totalFee = (_targetSwapFee * specificIds.length) + (
+            _randomSwapFee * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
         
@@ -361,7 +353,7 @@ contract NFTXVaultUpgradeable is
     function allHoldings() external view override virtual returns (uint256[] memory) {
         uint256 len = holdings.length();
         uint256[] memory idArray = new uint256[](len);
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i; i < len; ++i) {
             idArray[i] = holdings.at(i);
         }
         return idArray;
@@ -392,6 +384,7 @@ contract NFTXVaultUpgradeable is
         returns (uint256)
     {
         require(allValidNFTs(tokenIds), "NFTXVault: not eligible");
+        uint256 length = tokenIds.length;
         if (is1155) {
             // This is technically a check, so placing it before the effect.
             IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(
@@ -403,10 +396,10 @@ contract NFTXVaultUpgradeable is
             );
 
             uint256 count;
-            for (uint256 i = 0; i < tokenIds.length; i++) {
+            for (uint256 i; i < length; ++i) {
                 uint256 tokenId = tokenIds[i];
                 uint256 amount = amounts[i];
-                require(amount > 0, "NFTXVault: transferring < 1");
+                require(amount != 0, "NFTXVault: transferring < 1");
                 if (quantity1155[tokenId] == 0) {
                     holdings.add(tokenId);
                 }
@@ -416,7 +409,7 @@ contract NFTXVaultUpgradeable is
             return count;
         } else {
             address _assetAddress = assetAddress;
-            for (uint256 i = 0; i < tokenIds.length; i++) {
+            for (uint256 i; i < length; ++i) {
                 uint256 tokenId = tokenIds[i];
                 // We may already own the NFT here so we check in order:
                 // Does the vault own it?
@@ -427,7 +420,7 @@ contract NFTXVaultUpgradeable is
                 transferFromERC721(_assetAddress, tokenId);
                 holdings.add(tokenId);
             }
-            return tokenIds.length;
+            return length;
         }
     }
 
@@ -439,9 +432,10 @@ contract NFTXVaultUpgradeable is
         bool _is1155 = is1155;
         address _assetAddress = assetAddress;
         uint256[] memory redeemedIds = new uint256[](amount);
-        for (uint256 i = 0; i < amount; i++) {
+        uint256 specificLength = specificIds.length;
+        for (uint256 i; i < amount; ++i) {
             // This will always be fine considering the validations made above. 
-            uint256 tokenId = i < specificIds.length ? 
+            uint256 tokenId = i < specificLength ? 
                 specificIds[i] : getRandomTokenIdFromVault();
             redeemedIds[i] = tokenId;
 
@@ -470,13 +464,16 @@ contract NFTXVaultUpgradeable is
     function _chargeAndDistributeFees(address user, uint256 amount) internal virtual {
         // Do not charge fees if the zap contract is calling
         // Added in v1.0.3. Changed to mapping in v1.0.5.
-        if (vaultFactory.excludedFromFees(msg.sender)) {
+        
+        INFTXVaultFactory _vaultFactory = vaultFactory;
+
+        if (_vaultFactory.excludedFromFees(msg.sender)) {
             return;
         }
         
         // Mint fees directly to the distributor and distribute.
         if (amount > 0) {
-            address feeDistributor = vaultFactory.feeDistributor();
+            address feeDistributor = _vaultFactory.feeDistributor();
             // Changed to a _transfer() in v1.0.3.
             _transfer(user, feeDistributor, amount);
             INFTXFeeDistributor(feeDistributor).distribute(vaultId);
@@ -497,8 +494,8 @@ contract NFTXVaultUpgradeable is
             // Default.
             data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", address(this), to, tokenId);
         }
-        (bool success,) = address(assetAddr).call(data);
-        require(success);
+        (bool success, bytes memory returnData) = address(assetAddr).call(data);
+        require(success, string(returnData));
     }
 
     function transferFromERC721(address assetAddr, uint256 tokenId) internal virtual {
@@ -513,8 +510,8 @@ contract NFTXVaultUpgradeable is
             // Fix here for frontrun attack. Added in v1.0.2.
             bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
             (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-            (address owner) = abi.decode(result, (address));
-            require(checkSuccess && owner == msg.sender, "Not the owner");
+            (address nftOwner) = abi.decode(result, (address));
+            require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
             data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
         } else {
             // Default.
@@ -543,7 +540,7 @@ contract NFTXVaultUpgradeable is
                 )
             )
         ) % holdings.length();
-        randNonce += 1;
+        ++randNonce;
         return holdings.at(randomIndex);
     }
 

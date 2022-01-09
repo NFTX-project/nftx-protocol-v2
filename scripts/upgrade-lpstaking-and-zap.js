@@ -26,7 +26,6 @@ async function main() {
 
   const factory = await ethers.getContractAt("NFTXVaultFactoryUpgradeable", "0xbbc53022Af15Bb973AD906577c84784c47C14371")
   await factory.setFeeExclusion(stakingZap.address, true);
-  await factory.setZapContract(stakingZap.address);
 }
 
 main()

@@ -5,17 +5,17 @@ pragma solidity ^0.8.0;
 import "./IERC20Upgradeable.sol";
 import "./ERC20Upgradeable.sol";
 import "../util/OwnableUpgradeable.sol";
-// import "../interface/INFTXVaultFactory.sol";
+import "../util/SafeERC20Upgradeable.sol";
 
-// interface INFTXInventoryStaking {
-//     function nftxVaultFactory() external view returns (INFTXVaultFactory);
-// }
-
-// SushiBar is the coolest bar in town. You come in with some Sushi, and leave with more! The longer you stay, the more Sushi you get.
+// XTokens let uou come in with some vault tokens, and leave with more! The longer you stay, the more vault tokens you get.
 //
 // This contract handles swapping to and from xSushi, SushiSwap's staking token.
 contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    uint256 internal constant MAX_TIMELOCK = 2592000;
     IERC20Upgradeable public baseToken;
+
     mapping(address => uint256) internal timelock;
 
     event Timelocked(address user, uint256 until);
@@ -52,14 +52,17 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         // Calculates the amount of base tokens the xToken is worth
         uint256 what = (_share * baseToken.balanceOf(address(this))) / totalShares;
         _burn(who, _share);
-        baseToken.transfer(who, what);
+        baseToken.safeTransfer(who, what);
         return what;
     }
 
-    function timelockAccount(address account , uint256 timelockLength) public onlyOwner virtual {
+    function timelockAccount(address account, uint256 timelockLength) public onlyOwner virtual {
+        require(timelockLength < MAX_TIMELOCK, "Too long lock");
         uint256 timelockFinish = block.timestamp + timelockLength;
-        timelock[account] = timelockFinish;
-        emit Timelocked(account, timelockFinish);
+        if(timelockFinish > timelock[account]){
+            timelock[account] = timelockFinish;
+            emit Timelocked(account, timelockFinish);
+        }
     }
 
     function _burn(address who, uint256 amount) internal override {
@@ -72,9 +75,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
     }
 
     function _timelockMint(address account, uint256 amount, uint256 timelockLength) internal virtual {
-        uint256 timelockFinish = block.timestamp + timelockLength;
-        timelock[account] = timelockFinish;
-        emit Timelocked(account, timelockFinish);
+        timelockAccount(account, timelockLength);
         _mint(account, amount);
     }
     

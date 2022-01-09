@@ -12,7 +12,7 @@ interface INFTXLPStaking {
     function newRewardDistributionToken(uint256 vaultId) external view returns (address);
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address);
     function unusedRewardDistributionToken(uint256 vaultId) external view returns (address);
-    function rewardDistributionTokenAddr(address stakingToken, address rewardToken) external view returns (address);
+    function rewardDistributionTokenAddr(address stakedToken, address rewardToken) external view returns (address);
     
     // Write functions.
     function __NFTXLPStaking__init(address _stakingTokenProvider) external;
