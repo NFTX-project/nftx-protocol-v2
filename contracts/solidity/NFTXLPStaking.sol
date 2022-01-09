@@ -39,12 +39,8 @@ contract NFTXLPStaking is PausableUpgradeable {
     function __NFTXLPStaking__init(address _stakingTokenProvider) external initializer {
         __Ownable_init();
         require(_stakingTokenProvider != address(0), "Provider != address(0)");
-        assignNewImpl();
-        stakingTokenProvider = StakingTokenProvider(_stakingTokenProvider);
-    }
-
-    function assignNewImpl() public {
         require(address(newTimelockRewardDistTokenImpl) == address(0), "Already assigned");
+        stakingTokenProvider = StakingTokenProvider(_stakingTokenProvider);
         newTimelockRewardDistTokenImpl = new TimelockRewardDistributionTokenImpl();
         newTimelockRewardDistTokenImpl.__TimelockRewardDistributionToken_init(IERC20Upgradeable(address(0)), "", "");
     }
@@ -138,7 +134,7 @@ contract NFTXLPStaking is PausableUpgradeable {
             // the xSLP contracts as currently deployed are not upgradeable.
             xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
         } else {
-            // Timelock for 2 seconds to prevent flash loans.
+            // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
             xSLPToken.timelockMint(msg.sender, amount, 2);
         }
     }
@@ -257,8 +253,8 @@ contract NFTXLPStaking is PausableUpgradeable {
         return address(_unusedRewardDistributionTokenAddr(pool));
     }
 
-    function rewardDistributionTokenAddr(address stakingToken, address rewardToken) public view returns (address) {
-        StakingPool memory pool = StakingPool(stakingToken, rewardToken);
+    function rewardDistributionTokenAddr(address stakedToken, address rewardToken) public view returns (address) {
+        StakingPool memory pool = StakingPool(stakedToken, rewardToken);
         return address(_rewardDistributionTokenAddr(pool));
     }
 

@@ -243,7 +243,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     if (remaining != 0) {
       WETH.withdraw(remaining);
       (bool success, ) = payable(to).call{value: remaining}("");
-      require(success, "Address: unable to send value");
+      require(success, "Address: unable to send value, recipient may have reverted");
     }
 
     return liquidity;
@@ -275,7 +275,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     if (remaining != 0) {
       WETH.withdraw(remaining);
       (bool success, ) = payable(to).call{value: remaining}("");
-      require(success, "Address: unable to send value");
+      require(success, "Address: unable to send value, recipient may have reverted");
     }
 
     return liquidity;
@@ -349,9 +349,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address to
   ) internal returns (uint256, uint256, uint256) {
     require(nftxFactory.excludedFromFees(address(this)));
-    require(to != address(0) && to != address(this));
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
@@ -377,7 +375,6 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   ) internal returns (uint256, uint256, uint256) {
     require(nftxFactory.excludedFromFees(address(this)));
     address vault = nftxFactory.vault(vaultId);
-    require(vault != address(0), "NFTXZap: Vault does not exist");
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
@@ -495,7 +492,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   function rescue(address token) external onlyOwner {
     if (token == address(0)) {
       (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
-      require(success, "Address: unable to send value");
+      require(success, "Address: unable to send value, recipient may have reverted");
     } else {
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }

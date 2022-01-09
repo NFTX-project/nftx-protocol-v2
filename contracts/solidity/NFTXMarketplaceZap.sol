@@ -220,7 +220,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 remaining = WETH.balanceOf(address(this));
     WETH.withdraw(remaining);
     (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value");
+    require(success, "Address: unable to send value, recipient may have reverted");
   }
 
   function buyAndSwap721WETH(
@@ -281,7 +281,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256 remaining = WETH.balanceOf(address(this));
     WETH.withdraw(remaining);
     (bool success, ) = payable(to).call{value: remaining}("");
-    require(success, "Address: unable to send value");
+    require(success, "Address: unable to send value, recipient may have reverted");
   }
 
   function buyAndSwap1155WETH(
@@ -339,7 +339,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     if (remaining != 0) {
       WETH.withdraw(remaining);
       (bool success, ) = payable(to).call{value: remaining}("");
-      require(success, "Address: unable to send value");
+      require(success, "Address: unable to send value, recipient may have reverted");
     }
   }
 
@@ -620,7 +620,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   function rescue(address token) external onlyOwner {
     if (token == address(0)) {
       (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
-      require(success, "Address: unable to send value");
+      require(success, "Address: unable to send value, recipient may have reverted");
     } else {
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }

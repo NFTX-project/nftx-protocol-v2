@@ -145,12 +145,12 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         return (baseToken, xToken, xTokensMinted);
     }
 
-    function _deployXToken(address vaultToken) internal returns (address) {
-        string memory symbol = IERC20Metadata(vaultToken).symbol();
+    function _deployXToken(address baseToken) internal returns (address) {
+        string memory symbol = IERC20Metadata(baseToken).symbol();
         symbol = string(abi.encodePacked("x", symbol));
-        bytes32 salt = keccak256(abi.encodePacked(vaultToken));
+        bytes32 salt = keccak256(abi.encodePacked(baseToken));
         address deployedXToken = Create2.deploy(0, salt, beaconCode);
-        XTokenUpgradeable(deployedXToken).__XToken_init(vaultToken, symbol, symbol);
+        XTokenUpgradeable(deployedXToken).__XToken_init(baseToken, symbol, symbol);
         return deployedXToken;
     }
 
