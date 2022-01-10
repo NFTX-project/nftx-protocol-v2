@@ -19,7 +19,7 @@ contract MultiProxyController is Ownable {
     event ImplAddressSet(uint256 index, address impl);
     event ProxyAdminChanged(uint256 index, address newAdmin);
 
-    constructor() {
+    constructor() Ownable() {
     }
 
     function addProxy(string memory name, address proxy) public onlyOwner {
@@ -84,6 +84,13 @@ contract MultiProxyController is Ownable {
     }
 
     function getAllProxiesInfo() public view returns (string[] memory) {
+        
         uint256 length = proxies.length;
+        string[] memory proxyInfos = new string[](length);
+        for (uint256 i; i < length; ++i) {
+            Proxy memory _proxy = proxies[i];
+            proxyInfos[i] = string(abi.encodePacked(i, ": ", _proxy.name));
+        }
+        return proxyInfos;
     }
 }
