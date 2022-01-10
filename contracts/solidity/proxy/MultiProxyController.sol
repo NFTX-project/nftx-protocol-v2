@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import "../util/Ownable.sol";
 import "../interface/IAdminUpgradeabilityProxy.sol";
 
-contract ProxyControllerSimple is Ownable {
+contract MultiProxyController is Ownable {
     struct Proxy {
         string name;
         IAdminUpgradeabilityProxy proxy;
