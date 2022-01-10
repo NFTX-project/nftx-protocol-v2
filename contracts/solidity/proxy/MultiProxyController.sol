@@ -29,6 +29,18 @@ contract ProxyControllerSimple is Ownable {
         emit ProxyAdded(name, proxy, _impl);
     }
 
+    function removeProxy(uint256 index) public onlyOwner {
+        // Preferably want to maintain order to reduce chance of mistake.
+        uint256 length = proxies.length;
+        if (index >= length) return;
+
+        for (uint i = index; i < length-1; ++i) {
+            proxies[i] = proxies[i+1];
+        }
+        proxies.pop();
+        emit ProxyRemoved(index);
+    }
+
     function assignImplAddress(uint256 index) public {
         address _impl = proxies[index].proxy.implementation();
         proxies[index].impl = _impl;
@@ -42,9 +54,18 @@ contract ProxyControllerSimple is Ownable {
 
     function upgradeProxyTo(uint256 index, address newImpl) public onlyOwner {
         proxies[index].proxy.upgradeTo(newImpl);
+        proxies[index].impl = newImpl;
+    }
+
+    function changeAllAdmins(address newAdmin) public onlyOwner {
+        uint256 length = proxies.length;
+        for (uint256 i; i < length; ++i) {
+            changeProxyAdmin(i, newAdmin);
+        }
     }
 
     function changeAllAdmins(uint256 start, uint256 count, address newAdmin) public onlyOwner {
+        require(start + count < proxies.length, "Out of bounds");
         for (uint256 i = start; i < start + count; ++i) {
             changeProxyAdmin(i, newAdmin);
         }
@@ -60,5 +81,9 @@ contract ProxyControllerSimple is Ownable {
 
     function getImpl(uint256 index) public view returns (address) {
         return proxies[index].impl;
+    }
+
+    function getAllProxiesInfo() public view returns (string[] memory) {
+        uint256 length = proxies.length;
     }
 }
