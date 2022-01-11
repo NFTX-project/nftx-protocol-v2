@@ -279,7 +279,6 @@ contract NFTXLPStaking is PausableUpgradeable {
         return dist.balanceOf(addr);
     }
 
-
     function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);

@@ -14,19 +14,33 @@ contract MultiProxyController is Ownable {
 
     Proxy[] private proxies;
 
-    event ProxyAdded(string name, address proxy, address implementation);
+    event ProxyAdded(string name, address proxy);
     event ProxyRemoved(uint256 index);
-    event ImplAddressSet(uint256 index, address impl);
     event ProxyAdminChanged(uint256 index, address newAdmin);
 
-    constructor() Ownable() {
+    constructor(string[] memory _names, address[] memory _proxies) Ownable() {
+        uint256 length = _proxies.length;
+        require(_names.length == length, "Not equal length");
+        for (uint256 i; i < length; i++) {
+            addProxy(_names[i], _proxies[i]);
+        } 
+    }
+
+    function upgradeProxyTo(uint256 index, address newImpl) public onlyOwner {
+        require(index < proxies.length, "Out of bounds");
+        proxies[index].proxy.upgradeTo(newImpl);
+    }
+
+    function changeProxyAdmin(uint256 index, address newAdmin) public onlyOwner {
+        require(index < proxies.length, "Out of bounds");
+        proxies[index].proxy.changeAdmin(newAdmin);
+        emit ProxyAdminChanged(index, newAdmin);
     }
 
     function addProxy(string memory name, address proxy) public onlyOwner {
         IAdminUpgradeabilityProxy _proxy = IAdminUpgradeabilityProxy(proxy);
-        address _impl = _proxy.implementation();
-        proxies.push(Proxy(name, _proxy, _impl));
-        emit ProxyAdded(name, proxy, _impl);
+        proxies.push(Proxy(name, _proxy, address(0)));
+        emit ProxyAdded(name, proxy);
     }
 
     function removeProxy(uint256 index) public onlyOwner {
@@ -41,22 +55,6 @@ contract MultiProxyController is Ownable {
         emit ProxyRemoved(index);
     }
 
-    function assignImplAddress(uint256 index) public {
-        address _impl = proxies[index].proxy.implementation();
-        proxies[index].impl = _impl;
-        emit ImplAddressSet(index, _impl);
-    }
-
-    function changeProxyAdmin(uint256 index, address newAdmin) public onlyOwner {
-        proxies[index].proxy.changeAdmin(newAdmin);
-        emit ProxyAdminChanged(index, newAdmin);
-    }
-
-    function upgradeProxyTo(uint256 index, address newImpl) public onlyOwner {
-        proxies[index].proxy.upgradeTo(newImpl);
-        proxies[index].impl = newImpl;
-    }
-
     function changeAllAdmins(address newAdmin) public onlyOwner {
         uint256 length = proxies.length;
         for (uint256 i; i < length; ++i) {
@@ -65,7 +63,7 @@ contract MultiProxyController is Ownable {
     }
 
     function changeAllAdmins(uint256 start, uint256 count, address newAdmin) public onlyOwner {
-        require(start + count < proxies.length, "Out of bounds");
+        require(start + count <= proxies.length, "Out of bounds");
         for (uint256 i = start; i < start + count; ++i) {
             changeProxyAdmin(i, newAdmin);
         }
@@ -79,18 +77,57 @@ contract MultiProxyController is Ownable {
         return proxies[index].proxy.admin();
     }
 
-    function getImpl(uint256 index) public view returns (address) {
-        return proxies[index].impl;
+    function getImpl(uint256 index) public view returns(address) {
+        return proxies[index].proxy.implementation();
     }
 
     function getAllProxiesInfo() public view returns (string[] memory) {
-        
         uint256 length = proxies.length;
         string[] memory proxyInfos = new string[](length);
         for (uint256 i; i < length; ++i) {
             Proxy memory _proxy = proxies[i];
-            proxyInfos[i] = string(abi.encodePacked(i, ": ", _proxy.name));
+            proxyInfos[i] = string(abi.encodePacked(uint2str(i), ": ", _proxy.name));
         }
         return proxyInfos;
+    }
+
+    function getAllProxies() public view returns (address[] memory) {
+        uint256 length = proxies.length;
+        address[] memory proxyInfos = new address[](length);
+        for (uint256 i; i < length; ++i) {
+            proxyInfos[i] = address(proxies[i].proxy);
+        }
+        return proxyInfos;
+    }
+    
+    function getAllImpls() public view returns (address[] memory) {
+        uint256 length = proxies.length;
+        address[] memory proxyInfos = new address[](length);
+        for (uint256 i; i < length; ++i) {
+            proxyInfos[i] = address(proxies[i].proxy.implementation());
+        }
+        return proxyInfos;
+    }
+
+    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 }
