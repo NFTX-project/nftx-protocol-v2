@@ -129,6 +129,7 @@ describe("Mainnet Inventory Staking Test", function () {
     );
     await zap.deployed();
     await nftx.connect(dao).setFeeExclusion(zap.address, true);
+    await zap.assignStakingContracts();
   })
 
   it("Should set state fields", async () => {
