@@ -172,7 +172,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function assignStakingContracts() public {
-    require(address(lpStaking) == address(0) && address(inventoryStaking) == address(0), "not zero");
+    require(address(lpStaking) == address(0) || address(inventoryStaking) == address(0), "not zero");
     lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).lpStaking());
     inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).inventoryStaking());
   }
