@@ -1,0 +1,21 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+        "target": "es2018",
+        "module": "commonjs",
+        "strict": true,
+        "esModuleInterop": true,
+        "outDir": "dist"
+    },
+	"include": [
+        "./scripts",
+        "./test",
+        "./typechain"
+    ],
+    "files": [
+        "./hardhat.config.ts",
+        "./hardhat.networks.ts",
+        "./config.ts",
+        "./constants.ts"
+    ]
+}
