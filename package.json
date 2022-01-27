@@ -1,5 +1,10 @@
 {
-  "name": "hardhat-project",
+  "name": "@nftx/protocol-v2",
+  "scripts": {
+    "lint": "npm run lint:contracts && npm run lint:tooling",
+    "lint:contracts": "prettier --write contracts/**/**/**/*.sol",
+    "lint:tooling": "eslint --fix --ext .ts,.js test scripts"
+  },
   "dependencies": {},
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
@@ -10,7 +15,6 @@
     "@openzeppelin/hardhat-upgrades": "^1.6.0",
     "@openzeppelin/test-helpers": "^0.5.10",
     "@sapphire/eslint-config": "^3.2.3",
-    "@sapphire/prettier-config": "^1.1.6",
     "@sapphire/ts-config": "^3.0.0",
     "@typechain/ethers-v5": "^7.1.2",
     "@typechain/hardhat": "^2.3.0",
@@ -33,7 +37,9 @@
     "mocha": "^9.1.1",
     "nyc": "^15.1.0",
     "prettier": "^2.4.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
     "pretty-quick": "^3.1.1",
+    "solhint-plugin-prettier": "^0.0.5",
     "solidity-coverage": "^0.7.16",
     "ts-node": "^10.0.0",
     "typechain": "^5.1.2",
@@ -42,6 +48,5 @@
   },
   "resolutions": {
     "colors": "1.4.0"
-  },
-  "prettier": "@sapphire/prettier-config"
+  }
 }
