@@ -44,7 +44,7 @@ contract NFTXGen0KittyEligibility is NFTXEligibility {
         __NFTXEligibility_init();
     }
 
-    // Parameters here should mirror the config struct.
+    /// @dev Parameters here should mirror the config struct.
     function __NFTXEligibility_init() public initializer {
         emit NFTXEligibilityInit();
     }

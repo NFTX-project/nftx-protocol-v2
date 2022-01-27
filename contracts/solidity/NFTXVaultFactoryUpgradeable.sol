@@ -11,8 +11,8 @@ import "./proxy/UpgradeableBeacon.sol";
 import "./util/PausableUpgradeable.sol";
 import "./NFTXVaultUpgradeable.sol";
 
-// Authors: @0xKiwi_ and @alexgausman.
-
+/// @author @0xKiwi_
+/// @author @alexgausman
 contract NFTXVaultFactoryUpgradeable is
     PausableUpgradeable,
     UpgradeableBeacon,
@@ -25,7 +25,7 @@ contract NFTXVaultFactoryUpgradeable is
 
     mapping(uint256 => address) private NOT_USED3; // Removed, no longer needed.
     mapping(address => address[]) _vaultsForAsset;
-    
+
     address[] internal vaults;
 
     // v1.0.1
@@ -75,10 +75,10 @@ contract NFTXVaultFactoryUpgradeable is
     }
 
     function setFactoryFees(
-        uint256 mintFee, 
-        uint256 randomRedeemFee, 
+        uint256 mintFee,
+        uint256 randomRedeemFee,
         uint256 targetRedeemFee,
-        uint256 randomSwapFee, 
+        uint256 randomSwapFee,
         uint256 targetSwapFee
     ) public onlyOwner virtual override {
         require(mintFee <= 0.5 ether, "Cannot > 0.5 ether");
@@ -97,11 +97,11 @@ contract NFTXVaultFactoryUpgradeable is
     }
 
     function setVaultFees(
-        uint256 vaultId, 
-        uint256 mintFee, 
-        uint256 randomRedeemFee, 
+        uint256 vaultId,
+        uint256 mintFee,
+        uint256 randomRedeemFee,
         uint256 targetRedeemFee,
-        uint256 randomSwapFee, 
+        uint256 randomSwapFee,
         uint256 targetSwapFee
     ) public virtual override {
         if (msg.sender != owner()) {
@@ -115,11 +115,11 @@ contract NFTXVaultFactoryUpgradeable is
         require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
 
         _vaultFees[vaultId] = VaultFees(
-            true, 
+            true,
             uint64(mintFee),
             uint64(randomRedeemFee),
             uint64(targetRedeemFee),
-            uint64(randomSwapFee), 
+            uint64(randomSwapFee),
             uint64(targetSwapFee)
         );
         emit UpdateVaultFees(vaultId, mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
@@ -159,14 +159,14 @@ contract NFTXVaultFactoryUpgradeable is
         VaultFees memory fees = _vaultFees[vaultId];
         if (fees.active) {
             return (
-                uint256(fees.mintFee), 
-                uint256(fees.randomRedeemFee), 
-                uint256(fees.targetRedeemFee), 
-                uint256(fees.randomSwapFee), 
+                uint256(fees.mintFee),
+                uint256(fees.randomRedeemFee),
+                uint256(fees.targetRedeemFee),
+                uint256(fees.randomSwapFee),
                 uint256(fees.targetSwapFee)
             );
         }
-        
+
         return (uint256(factoryMintFee), uint256(factoryRandomRedeemFee), uint256(factoryTargetRedeemFee), uint256(factoryRandomSwapFee), uint256(factoryTargetSwapFee));
     }
 
@@ -189,7 +189,7 @@ contract NFTXVaultFactoryUpgradeable is
     function numVaults() external view override virtual returns (uint256) {
         return vaults.length;
     }
-    
+
     function deployVault(
         string memory name,
         string memory symbol,

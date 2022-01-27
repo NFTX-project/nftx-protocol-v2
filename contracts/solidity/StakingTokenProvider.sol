@@ -2,12 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-// Author: 0xKiwi.
-
 import "./util/OwnableUpgradeable.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/IERC20Metadata.sol";
 
+/// @author @0xKiwi_
 contract StakingTokenProvider is OwnableUpgradeable {
 
   address public uniLikeExchange;
@@ -19,8 +18,8 @@ contract StakingTokenProvider is OwnableUpgradeable {
   event NewDefaultPaired(address oldPaired, address newPaired);
   event NewPairedTokenForVault(address vaultToken, address oldPairedtoken, address newPairedToken);
 
-  // This is an address provder to allow us to abstract out what liquidity 
-  // our vault tokens should be paired with. 
+  /// @dev This is an address provder to allow us to abstract out what liquidity
+  ///      our vault tokens should be paired with.
   function __StakingTokenProvider_init(address _uniLikeExchange, address _defaultPairedtoken, string memory _defaultPrefix) public initializer {
     __Ownable_init();
     require(_uniLikeExchange != address(0), "Cannot be address(0)");
@@ -69,7 +68,7 @@ contract StakingTokenProvider is OwnableUpgradeable {
   function pairForVaultToken(address _vaultToken, address _pairedToken) external view returns (address) {
     return pairFor(uniLikeExchange, _vaultToken, _pairedToken);
   }
-  
+
   // returns sorted token addresses, used to handle return values from pairs sorted in this order
   function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
       require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
@@ -77,7 +76,7 @@ contract StakingTokenProvider is OwnableUpgradeable {
       require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
   }
 
-  // calculates the CREATE2 address for a pair without making any external calls
+  /// @notice calculates the CREATE2 address for a pair without making any external calls
   function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
       (address token0, address token1) = sortTokens(tokenA, tokenB);
       pair = address(uint160(uint256(keccak256(abi.encodePacked(

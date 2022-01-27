@@ -12,12 +12,11 @@ interface ClaimToken {
   function accumulated(uint256 tokenIndex) external returns (uint256);
 }
 
-// Author: 0xKiwi. 
-
+/// @author 0xKiwi
 contract NFTXFlashSwipe is IERC3156FlashBorrowerUpgradeable {
   uint256 constant BASE = 1e18;
   INFTXVaultFactory public nftxFactory;
-  
+
   ClaimToken NCT = ClaimToken(0x8A9c4dfe8b9D8962B31e4e16F8321C44d48e246E);
   ClaimToken WET = ClaimToken(0x76280AF9D18a868a0aF3dcA95b57DDE816c1aaf2);
   address tempLender;

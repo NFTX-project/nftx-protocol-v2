@@ -11,11 +11,11 @@ interface KittyCore {
 
 contract NFTXGen0FastKittyEligibility is NFTXEligibility {
 
-    function name() public pure override virtual returns (string memory) {    
+    function name() public pure override virtual returns (string memory) {
         return "Gen0FastKitty";
     }
 
-    function finalized() public view override virtual returns (bool) {    
+    function finalized() public view override virtual returns (bool) {
         return true;
     }
 
@@ -31,7 +31,7 @@ contract NFTXGen0FastKittyEligibility is NFTXEligibility {
         __NFTXEligibility_init();
     }
 
-    // Parameters here should mirror the config struct. 
+    /// @dev Parameters here should mirror the config struct.
     function __NFTXEligibility_init() public initializer {
         emit NFTXEligibilityInit();
     }

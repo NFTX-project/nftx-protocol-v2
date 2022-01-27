@@ -15,11 +15,9 @@ import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
 
-// Author: 0xKiwi.
-
-// Pausing codes for inventory staking are:
-// 10: Deposit
-
+/// @author 0xKiwi.
+/// @dev Pausing codes for inventory staking are:
+///      10: Deposit
 contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXInventoryStaking {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -60,7 +58,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual override onlyAdmin returns (bool) {
         address baseToken = nftxVaultFactory.vault(vaultId);
         address deployedXToken = xTokenAddr(address(baseToken));
-        
+
         // Don't distribute rewards unless there are people to distribute to.
         // Also added here if the distribution token is not deployed, just forfeit rewards for now.
         if (!isContract(deployedXToken) || XTokenUpgradeable(deployedXToken).totalSupply() == 0) {
@@ -107,8 +105,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         require(address(xToken) != address(0), "XToken not deployed");
 
         uint256 multiplier = 10 ** 18;
-        return xToken.totalSupply() > 0 
-            ? multiplier * baseToken.balanceOf(address(xToken)) / xToken.totalSupply() 
+        return xToken.totalSupply() > 0
+            ? multiplier * baseToken.balanceOf(address(xToken)) / xToken.totalSupply()
             : multiplier;
     }
 
@@ -128,13 +126,13 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         address tokenAddr = Create2.computeAddress(salt, keccak256(type(Create2BeaconProxy).creationCode));
         return tokenAddr;
     }
-    
+
     function vaultXToken(uint256 vaultId) public view virtual override returns (address) {
         address baseToken = nftxVaultFactory.vault(vaultId);
         address xToken = xTokenAddr(baseToken);
         require(isContract(xToken), "XToken not deployed");
         return xToken;
-    } 
+    }
 
     function _timelockMintFor(uint256 vaultId, address account, uint256 _amount, uint256 timelockLength) internal returns (IERC20Upgradeable, XTokenUpgradeable, uint256) {
         deployXTokenForVault(vaultId);

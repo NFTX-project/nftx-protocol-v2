@@ -16,8 +16,8 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/EnumerableSetUpgradeable.sol";
 
-// Authors: @0xKiwi_ and @alexgausman.
-
+/// @author @0xKiwi_
+/// @author @alexgausman
 contract NFTXVaultUpgradeable is
     OwnableUpgradeable,
     ERC20FlashMintUpgradeable,
@@ -78,7 +78,7 @@ contract NFTXVaultUpgradeable is
 
     // Added in v1.0.3.
     function setVaultMetadata(
-        string calldata name_, 
+        string calldata name_,
         string calldata symbol_
     ) external override virtual {
         onlyPrivileged();
@@ -123,7 +123,7 @@ contract NFTXVaultUpgradeable is
     }
 
     // This function allows for an easy setup of any eligibility module contract from the EligibilityManager.
-    // It takes in ABI encoded parameters for the desired module. This is to make sure they can all follow 
+    // It takes in ABI encoded parameters for the desired module. This is to make sure they can all follow
     // a similar interface.
     function deployEligibilityStorage(
         uint256 moduleIndex,
@@ -221,7 +221,7 @@ contract NFTXVaultUpgradeable is
             specificIds.length == 0 || enableTargetRedeem,
             "NFTXVault: Target redeem not enabled"
         );
-        
+
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
 
@@ -237,7 +237,7 @@ contract NFTXVaultUpgradeable is
         emit Redeemed(redeemedIds, specificIds, to);
         return redeemedIds;
     }
-    
+
     function swap(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts, /* ignored for ERC721 vaults */
@@ -278,8 +278,8 @@ contract NFTXVaultUpgradeable is
             _randomSwapFee * (count - specificIds.length)
         );
         _chargeAndDistributeFees(msg.sender, totalFee);
-        
-        // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
+
+        // Give the NFTs first, so the user wont get the same thing back, just to be nice.
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
 
         receiveNFTs(tokenIds, amounts);
@@ -367,7 +367,7 @@ contract NFTXVaultUpgradeable is
     // Added in v1.0.3.
     function version() external pure returns (string memory) {
         return "v1.0.5";
-    } 
+    }
 
     // We set a hook to the eligibility module (if it exists) after redeems in case anything needs to be modified.
     function afterRedeemHook(uint256[] memory tokenIds) internal virtual {
@@ -434,8 +434,8 @@ contract NFTXVaultUpgradeable is
         uint256[] memory redeemedIds = new uint256[](amount);
         uint256 specificLength = specificIds.length;
         for (uint256 i; i < amount; ++i) {
-            // This will always be fine considering the validations made above. 
-            uint256 tokenId = i < specificLength ? 
+            // This will always be fine considering the validations made above.
+            uint256 tokenId = i < specificLength ?
                 specificIds[i] : getRandomTokenIdFromVault();
             redeemedIds[i] = tokenId;
 
@@ -464,13 +464,13 @@ contract NFTXVaultUpgradeable is
     function _chargeAndDistributeFees(address user, uint256 amount) internal virtual {
         // Do not charge fees if the zap contract is calling
         // Added in v1.0.3. Changed to mapping in v1.0.5.
-        
+
         INFTXVaultFactory _vaultFactory = vaultFactory;
 
         if (_vaultFactory.excludedFromFees(msg.sender)) {
             return;
         }
-        
+
         // Mint fees directly to the distributor and distribute.
         if (amount > 0) {
             address feeDistributor = _vaultFactory.feeDistributor();
@@ -532,7 +532,7 @@ contract NFTXVaultUpgradeable is
         uint256 randomIndex = uint256(
             keccak256(
                 abi.encodePacked(
-                    blockhash(block.number - 1), 
+                    blockhash(block.number - 1),
                     randNonce,
                     block.coinbase,
                     block.difficulty,

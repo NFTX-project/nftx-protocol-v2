@@ -13,8 +13,7 @@ import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
-// Authors: @0xKiwi_.
-
+/// @author @0xKiwi_.
 interface IWETH {
   function deposit() external payable;
   function transfer(address to, uint value) external returns (bool);
@@ -149,8 +148,8 @@ abstract contract Ownable {
 
 contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
-  
-  IWETH public immutable WETH; 
+
+  IWETH public immutable WETH;
   INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
@@ -170,9 +169,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function mintAndSell721(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
-    uint256 minEthOut, 
+    uint256 vaultId,
+    uint256[] calldata ids,
+    uint256 minEthOut,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -184,9 +183,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function mintAndSell721WETH(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
-    uint256 minWethOut, 
+    uint256 vaultId,
+    uint256[] calldata ids,
+    uint256 minWethOut,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -198,9 +197,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndSwap721(
-    uint256 vaultId, 
-    uint256[] calldata idsIn, 
-    uint256[] calldata specificIds, 
+    uint256 vaultId,
+    uint256[] calldata idsIn,
+    uint256[] calldata specificIds,
     address[] calldata path,
     address to
   ) external payable nonReentrant {
@@ -224,10 +223,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndSwap721WETH(
-    uint256 vaultId, 
-    uint256[] calldata idsIn, 
-    uint256[] calldata specificIds, 
-    uint256 maxWethIn, 
+    uint256 vaultId,
+    uint256[] calldata idsIn,
+    uint256[] calldata specificIds,
+    uint256 maxWethIn,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -251,10 +250,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndSwap1155(
-    uint256 vaultId, 
-    uint256[] calldata idsIn, 
-    uint256[] calldata amounts, 
-    uint256[] calldata specificIds, 
+    uint256 vaultId,
+    uint256[] calldata idsIn,
+    uint256[] calldata amounts,
+    uint256[] calldata specificIds,
     address[] calldata path,
     address to
   ) external payable nonReentrant {
@@ -285,11 +284,11 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndSwap1155WETH(
-    uint256 vaultId, 
-    uint256[] calldata idsIn, 
-    uint256[] calldata amounts, 
-    uint256[] calldata specificIds, 
-    uint256 maxWethIn, 
+    uint256 vaultId,
+    uint256[] calldata idsIn,
+    uint256[] calldata amounts,
+    uint256[] calldata specificIds,
+    uint256 maxWethIn,
     address[] calldata path,
     address to
   ) external payable nonReentrant {
@@ -317,9 +316,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndRedeem(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256 amount,
-    uint256[] calldata specificIds, 
+    uint256[] calldata specificIds,
     address[] calldata path,
     address to
   ) external payable nonReentrant {
@@ -344,10 +343,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function buyAndRedeemWETH(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256 amount,
-    uint256[] calldata specificIds, 
-    uint256 maxWethIn, 
+    uint256[] calldata specificIds,
+    uint256 maxWethIn,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -372,10 +371,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function mintAndSell1155(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     uint256[] calldata amounts,
-    uint256 minWethOut, 
+    uint256 minWethOut,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -393,10 +392,10 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function mintAndSell1155WETH(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     uint256[] calldata amounts,
-    uint256 minWethOut, 
+    uint256 minWethOut,
     address[] calldata path,
     address to
   ) external nonReentrant {
@@ -414,7 +413,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function _mint721(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids
   ) internal returns (address, uint256) {
     address vault = nftxFactory.vault(vaultId);
@@ -429,13 +428,13 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory emptyIds;
     INFTXVault(vault).mint(ids, emptyIds);
     uint256 count = ids.length;
-    uint256 balance = (count * BASE) - (count * INFTXVault(vault).mintFee()); 
-    
+    uint256 balance = (count * BASE) - (count * INFTXVault(vault).mintFee());
+
     return (vault, balance);
   }
 
   function _swap721(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory idsIn,
     uint256[] memory idsOut,
     address to
@@ -451,12 +450,12 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     }
     uint256[] memory emptyIds;
     INFTXVault(vault).swapTo(idsIn, emptyIds, idsOut, to);
-    
+
     return (vault);
   }
 
   function _swap1155(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory idsIn,
     uint256[] memory amounts,
     uint256[] memory idsOut,
@@ -469,12 +468,12 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), idsIn, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
     INFTXVault(vault).swapTo(idsIn, amounts, idsOut, to);
-    
+
     return (vault);
   }
 
   function _redeem(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256 amount,
     uint256[] memory specificIds,
     address to
@@ -484,7 +483,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function _mint1155(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts
   ) internal returns (address, uint256) {
@@ -498,19 +497,19 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
 
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE) - (INFTXVault(vault).mintFee()*count);
-    
+
     return (vault, balance);
   }
 
   function _buyVaultToken(
-    uint256 minTokenOut, 
-    uint256 maxWethIn, 
+    uint256 minTokenOut,
+    uint256 maxWethIn,
     address[] calldata path
   ) internal returns (uint256[] memory) {
     uint256[] memory amounts = sushiRouter.swapTokensForExactTokens(
       minTokenOut,
       maxWethIn,
-      path, 
+      path,
       address(this),
       block.timestamp
     );
@@ -518,9 +517,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     return amounts;
   }
   function _sellVaultTokenWETH(
-    address vault, 
-    uint256 minWethOut, 
-    uint256 maxTokenIn, 
+    address vault,
+    uint256 minWethOut,
+    uint256 maxTokenIn,
     address[] calldata path,
     address to
   ) internal returns (uint256[] memory) {
@@ -528,7 +527,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = sushiRouter.swapExactTokensForTokens(
       maxTokenIn,
       minWethOut,
-      path, 
+      path,
       to,
       block.timestamp
     );
@@ -537,9 +536,9 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function _sellVaultTokenETH(
-    address vault, 
-    uint256 minEthOut, 
-    uint256 maxTokenIn, 
+    address vault,
+    uint256 minEthOut,
+    uint256 maxTokenIn,
     address[] calldata path,
     address to
   ) internal returns (uint256[] memory) {
@@ -547,7 +546,7 @@ contract NFTXMarketplaceZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory amounts = sushiRouter.swapExactTokensForETH(
       maxTokenIn,
       minEthOut,
-      path, 
+      path,
       to,
       block.timestamp
     );

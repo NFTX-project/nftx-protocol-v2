@@ -5,12 +5,12 @@ pragma solidity ^0.8.0;
 import "../proxy/Initializable.sol";
 import "../interface/INFTXEligibility.sol";
 
-// This is a contract meant to be inherited and overriden to implement eligibility modules. 
+/// @notice This is a contract meant to be inherited and overriden to implement eligibility modules.
 abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   function name() public pure override virtual returns (string memory);
   function finalized() public view override virtual returns (bool);
   function targetAsset() public pure override virtual returns (address);
-  
+
   function __NFTXEligibility_init_bytes(bytes memory initData) public override virtual;
 
   function checkIsEligible(uint256 tokenId) external view override virtual returns (bool) {
@@ -37,8 +37,8 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
       return true;
   }
 
-  // Checks if all provided NFTs are NOT eligible. This is needed for mint requesting where all NFTs 
-  // provided must be ineligible.
+  /// @notice Checks if all provided NFTs are NOT eligible. This is needed for mint requesting where all NFTs
+  /// provided must be ineligible.
   function checkAllIneligible(uint256[] calldata tokenIds) external override virtual view returns (bool) {
       uint256 length = tokenIds.length;
       for (uint256 i; i < length; i++) {
@@ -55,6 +55,6 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   function beforeRedeemHook(uint256[] calldata tokenIds) external override virtual {}
   function afterRedeemHook(uint256[] calldata tokenIds) external override virtual {}
 
-  // Override this to implement your module!
+  /// @dev Override this to implement your module!
   function _checkIfEligible(uint256 _tokenId) internal view virtual returns (bool);
 }

@@ -12,11 +12,9 @@ import "./proxy/ClonesUpgradeable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
 
-// Author: 0xKiwi.
-
-// Pausing codes for LP staking are:
-// 10: Deposit
-
+/// @author 0xKiwi.
+/// @dev Pausing codes for LP staking are:
+///      10: Deposit
 contract NFTXLPStaking is PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -86,7 +84,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         address _stakingToken = stakingTokenProvider.stakingTokenForVaultToken(pool.rewardToken);
         StakingPool memory newPool = StakingPool(_stakingToken, pool.rewardToken);
         vaultStakingInfo[vaultId] = newPool;
-        
+
         // If the pool is already deployed, ignore the update.
         address addr = address(_rewardDistributionTokenAddr(newPool));
         if (isContract(addr)) {
@@ -99,10 +97,10 @@ contract NFTXLPStaking is PausableUpgradeable {
     function receiveRewards(uint256 vaultId, uint256 amount) external onlyAdmin returns (bool) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         if (pool.stakingToken == address(0)) {
-            // In case the pair is updated, but not yet 
+            // In case the pair is updated, but not yet
             return false;
         }
-        
+
         TimelockRewardDistributionTokenImpl rewardDistToken = _rewardDistributionTokenAddr(pool);
         // Don't distribute rewards unless there are people to distribute to.
         // Also added here if the distribution token is not deployed, just forfeit rewards for now.
@@ -177,22 +175,22 @@ contract NFTXLPStaking is PausableUpgradeable {
         IRewardDistributionToken unusedDist = _unusedRewardDistributionTokenAddr(pool);
         IRewardDistributionToken oldDist = _oldRewardDistributionTokenAddr(pool);
 
-        uint256 unusedDistBal; 
+        uint256 unusedDistBal;
         if (isContract(address(unusedDist))) {
             unusedDistBal = unusedDist.balanceOf(msg.sender);
             if (unusedDistBal > 0) {
                 unusedDist.burnFrom(msg.sender, unusedDistBal);
             }
         }
-        uint256 oldDistBal; 
+        uint256 oldDistBal;
         if (isContract(address(oldDist))) {
             oldDistBal = oldDist.balanceOf(msg.sender);
             if (oldDistBal > 0) {
-                oldDist.withdrawReward(msg.sender); 
+                oldDist.withdrawReward(msg.sender);
                 oldDist.burnFrom(msg.sender, oldDistBal);
             }
         }
-        
+
         TimelockRewardDistributionTokenImpl newDist = _rewardDistributionTokenAddr(pool);
         if (!isContract(address(newDist))) {
             address deployedDist = _deployDividendToken(pool);

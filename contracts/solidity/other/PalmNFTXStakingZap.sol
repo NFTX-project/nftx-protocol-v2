@@ -15,8 +15,7 @@ import "../token/ERC721HolderUpgradeable.sol";
 import "../token/ERC1155HolderUpgradeable.sol";
 import "../util/OwnableUpgradeable.sol";
 
-// Authors: @0xKiwi_.
-
+/// @author @0xKiwi_.
 interface IWETH {
   function deposit() external payable;
   function transfer(address to, uint value) external returns (bool);
@@ -149,12 +148,12 @@ abstract contract Ownable {
 }
 
 contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
-  IERC20Upgradeable public immutable pairedToken; 
+  IERC20Upgradeable public immutable pairedToken;
   INFTXLPStaking public immutable lpStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
 
-  uint256 public lockTime = 48 hours; 
+  uint256 public lockTime = 48 hours;
   uint256 constant BASE = 1e18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
@@ -170,11 +169,11 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   function setLockTime(uint256 newLockTime) external onlyOwner {
     require(newLockTime <= 7 days, "Lock too long");
     lockTime = newLockTime;
-  } 
+  }
 
   function addLiquidity721(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     uint256 wethIn
   ) public returns (uint256) {
@@ -182,8 +181,8 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function addLiquidity721To(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     uint256 wethIn,
     address to
@@ -200,7 +199,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function addLiquidity1155(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -210,7 +209,7 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function addLiquidity1155To(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -242,8 +241,8 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
   }
 
   function _addLiquidity721WETH(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     uint256 wethIn,
     address to
@@ -260,12 +259,12 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
     uint256[] memory emptyIds;
     INFTXVault(vault).mint(ids, emptyIds);
     uint256 balance = (ids.length * BASE); // We should not be experiencing fees.
-    
+
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidity1155WETH(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -282,36 +281,36 @@ contract PalmNFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable
 
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-    
+
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidityAndLock(
-    uint256 vaultId, 
-    address vault, 
-    uint256 minTokenIn, 
-    uint256 minWethIn, 
+    uint256 vaultId,
+    address vault,
+    uint256 minTokenIn,
+    uint256 minWethIn,
     uint256 wethIn,
     address to
   ) internal returns (uint256, uint256, uint256) {
     // Provide liquidity.
     IERC20Upgradeable(vault).approve(address(sushiRouter), minTokenIn);
     (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
-      address(vault), 
+      address(vault),
       address(pairedToken),
-      minTokenIn, 
-      wethIn, 
+      minTokenIn,
+      wethIn,
       minTokenIn,
       minWethIn,
-      address(this), 
+      address(this),
       block.timestamp
     );
 
-    // Stake in LP rewards contract 
+    // Stake in LP rewards contract
     address lpToken = pairFor(vault, address(pairedToken));
     IERC20Upgradeable(lpToken).approve(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lockTime);
-    
+
     if (amountToken < minTokenIn) {
       IERC20Upgradeable(vault).transfer(to, minTokenIn-amountToken);
     }

@@ -16,8 +16,7 @@ import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
-// Authors: @0xKiwi_.
-
+/// @author @0xKiwi_.
 interface IWETH {
   function deposit() external payable;
   function transfer(address to, uint value) external returns (bool);
@@ -152,14 +151,14 @@ abstract contract Ownable {
 contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
-  IWETH public immutable WETH; 
+  IWETH public immutable WETH;
   INFTXLPStaking public lpStaking;
   INFTXInventoryStaking public inventoryStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
 
-  uint256 public lpLockTime = 48 hours; 
-  uint256 public inventoryLockTime = 7 days; 
+  uint256 public lpLockTime = 48 hours;
+  uint256 public inventoryLockTime = 7 days;
   uint256 constant BASE = 1e18;
 
   event UserStaked(uint256 vaultId, uint256 count, uint256 lpBalance, uint256 timelockUntil, address sender);
@@ -180,7 +179,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   function setLPLockTime(uint256 newLPLockTime) external onlyOwner {
     require(newLPLockTime <= 7 days, "Lock too long");
     lpLockTime = newLPLockTime;
-  } 
+  }
 
   function setInventoryLockTime(uint256 newInventoryLockTime) external onlyOwner {
     require(newInventoryLockTime <= 14 days, "Lock too long");
@@ -225,16 +224,16 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity721ETH(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     uint256 minWethIn
   ) external payable returns (uint256) {
     return addLiquidity721ETHTo(vaultId, ids, minWethIn, msg.sender);
   }
 
   function addLiquidity721ETHTo(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     address to
   ) public payable nonReentrant returns (uint256) {
@@ -254,8 +253,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity1155ETH(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     uint256[] calldata amounts,
     uint256 minEthIn
   ) external payable returns (uint256) {
@@ -263,8 +262,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity1155ETHTo(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minEthIn,
     address to
@@ -286,8 +285,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity721(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     uint256 minWethIn,
     uint256 wethIn
   ) external returns (uint256) {
@@ -295,8 +294,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity721To(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     uint256 wethIn,
     address to
@@ -315,7 +314,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity1155(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -325,7 +324,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function addLiquidity1155To(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -337,7 +336,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     (, uint256 amountEth, uint256 liquidity) = _addLiquidity1155WETH(vaultId, ids, amounts, minWethIn, wethIn, to);
 
     // Return extras.
-    uint256 remaining = wethIn-amountEth; 
+    uint256 remaining = wethIn-amountEth;
     if (remaining != 0) {
       WETH.transfer(to, remaining);
     }
@@ -346,8 +345,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   }
 
   function _addLiquidity721WETH(
-    uint256 vaultId, 
-    uint256[] memory ids, 
+    uint256 vaultId,
+    uint256[] memory ids,
     uint256 minWethIn,
     uint256 wethIn,
     address to
@@ -365,12 +364,12 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     uint256[] memory emptyIds;
     INFTXVault(vault).mint(ids, emptyIds);
     uint256 balance = length * BASE; // We should not be experiencing fees.
-    
+
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidity1155WETH(
-    uint256 vaultId, 
+    uint256 vaultId,
     uint256[] memory ids,
     uint256[] memory amounts,
     uint256 minWethIn,
@@ -384,18 +383,18 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     address assetAddress = INFTXVault(vault).assetAddress();
     IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
     IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
-    
+
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-    
+
     return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
   }
 
   function _addLiquidityAndLock(
-    uint256 vaultId, 
-    address vault, 
-    uint256 minTokenIn, 
-    uint256 minWethIn, 
+    uint256 vaultId,
+    address vault,
+    uint256 minTokenIn,
+    uint256 minWethIn,
     uint256 wethIn,
     address to
   ) internal returns (uint256, uint256, uint256) {
@@ -412,11 +411,11 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       block.timestamp
     );
 
-    // Stake in LP rewards contract 
+    // Stake in LP rewards contract
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
-    
+
     uint256 remaining = minTokenIn-amountToken;
     if (remaining != 0) {
       IERC20Upgradeable(vault).safeTransfer(to, remaining);
@@ -445,10 +444,10 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     //     uint256 deadline
     // ) external returns (uint256 amountToken, uint256 amountETH);
   function _removeLiquidityAndLock(
-    uint256 vaultId, 
-    address vault, 
-    uint256 minTokenIn, 
-    uint256 minWethIn, 
+    uint256 vaultId,
+    address vault,
+    uint256 minTokenIn,
+    uint256 minWethIn,
     uint256 wethIn,
     address to
   ) internal returns (uint256, uint256, uint256) {
@@ -465,11 +464,11 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       block.timestamp
     );
 
-    // Stake in LP rewards contract 
+    // Stake in LP rewards contract
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
-    
+
     uint256 remaining = minTokenIn-amountToken;
     if (remaining != 0) {
       IERC20Upgradeable(vault).safeTransfer(to, remaining);

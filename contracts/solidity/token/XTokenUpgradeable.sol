@@ -7,9 +7,8 @@ import "./ERC20Upgradeable.sol";
 import "../util/OwnableUpgradeable.sol";
 import "../util/SafeERC20Upgradeable.sol";
 
-// XTokens let uou come in with some vault tokens, and leave with more! The longer you stay, the more vault tokens you get.
-//
-// This contract handles swapping to and from xSushi, SushiSwap's staking token.
+/// @notice XTokens let uou come in with some vault tokens, and leave with more! The longer you stay, the more vault tokens you get.
+/// @dev This contract handles swapping to and from xSushi, SushiSwap's staking token.
 contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -27,7 +26,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         baseToken = IERC20Upgradeable(_baseToken);
     }
 
-    // Needs to be called BEFORE new base tokens are deposited.
+    /// @dev Needs to be called BEFORE new base tokens are deposited.
     function mintXTokens(address account, uint256 _amount, uint256 timelockLength) external onlyOwner returns (uint256) {
         // Gets the amount of Base Token locked in the contract
         uint256 totalBaseToken = baseToken.balanceOf(address(this));
@@ -78,7 +77,7 @@ contract XTokenUpgradeable is OwnableUpgradeable, ERC20Upgradeable {
         timelockAccount(account, timelockLength);
         _mint(account, amount);
     }
-    
+
     function _transfer(address from, address to, uint256 value) internal override {
         require(block.timestamp > timelock[from], "User locked");
         super._transfer(from, to, value);
