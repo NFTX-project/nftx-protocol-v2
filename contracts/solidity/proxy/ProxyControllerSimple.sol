@@ -6,32 +6,32 @@ import "../util/Ownable.sol";
 import "../interface/IAdminUpgradeabilityProxy.sol";
 
 contract ProxyControllerSimple is Ownable {
-    address public impl;
+	address public impl;
 
-    IAdminUpgradeabilityProxy private proxy;
+	IAdminUpgradeabilityProxy private proxy;
 
-    event ImplAddressSet(address impl);
-    event ProxyAdminChanged(address newAdmin);
+	event ImplAddressSet(address impl);
+	event ProxyAdminChanged(address newAdmin);
 
-    constructor(address _proxy) {
-        proxy = IAdminUpgradeabilityProxy(_proxy);
-    }
+	constructor(address _proxy) {
+		proxy = IAdminUpgradeabilityProxy(_proxy);
+	}
 
-    function getAdmin() public view returns (address admin) {
-        return proxy.admin();
-    }
+	function getAdmin() public view returns (address admin) {
+		return proxy.admin();
+	}
 
-    function fetchImplAddress() public {
-        impl = proxy.implementation();
-        emit ImplAddressSet(impl);
-    }
+	function fetchImplAddress() public {
+		impl = proxy.implementation();
+		emit ImplAddressSet(impl);
+	}
 
-    function changeProxyAdmin(address newAdmin) public onlyOwner {
-        proxy.changeAdmin(newAdmin);
-        emit ProxyAdminChanged(newAdmin);
-    }
+	function changeProxyAdmin(address newAdmin) public onlyOwner {
+		proxy.changeAdmin(newAdmin);
+		emit ProxyAdminChanged(newAdmin);
+	}
 
-    function upgradeProxyTo(address newImpl) public onlyOwner {
-        proxy.upgradeTo(newImpl);
-    }
+	function upgradeProxyTo(address newImpl) public onlyOwner {
+		proxy.upgradeTo(newImpl);
+	}
 }

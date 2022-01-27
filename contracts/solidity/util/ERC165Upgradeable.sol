@@ -19,10 +19,10 @@ import "../interface/IERC165Upgradeable.sol";
  * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
  */
 abstract contract ERC165Upgradeable is IERC165Upgradeable {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165Upgradeable).interfaceId;
-    }
+	/**
+	 * @dev See {IERC165-supportsInterface}.
+	 */
+	function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+		return interfaceId == type(IERC165Upgradeable).interfaceId;
+	}
 }

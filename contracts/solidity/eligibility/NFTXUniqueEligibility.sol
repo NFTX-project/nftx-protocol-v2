@@ -7,119 +7,83 @@ import "./UniqueEligibility.sol";
 import "./NFTXEligibility.sol";
 
 // Maybe use guardian here?
-contract NFTXUniqueEligibility is
-    OwnableUpgradeable,
-    NFTXEligibility,
-    UniqueEligibility
-{
-    function name() public pure override virtual returns (string memory) {
-        return "Unique";
-    }
+contract NFTXUniqueEligibility is OwnableUpgradeable, NFTXEligibility, UniqueEligibility {
+	function name() public pure virtual override returns (string memory) {
+		return "Unique";
+	}
 
-    function finalized() public view override virtual returns (bool) {
-        return isInitialized && owner() == address(0);
-    }
-    
-    function targetAsset() public pure override virtual returns (address) {
-        return address(0);
-    }
+	function finalized() public view virtual override returns (bool) {
+		return isInitialized && owner() == address(0);
+	}
 
-    address vault;
-    bool public isInitialized; 
-    bool public negateEligOnRedeem;
+	function targetAsset() public pure virtual override returns (address) {
+		return address(0);
+	}
 
-    struct Config {
-        address owner;
-        address vault;
-        bool negateElig;
-        bool finalize;
-        uint256[] tokenIds;
-    }
+	address vault;
+	bool public isInitialized;
+	bool public negateEligOnRedeem;
 
-    event NFTXEligibilityInit(
-        address owner,
-        address vault,
-        bool negateElig,
-        bool finalize,
-        uint256[] tokenIds
-    );
-    event negateEligilityOnRedeemSet(bool negateElig);
+	struct Config {
+		address owner;
+		address vault;
+		bool negateElig;
+		bool finalize;
+		uint256[] tokenIds;
+	}
 
-    function __NFTXEligibility_init_bytes(bytes memory _configData)
-        public
-        override
-        virtual
-        initializer
-    {
-        __Ownable_init();
-        (address _owner, address _vault, bool finalize, bool negateElig, uint256[] memory _ids) = abi
-            .decode(_configData, (address, address, bool, bool, uint256[]));
-        __NFTXEligibility_init(_owner, _vault, negateElig, finalize, _ids);
-    }
+	event NFTXEligibilityInit(address owner, address vault, bool negateElig, bool finalize, uint256[] tokenIds);
+	event negateEligilityOnRedeemSet(bool negateElig);
 
-    function __NFTXEligibility_init(
-        address _owner,
-        address _vault,
-        bool negateElig,
-        bool finalize,
-        uint256[] memory tokenIds
-    ) public initializer {
-        __Ownable_init();
-        require(_owner != address(0), "Owner != address(0)");
-        require(_vault != address(0), "Vault != address(0)");
-        isInitialized = true;
-        vault = _vault;
-        negateEligOnRedeem = negateElig;
-        _setUniqueEligibilities(tokenIds, true);
-        emit NFTXEligibilityInit(
-            _owner,
-            _vault,
-            negateElig,
-            finalize,
-            tokenIds
-        );
+	function __NFTXEligibility_init_bytes(bytes memory _configData) public virtual override initializer {
+		__Ownable_init();
+		(address _owner, address _vault, bool finalize, bool negateElig, uint256[] memory _ids) = abi.decode(
+			_configData,
+			(address, address, bool, bool, uint256[])
+		);
+		__NFTXEligibility_init(_owner, _vault, negateElig, finalize, _ids);
+	}
 
-        if (finalize) {
-            renounceOwnership();
-        } else {
-            transferOwnership(_owner);
-        }
-    }
+	function __NFTXEligibility_init(
+		address _owner,
+		address _vault,
+		bool negateElig,
+		bool finalize,
+		uint256[] memory tokenIds
+	) public initializer {
+		__Ownable_init();
+		require(_owner != address(0), "Owner != address(0)");
+		require(_vault != address(0), "Vault != address(0)");
+		isInitialized = true;
+		vault = _vault;
+		negateEligOnRedeem = negateElig;
+		_setUniqueEligibilities(tokenIds, true);
+		emit NFTXEligibilityInit(_owner, _vault, negateElig, finalize, tokenIds);
 
-    function setEligibilityPreferences(bool _negateEligOnRedeem)
-        external
-        onlyOwner
-    {
-        negateEligOnRedeem = _negateEligOnRedeem;
-        emit negateEligilityOnRedeemSet(_negateEligOnRedeem);
-    }
+		if (finalize) {
+			renounceOwnership();
+		} else {
+			transferOwnership(_owner);
+		}
+	}
 
-    function setUniqueEligibilities(uint256[] memory tokenIds, bool _isEligible)
-        external
-        virtual
-        onlyOwner
-    {
-        _setUniqueEligibilities(tokenIds, _isEligible);
-    }
+	function setEligibilityPreferences(bool _negateEligOnRedeem) external onlyOwner {
+		negateEligOnRedeem = _negateEligOnRedeem;
+		emit negateEligilityOnRedeemSet(_negateEligOnRedeem);
+	}
 
-    function afterRedeemHook(uint256[] calldata tokenIds)
-        external
-        override
-        virtual
-    {
-        require(msg.sender == vault);
-        if (negateEligOnRedeem) {
-            _setUniqueEligibilities(tokenIds, false);
-        }
-    }
+	function setUniqueEligibilities(uint256[] memory tokenIds, bool _isEligible) external virtual onlyOwner {
+		_setUniqueEligibilities(tokenIds, _isEligible);
+	}
 
-    function _checkIfEligible(uint256 _tokenId)
-        internal
-        view
-        override
-        virtual
-        returns (bool)
-    {
-        return isUniqueEligible(_tokenId);
-    }
+	function afterRedeemHook(uint256[] calldata tokenIds) external virtual override {
+		require(msg.sender == vault);
+		if (negateEligOnRedeem) {
+			_setUniqueEligibilities(tokenIds, false);
+		}
+	}
+
+	function _checkIfEligible(uint256 _tokenId) internal view virtual override returns (bool) {
+		return isUniqueEligible(_tokenId);
+	}
 }

@@ -11,17 +11,17 @@ import "./IERC721ReceiverUpgradeable.sol";
  * Make sure the contract is able to use its token with {IERC721-safeTransferFrom}, {IERC721-approve} or {IERC721-setApprovalForAll}.
  */
 contract ERC721SafeHolderUpgradeable is IERC721ReceiverUpgradeable {
-    /**
-     * @dev See {IERC721Receiver-onERC721Received}.
-     *
-     * Always returns `IERC721Receiver.onERC721Received.selector`.
-     */
-    function onERC721Received(
-        address operator,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
+	/**
+	 * @dev See {IERC721Receiver-onERC721Received}.
+	 *
+	 * Always returns `IERC721Receiver.onERC721Received.selector`.
+	 */
+	function onERC721Received(
+		address operator,
+		address,
+		uint256,
+		bytes memory
+	) public virtual override returns (bytes4) {
+		return this.onERC721Received.selector;
+	}
 }

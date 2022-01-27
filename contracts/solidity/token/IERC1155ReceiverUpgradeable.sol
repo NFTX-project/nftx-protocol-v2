@@ -8,8 +8,7 @@ import "../interface/IERC165Upgradeable.sol";
  * @dev _Available since v3.1._
  */
 interface IERC1155ReceiverUpgradeable is IERC165Upgradeable {
-
-    /**
+	/**
         @dev Handles the receipt of a single ERC1155 token type. This function is
         called at the end of a `safeTransferFrom` after the balance has been updated.
         To accept the transfer, this must return
@@ -22,17 +21,15 @@ interface IERC1155ReceiverUpgradeable is IERC165Upgradeable {
         @param data Additional data with no specified format
         @return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))` if transfer is allowed
     */
-    function onERC1155Received(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes calldata data
-    )
-        external
-        returns(bytes4);
+	function onERC1155Received(
+		address operator,
+		address from,
+		uint256 id,
+		uint256 value,
+		bytes calldata data
+	) external returns (bytes4);
 
-    /**
+	/**
         @dev Handles the receipt of a multiple ERC1155 token types. This function
         is called at the end of a `safeBatchTransferFrom` after the balances have
         been updated. To accept the transfer(s), this must return
@@ -45,13 +42,11 @@ interface IERC1155ReceiverUpgradeable is IERC165Upgradeable {
         @param data Additional data with no specified format
         @return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` if transfer is allowed
     */
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    )
-        external
-        returns(bytes4);
+	function onERC1155BatchReceived(
+		address operator,
+		address from,
+		uint256[] calldata ids,
+		uint256[] calldata values,
+		bytes calldata data
+	) external returns (bytes4);
 }
