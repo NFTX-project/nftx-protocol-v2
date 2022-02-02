@@ -153,8 +153,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
   IWETH public immutable WETH; 
-  INFTXLPStaking public immutable lpStaking;
-  INFTXInventoryStaking public immutable inventoryStaking;
+  INFTXLPStaking public lpStaking;
+  INFTXInventoryStaking public inventoryStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
 
@@ -166,11 +166,15 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
   constructor(address _nftxFactory, address _sushiRouter) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
-    lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
-    inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).inventoryStaking());
     sushiRouter = IUniswapV2Router01(_sushiRouter);
     WETH = IWETH(IUniswapV2Router01(_sushiRouter).WETH());
     IERC20Upgradeable(address(IUniswapV2Router01(_sushiRouter).WETH())).safeApprove(_sushiRouter, type(uint256).max);
+  }
+
+  function assignStakingContracts() public {
+    require(address(lpStaking) == address(0) || address(inventoryStaking) == address(0), "not zero");
+    lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).lpStaking());
+    inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).inventoryStaking());
   }
 
   function setLPLockTime(uint256 newLPLockTime) external onlyOwner {

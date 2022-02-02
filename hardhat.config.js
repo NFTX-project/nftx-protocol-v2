@@ -21,6 +21,11 @@ module.exports = {
       url: `https://palm-mainnet.infura.io/v3/${process.env.PALM_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
     },
+    arbitrum: {
+      url: "https://arb1.arbitrum.io/rpc",
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      timeout: 100000,
+    },
     hardhat: {
       mining: {
         auto: true,
