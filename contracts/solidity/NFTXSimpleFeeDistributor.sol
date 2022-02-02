@@ -161,7 +161,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual returns (bool) {
     if (_receiver.isContract) {
-      IERC20Upgradeable(_vault).safeApprove(_receiver.receiver, amountToSend);
+      IERC20Upgradeable(_vault).safeIncreaseAllowance(_receiver.receiver, amountToSend);
        
       bytes memory payload = abi.encodeWithSelector(INFTXLPStaking.receiveRewards.selector, _vaultId, amountToSend);
       (bool success, ) = address(_receiver.receiver).call(payload);
