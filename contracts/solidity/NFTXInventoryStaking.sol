@@ -32,6 +32,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
     event Withdraw(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, address sender);
+    event FeesReceived(uint256 vaultId, uint256 amount);
 
     function __NFTXInventoryStaking_init(address _nftxVaultFactory) external virtual override initializer {
         __Ownable_init();
@@ -68,6 +69,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         }
         // We "pull" to the dividend tokens so the fee distributor only needs to approve this contract.
         IERC20Upgradeable(baseToken).safeTransferFrom(msg.sender, deployedXToken, amount);
+        emit FeesReceived(vaultId, amount);
         return true;
     }
 
