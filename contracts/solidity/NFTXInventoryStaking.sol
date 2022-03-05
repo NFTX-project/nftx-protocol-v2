@@ -84,7 +84,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
         onlyOwnerIfPaused(10);
-        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not a zap");
+        require(msg.sender == nftxVaultFactory.zapContract(), "Not a zap");
+        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not fee excluded");
 
         (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
         emit Deposit(vaultId, amount, xTokensMinted, timelockLength, to);
