@@ -436,60 +436,6 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     return (amountToken, amountEth, liquidity);
   }
 
-    // function removeLiquidity(
-    //     address tokenA,
-    //     address tokenB,
-    //     uint256 liquidity,
-    //     uint256 amountAMin,
-    //     uint256 amountBMin,
-    //     address to,
-    //     uint256 deadline
-    // ) external returns (uint256 amountA, uint256 amountB);
-    // function removeLiquidityETH(
-    //     address token,
-    //     uint256 liquidity,
-    //     uint256 amountTokenMin,
-    //     uint256 amountETHMin,
-    //     address to,
-    //     uint256 deadline
-    // ) external returns (uint256 amountToken, uint256 amountETH);
-  function _removeLiquidityAndLock(
-    uint256 vaultId, 
-    address vault, 
-    uint256 minTokenIn, 
-    uint256 minWethIn, 
-    uint256 wethIn,
-    address to
-  ) internal returns (uint256, uint256, uint256) {
-    // Provide liquidity.
-    IERC20Upgradeable(vault).safeApprove(address(sushiRouter), minTokenIn);
-    (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
-      address(vault),
-      address(WETH),
-      minTokenIn,
-      wethIn,
-      minTokenIn,
-      minWethIn,
-      address(this),
-      block.timestamp
-    );
-
-    // Stake in LP rewards contract 
-    address lpToken = pairFor(vault, address(WETH));
-    IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
-    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
-    lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
-    
-    uint256 remaining = minTokenIn-amountToken;
-    if (remaining != 0) {
-      IERC20Upgradeable(vault).safeTransfer(to, remaining);
-    }
-
-    uint256 lockEndTime = block.timestamp + timelockTime;
-    emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
-    return (amountToken, amountEth, liquidity);
-  }
-
   function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
