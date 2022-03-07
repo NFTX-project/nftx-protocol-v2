@@ -15,6 +15,7 @@ import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
+import "./interface/ITimelockExcludeList.sol";
 
 // Authors: @0xKiwi_.
 
@@ -157,6 +158,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   INFTXInventoryStaking public inventoryStaking;
   INFTXVaultFactory public immutable nftxFactory;
   IUniswapV2Router01 public immutable sushiRouter;
+  ITimelockExcludeList public timelockExcludeList;
 
   uint256 public lpLockTime = 48 hours; 
   uint256 public inventoryLockTime = 7 days; 
@@ -177,6 +179,10 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).inventoryStaking());
   }
 
+  function setTimelockExcludeList(address addr) external onlyOwner {
+    timelockExcludeList = ITimelockExcludeList(addr);
+  }
+
   function setLPLockTime(uint256 newLPLockTime) external onlyOwner {
     require(newLPLockTime <= 7 days, "Lock too long");
     lpLockTime = newLPLockTime;
@@ -190,7 +196,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
   function provideInventory721(uint256 vaultId, uint256[] calldata tokenIds) external {
     uint256 count = tokenIds.length;
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, inventoryLockTime);
+    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
+    inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, timelockTime);
     address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(xToken);
     uint256[] memory amounts = new uint256[](0);
@@ -213,7 +220,8 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       count += amounts[i];
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, inventoryLockTime);
+    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
+    inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, timelockTime);
     address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
     IERC1155Upgradeable nft = IERC1155Upgradeable(vault.assetAddress());
@@ -415,14 +423,15 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
-    lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
+    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
+    lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
     
     uint256 remaining = minTokenIn-amountToken;
     if (remaining != 0) {
       IERC20Upgradeable(vault).safeTransfer(to, remaining);
     }
 
-    uint256 lockEndTime = block.timestamp + lpLockTime;
+    uint256 lockEndTime = block.timestamp + timelockTime;
     emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
     return (amountToken, amountEth, liquidity);
   }
@@ -468,14 +477,15 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     // Stake in LP rewards contract 
     address lpToken = pairFor(vault, address(WETH));
     IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
-    lpStaking.timelockDepositFor(vaultId, to, liquidity, lpLockTime);
+    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
+    lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
     
     uint256 remaining = minTokenIn-amountToken;
     if (remaining != 0) {
       IERC20Upgradeable(vault).safeTransfer(to, remaining);
     }
 
-    uint256 lockEndTime = block.timestamp + lpLockTime;
+    uint256 lockEndTime = block.timestamp + timelockTime;
     emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
     return (amountToken, amountEth, liquidity);
   }
