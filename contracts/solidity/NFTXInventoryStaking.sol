@@ -14,6 +14,7 @@ import "./util/Create2.sol";
 import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
+import "./interface/ITimelockExcludeList.sol";
 
 // Author: 0xKiwi.
 
@@ -26,8 +27,10 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Small locktime to prevent flash deposits.
     uint256 internal constant DEFAULT_LOCKTIME = 2;
     bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
+    uint256 public inventoryLockTimeErc20 = 7 days;
 
     INFTXVaultFactory public override nftxVaultFactory;
+    ITimelockExcludeList public timelockExcludeList;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
@@ -44,6 +47,15 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     modifier onlyAdmin() {
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
+    }
+
+    function setTimelockExcludeList(address addr) external onlyOwner {
+        timelockExcludeList = ITimelockExcludeList(addr);
+    }
+
+    function setInventoryLockTimeErc20(uint256 time) external onlyOwner {
+        require(time <= 14 days, "Lock too long");
+        inventoryLockTimeErc20 = time;
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual override {
@@ -78,10 +90,12 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function deposit(uint256 vaultId, uint256 _amount) external virtual override {
         onlyOwnerIfPaused(10);
 
-        (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
+        uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTimeErc20;
+
+        (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, timelockTime);
         // Lock the base token in the xtoken contract
         baseToken.safeTransferFrom(msg.sender, address(xToken), _amount);
-        emit Deposit(vaultId, _amount, xTokensMinted, DEFAULT_LOCKTIME, msg.sender);
+        emit Deposit(vaultId, _amount, xTokensMinted, timelockTime, msg.sender);
     }
 
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
