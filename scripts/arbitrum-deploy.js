@@ -6,8 +6,9 @@ const { ethers, upgrades } = require("hardhat");
 const devAddress = "0xDEA9196Dcdd2173D6E369c2AcC0faCc83fD9346a";
 const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
-sushiRouterAddr = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
-wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+let sushiRouterAddr = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
+let sushiFactoryAddr = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4";
+let wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
 
 const daoAddress = devAddress;
 
@@ -24,11 +25,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
 
   console.log("Deploying account:", await deployer.getAddress());
-  console.log(
-    "Deploying account balance:",
-    (await deployer.getBalance()).toString(),
-    "\n"
-  );
+  console.log("Deploying account balance:", (await deployer.getBalance()).toString(), "\n");
 
   // const provider = await ethers.getContractAt(
   //   "StakingTokenProvider",
@@ -59,16 +56,10 @@ async function main() {
   //   "0x64029E2da85B1d53815d111FEd15609034E5D557"
   // );
 
-  const StakingProvider = await ethers.getContractFactory(
-    "StakingTokenProvider"
-  );
-  const provider = await upgrades.deployProxy(
-    StakingProvider,
-    [sushiRouterAddr, wethAddress, "x"],
-    {
-      initializer: "__StakingTokenProvider_init",
-    }
-  );
+  const StakingProvider = await ethers.getContractFactory("StakingTokenProvider");
+  const provider = await upgrades.deployProxy(StakingProvider, [sushiFactoryAddr, wethAddress, "x"], {
+    initializer: "__StakingTokenProvider_init",
+  });
   await provider.deployed();
   console.log("StakingTokenProvider:", provider.address);
 
@@ -85,31 +76,19 @@ async function main() {
   await vaultTemplate.deployed();
   console.log("Vault template:", vaultTemplate.address);
 
-  const FeeDistributor = await ethers.getContractFactory(
-    "NFTXSimpleFeeDistributor"
-  );
-  const feeDistrib = await upgrades.deployProxy(
-    FeeDistributor,
-    [lpStaking.address, notZeroAddr],
-    {
-      initializer: "__SimpleFeeDistributor__init__",
-      unsafeAllow: "delegatecall",
-    }
-  );
+  const FeeDistributor = await ethers.getContractFactory("NFTXSimpleFeeDistributor");
+  const feeDistrib = await upgrades.deployProxy(FeeDistributor, [lpStaking.address, notZeroAddr], {
+    initializer: "__SimpleFeeDistributor__init__",
+    unsafeAllow: "delegatecall",
+  });
   await feeDistrib.deployed();
   console.log("FeeDistributor:", feeDistrib.address);
 
-  const VaultFactory = await ethers.getContractFactory(
-    "NFTXVaultFactoryUpgradeable"
-  );
-  const vaultFactory = await upgrades.deployProxy(
-    VaultFactory,
-    [vaultTemplate.address, feeDistrib.address],
-    {
-      initializer: "__NFTXVaultFactory_init",
-      unsafeAllow: "delegatecall",
-    }
-  );
+  const VaultFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
+  const vaultFactory = await upgrades.deployProxy(VaultFactory, [vaultTemplate.address, feeDistrib.address], {
+    initializer: "__NFTXVaultFactory_init",
+    unsafeAllow: "delegatecall",
+  });
   await vaultFactory.deployed();
   console.log("VaultFactory:", vaultFactory.address);
 
@@ -135,17 +114,11 @@ async function main() {
   await rangeElig.deployed();
   await eligManager.addModule(rangeElig.address);
 
-  const InventoryStaking = await ethers.getContractFactory(
-    "NFTXInventoryStaking"
-  );
-  const inventoryStaking = await upgrades.deployProxy(
-    InventoryStaking,
-    [vaultFactory.address],
-    {
-      initializer: "__NFTXInventoryStaking_init",
-      unsafeAllow: "delegatecall",
-    }
-  );
+  const InventoryStaking = await ethers.getContractFactory("NFTXInventoryStaking");
+  const inventoryStaking = await upgrades.deployProxy(InventoryStaking, [vaultFactory.address], {
+    initializer: "__NFTXInventoryStaking_init",
+    unsafeAllow: "delegatecall",
+  });
   await inventoryStaking.deployed();
   console.log("InventoryStaking:", inventoryStaking.address);
 
@@ -155,18 +128,11 @@ async function main() {
   await feeDistrib.addReceiver("800000000000000000", lpStaking.address, true);
   console.log("-- added fee receiver 0 address");
 
-  await feeDistrib.addReceiver(
-    "200000000000000000",
-    inventoryStaking.address,
-    true
-  );
+  await feeDistrib.addReceiver("200000000000000000", inventoryStaking.address, true);
   console.log("-- added fee receiver 1 address");
 
   const StakingZap = await ethers.getContractFactory("NFTXStakingZap");
-  const stakingZap = await StakingZap.deploy(
-    vaultFactory.address,
-    sushiRouterAddr
-  );
+  const stakingZap = await StakingZap.deploy(vaultFactory.address, sushiRouterAddr);
   await stakingZap.deployed();
   console.log("StakingZap: ", stakingZap.address);
 
@@ -180,10 +146,7 @@ async function main() {
   console.log("-- set fee exclusion");
 
   const MarketplaceZap = await ethers.getContractFactory("NFTXMarketplaceZap");
-  const marketplaceZap = await MarketplaceZap.deploy(
-    vaultFactory.address,
-    sushiRouterAddr
-  );
+  const marketplaceZap = await MarketplaceZap.deploy(vaultFactory.address, sushiRouterAddr);
   await marketplaceZap.deployed();
   console.log("MarketplaceZap: ", marketplaceZap.address);
 
