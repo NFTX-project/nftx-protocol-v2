@@ -13,12 +13,12 @@ let wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
 const daoAddress = devAddress;
 
 // const teamAddresses = [
-//   "0x701f373Df763308D96d8537822e8f9B2bAe4E847", // gaus1
-//   "0x4586554a30148B8F4F3AB17E57C430eE193698Ec", // gaus2
+//   "0x4586554a30148B8F4F3AB17E57C430eE193698Ec", // gaus
 //   "0x08D816526BdC9d077DD685Bd9FA49F58A5Ab8e48", // kiwi
 //   "0x3FCe5449C7449983e263227c5AAEACB4A80B87C9", // quag
 //   "0x4eAc46c2472b32dc7158110825A7443D35a90168", // javery
 //   "0x45d28aA363fF215B4c6b6a212DC610f004272bb5", // chop
+//   "0x84f4840E47199F1090cEB108f74C5F332219539A"  // caps
 // ];
 
 async function main() {
