@@ -18,7 +18,8 @@ const daoAddress = devAddress;
 //   "0x3FCe5449C7449983e263227c5AAEACB4A80B87C9", // quag
 //   "0x4eAc46c2472b32dc7158110825A7443D35a90168", // javery
 //   "0x45d28aA363fF215B4c6b6a212DC610f004272bb5", // chop
-//   "0x84f4840E47199F1090cEB108f74C5F332219539A"  // caps
+//   "0x84f4840E47199F1090cEB108f74C5F332219539A", // caps
+//   "0xfe1aa5275dda4b333b1fb0ccbd7a5f14edc4a5de"  // jb
 // ];
 
 async function main() {
