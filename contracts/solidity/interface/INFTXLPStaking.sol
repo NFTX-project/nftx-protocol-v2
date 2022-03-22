@@ -3,11 +3,15 @@
 pragma solidity ^0.8.0;
 
 interface INFTXLPStaking {
+    struct StakingPool {
+        address stakingToken;
+        address rewardToken;
+    }
+
     function nftxVaultFactory() external view returns (address);
     function rewardDistTokenImpl() external view returns (address);
     function stakingTokenProvider() external view returns (address);
-    function vaultToken(address _stakingToken) external view returns (address);
-    function stakingToken(address _vaultToken) external view returns (address);
+    function vaultStakingInfo(uint256 vaultId) external view returns (StakingPool memory);    
     function rewardDistributionToken(uint256 vaultId) external view returns (address);
     function newRewardDistributionToken(uint256 vaultId) external view returns (address);
     function oldRewardDistributionToken(uint256 vaultId) external view returns (address);
@@ -28,4 +32,5 @@ interface INFTXLPStaking {
     function rescue(uint256 vaultId) external;
     function withdraw(uint256 vaultId, uint256 amount) external;
     function claimRewards(uint256 vaultId) external;
+    function claimRewardsAsZap(uint256 vaultId, address user) external;
 }

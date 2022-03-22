@@ -45,6 +45,7 @@ contract TimelockRewardDistributionTokenImpl is OwnableUpgradeable, ERC20Upgrade
   mapping(address => uint256) internal timelock;
 
   event Timelocked(address user, uint256 amount, uint256 until);
+  event RewardWithdrawnByZap(address user, uint256 amount, address zap);
 
   function __TimelockRewardDistributionToken_init(IERC20Upgradeable _target, string memory _name, string memory _symbol) public initializer {
     __Ownable_init();
@@ -151,6 +152,17 @@ contract TimelockRewardDistributionTokenImpl is OwnableUpgradeable, ERC20Upgrade
       withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
       target.safeTransfer(user, _withdrawableReward);
       emit RewardWithdrawn(user, _withdrawableReward);
+    }
+  }
+
+  /// @notice Withdraws the target distributed to the sender and sends it to the zap making the call
+  /// @dev It emits a `RewardWithdrawnByZap` event if the amount of withdrawn target is greater than 0.
+  function withdrawRewardAsZap(address user, address zap) external onlyOwner {
+    uint256 _withdrawableReward = withdrawableRewardOf(user);
+    if (_withdrawableReward > 0) {
+      withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
+      target.safeTransfer(zap, _withdrawableReward);
+      emit RewardWithdrawnByZap(user, _withdrawableReward, zap);
     }
   }
 

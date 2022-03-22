@@ -11,6 +11,7 @@ import "./util/Address.sol";
 import "./proxy/ClonesUpgradeable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
+import "./interface/IZapRegistry.sol";
 
 // Author: 0xKiwi.
 
@@ -36,6 +37,8 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     TimelockRewardDistributionTokenImpl public newTimelockRewardDistTokenImpl;
 
+    IZapRegistry public zapRegistry;
+
     function __NFTXLPStaking__init(address _stakingTokenProvider) external initializer {
         __Ownable_init();
         require(_stakingTokenProvider != address(0), "Provider != address(0)");
@@ -50,6 +53,11 @@ contract NFTXLPStaking is PausableUpgradeable {
         _;
     }
 
+    modifier onlyZap() {
+        require(zapRegistry.isAZap(msg.sender), "LPStaking: Not authorized");
+        _;
+    }
+
     function setNFTXVaultFactory(address newFactory) external onlyOwner {
         require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
         nftxVaultFactory = INFTXVaultFactory(newFactory);
@@ -58,6 +66,14 @@ contract NFTXLPStaking is PausableUpgradeable {
     function setStakingTokenProvider(address newProvider) external onlyOwner {
         require(newProvider != address(0));
         stakingTokenProvider = StakingTokenProvider(newProvider);
+    }
+
+    function setNewTimelockRewardDistTokenImpl(address addr) public onlyOwner {
+        newTimelockRewardDistTokenImpl = TimelockRewardDistributionTokenImpl(addr);
+    }
+
+    function setZapRegistry(address zapRegistryAddr) external onlyOwner {
+        zapRegistry = IZapRegistry(zapRegistryAddr);
     }
 
     function addPoolForVault(uint256 vaultId) external onlyAdmin {
@@ -214,6 +230,11 @@ contract NFTXLPStaking is PausableUpgradeable {
         _claimRewards(pool, msg.sender);
     }
 
+    function claimRewardsAsZap(uint256 vaultId, address user) public onlyZap {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        _claimRewardsAsZap(pool, user);
+    }
+
     function claimMultipleRewards(uint256[] calldata vaultIds) external {
         uint256 length = vaultIds.length;
         for (uint256 i; i < length; ++i) {
@@ -297,6 +318,11 @@ contract NFTXLPStaking is PausableUpgradeable {
     function _claimRewards(StakingPool memory pool, address account) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         _rewardDistributionTokenAddr(pool).withdrawReward(account);
+    }
+
+    function _claimRewardsAsZap(StakingPool memory pool, address account) internal {
+        require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
+        _rewardDistributionTokenAddr(pool).withdrawRewardAsZap(account, msg.sender);
     }
 
     function _withdraw(StakingPool memory pool, uint256 amount, address account) internal {
