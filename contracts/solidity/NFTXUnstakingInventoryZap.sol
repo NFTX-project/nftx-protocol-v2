@@ -10,7 +10,7 @@ import "./token/IERC20Upgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./interface/INFTXVault.sol";
 
-contract NFTXUnstakingZap is Ownable, ReentrancyGuard {
+contract NFTXUnstakingInventoryZap is Ownable, ReentrancyGuard {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     INFTXVaultFactory public vaultFactory;
