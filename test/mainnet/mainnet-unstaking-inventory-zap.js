@@ -57,7 +57,7 @@ describe("Mainnet unstaking test ERC721", function () {
   });
 
   it("Should deploy unstakingzap", async () => {
-    const UnstakingZap = await ethers.getContractFactory("NFTXUnstakingZap");
+    const UnstakingZap = await ethers.getContractFactory("NFTXUnstakingInventoryZap");
     unstakingZap = await UnstakingZap.deploy();
     await unstakingZap.deployed();
 
