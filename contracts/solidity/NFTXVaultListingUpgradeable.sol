@@ -288,21 +288,13 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         // Deactivate the listing by setting expiry time to 0
         _updateListing(nftId, vault, 0);
 
-        // Check if we want to exclude fees for this buyer
-        if (vaultFactory.excludedFromFees(buyer)) {
-            return;
-        }
-
-        uint256 mintFee = INFTXVault(vault).mintFee();
-
-        // Mint fees directly to the distributor and distribute.
-        if (mintFee > 0) {
-            address feeDistributor = vaultFactory.feeDistributor();
-            
-            // Send token to fee distributoooooor
-            // _transfer(buyer, feeDistributor, mintFee);
-            INFTXFeeDistributor(feeDistributor).distribute(_getVaultId(vault));
-        }
+        /**
+         * 	CAP$ SEZ:
+         * 
+         *  We don't need to look at fees and the marketplace zap will essentially let
+         *  people do the trade up. It will either do a buy on sushi that will fill the
+         *  order or a mint on NFTs that will return the remaining.
+         */
 	}
 
 	function _senderOwnsNFT(address from, address vault, uint nftId) internal returns (bool) {

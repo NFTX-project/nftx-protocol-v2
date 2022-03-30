@@ -523,11 +523,10 @@ describe('NFTX Vault Listings', async () => {
       )
 
       // Give bob sufficient tokens to fill the listing
-      console.log('WHALE PUNK', parseInt(await punkVault.balanceOf(whale.address)))
-      console.log('WHALE TUBBY', parseInt(await tubbyVault.balanceOf(whale.address)))
       await punkVault.connect(whale).transfer(bob.address, '5000000000000000000')
-      console.log('BOB BALANCE', parseInt(await punkVault.balanceOf(bob.address)))
 
+      // Fill the listing
+      await punkVault.connect(bob).approve(nftxVaultListing.address, '5000000000000000000')
       await nftxVaultListing.connect(bob).fillListing([1], [punkVault.address])
 
       listing = await nftxVaultListing.listings(0);
@@ -555,21 +554,6 @@ describe('NFTX Vault Listings', async () => {
 
       // Confirm alice holds the expected price of tokens
       expect(await punkVault.balanceOf(alice.address)).to.equal('1200000000000000000')
-    })
-
-    xit('Should be able to fill a listing whilst excluding buyer fees', async () => {
-      nftx.disableVaultFees()
-
-      cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
-      await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [futureTimestamp]
-      )
-
-      // Give bob sufficient tokens to fill the listing
-
-      await nftxVaultFactory.connect(bob).fillListing([1], [punkVault.address])
-
-      // Confirm that bob's token balance has been reduced by the listing price with no fees
     })
 
     xit('Should prevent fill if sender has insuffient balance for a listing', async () => {
