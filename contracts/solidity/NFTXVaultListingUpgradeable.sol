@@ -114,7 +114,7 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 		}
 	}
 
-	function fillListing(
+	function fillListings(
 		uint256[] calldata nftIds,
 		address[] calldata vaults
 	) external override {
@@ -274,11 +274,6 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
 		// Get our vault reference
 		INFTXVault nftxVault = INFTXVault(vault);
-
-		// Transfer tokens to seller
-		console.log('BUYER BALANCE', nftxVault.balanceOf(buyer));
-		console.log('SELLER BALANCE', nftxVault.balanceOf(listing.seller));
-		console.log('LISTING PRICE', listing.price);
 
 		nftxVault.transferFrom(buyer, listing.seller, listing.price);
 

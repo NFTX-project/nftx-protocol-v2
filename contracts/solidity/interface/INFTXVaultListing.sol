@@ -18,7 +18,7 @@ interface INFTXVaultListing {
 		uint256[] calldata expiries
 	) external;
 
-	function fillListing(
+	function fillListings(
 		uint256[] calldata nftIds,
 		address[] calldata vaults
 	) external;
