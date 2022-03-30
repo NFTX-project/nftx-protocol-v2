@@ -100,7 +100,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             // Don't let the user create a listing that expires in the past
             require(expires[i] > block.timestamp, 'Listing already expired');
 
-            // Sanity check our pricing is >= 1.2
+            // Sanity check our pricing is above minimum
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
             // Ensure our sender actually owners the NFT they are wanting to list
@@ -127,12 +127,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      *
      * @param nftIds The IDs of the NFTs being updated
      * @param vaults The addresses of the NFTX vaults
+     * @param prices Token price listing will be updated to
      * @param expires The updated timestamp the listing will expire
      */
 
     function updateListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
+        uint256[] calldata prices,
         uint256[] calldata expires
     ) external override {
         uint count = nftIds.length;
@@ -148,10 +150,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             require(existingListing.active, 'Listing is not active');
             require(existingListing.seller == msg.sender, 'Sender is not listing owner');
 
+            // Confirm the updated price is above minimum if changed
+            require(prices[i] >= minFloorPrice, 'Listing below floor price');
+
             // Ensure our sender actually owners the NFT they are wanting to update
             require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i]), 'Sender does not own NFT');
 
-            _updateListing(nftIds[i], vaults[i], expires[i]);
+            _updateListing(nftIds[i], vaults[i], prices[i], expires[i]);
 
             unchecked { ++i; }
         }
@@ -206,7 +211,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param vaults Optional array of specific NFTX vaults to query
      */
 
-    function getListings(address[] calldata vaults) external view returns (uint[] memory) {
+    function getListings(address[] calldata vaults) external view override returns (uint[] memory) {
         // If we have no vaults specified, we show results from all tracked listing vaults
         uint vaultsLength = vaults.length;
         if (vaultsLength == 0) {
@@ -345,10 +350,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      *
      * @param nftId The ERC721 NFT ID
      * @param vault The NFTX Vault address
+     * @param price The price of the listing in terms of the NFTX vault ERC20 token
      * @param expiry The timestamp that the listing will expire
      */
 
-    function _updateListing(uint256 nftId, address vault, uint256 expiry) internal {
+    function _updateListing(uint256 nftId, address vault, uint256 price, uint256 expiry) internal {
         // Listing ID validity should already be validated
         uint listingId = listingMapping[vault][nftId];
 
@@ -357,6 +363,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         }
 
         Listing storage listing = listings[listingId];
+
+        // Set our listing price
+        listing.price = price;
 
         // Set the listing to new expiry time, and if it is in the past then
         // we also set it to inactive
@@ -394,7 +403,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         IERC721(nftxVault.assetAddress()).transferFrom(listing.seller, buyer, nftId);
 
         // Deactivate the listing by setting expiry time to 0
-        _updateListing(nftId, vault, 0);
+        _updateListing(nftId, vault, listing.price, 0);
 
         emit ListingFilled(listing.id);
     }
