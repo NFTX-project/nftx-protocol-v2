@@ -523,10 +523,10 @@ describe('NFTX Vault Listings', async () => {
       )
 
       // Give bob sufficient tokens to fill the listing
-      console.log(await punkVault.balanceOf(whale.address))
-      console.log(await tubbyVault.balanceOf(whale.address))
+      console.log('WHALE PUNK', parseInt(await punkVault.balanceOf(whale.address)))
+      console.log('WHALE TUBBY', parseInt(await tubbyVault.balanceOf(whale.address)))
       await punkVault.connect(whale).transfer(bob.address, '5000000000000000000')
-      console.log(await punkVault.balanceOf(bob.address))
+      console.log('BOB BALANCE', parseInt(await punkVault.balanceOf(bob.address)))
 
       await nftxVaultListing.connect(bob).fillListing([1], [punkVault.address])
 
@@ -541,14 +541,20 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.expiry, futureTimestamp);
       expect(listing.seller, alice.address);
 
-      // Confirm that alice no longer owns the NFT
+      // Confirm that alice no longer owns the NFT, but bob does
+      expect(await cryptopunk.ownerOf(1)).to.equal(bob.address);
 
-      // Confirm that bob now owns the NFT
-
-      // Confirm bob can now list the NFT
+      // Confirm bob can now list the NFT after re-approving
+      cryptopunk.connect(bob).approve(nftxVaultListing.address, 1);
+      await nftxVaultListing.connect(bob).createListings(
+        [1], [punkVault.address], [validFloorPrice], [futureTimestamp]
+      )
 
       // Confirm that bob's token balance has been reduced by the listing price
+      expect(await punkVault.balanceOf(bob.address)).to.equal('3800000000000000000')
 
+      // Confirm alice holds the expected price of tokens
+      expect(await punkVault.balanceOf(alice.address)).to.equal('1200000000000000000')
     })
 
     xit('Should be able to fill a listing whilst excluding buyer fees', async () => {

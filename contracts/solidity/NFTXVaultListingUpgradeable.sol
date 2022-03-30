@@ -125,8 +125,6 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 			uint listingId = listingMapping[vaults[i]][nftIds[i]];
 			require(_listingExists(listingId), 'Listing ID does not exist');
 
-			console.log(listingId);
-
 			Listing storage existingListing = listings[listingId];
 
 			// Confirm the listing is active
@@ -274,11 +272,18 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 		// Reference our listing
 		Listing storage listing = listings[listingId];
 
+		// Get our vault reference
+		INFTXVault nftxVault = INFTXVault(vault);
+
 		// Transfer tokens to seller
-		// INFTXVault(listing.vaultAddress).transferTo(buyer, listing.seller, listing.price);
+		console.log('BUYER BALANCE', nftxVault.balanceOf(buyer));
+		console.log('SELLER BALANCE', nftxVault.balanceOf(listing.seller));
+		console.log('LISTING PRICE', listing.price);
+
+		nftxVault.transferFrom(buyer, listing.seller, listing.price);
 
 		// Send NFT to buyer
-		IERC721(listing.vaultAddress).transferFrom(listing.seller, buyer, nftId);
+		IERC721(nftxVault.assetAddress()).transferFrom(listing.seller, buyer, nftId);
 
         // Deactivate the listing by setting expiry time to 0
         _updateListing(nftId, vault, 0);
