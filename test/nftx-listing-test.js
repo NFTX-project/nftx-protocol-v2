@@ -113,7 +113,7 @@ describe('NFTX Vault Listings', async () => {
     // Set up our NFTX vault listings contract
     nftxVaultListing = await upgrades.deployProxy(
       nftxVaultListingFactory,
-      [nftx.address],
+      [],
       {
         initializer: "__NFTXVaultListing_init",
         unsafeAllow: 'delegatecall'
@@ -275,6 +275,16 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], ['1190000000000000000'], [futureTimestamp]
       )
     })
+
+    it('Should only allow the owner to set floor price', async () => {
+      // The owner can set the price correctly
+      await nftxVaultListing.setFloorPrice('1190000000000000000')
+
+      // A non-owner user will be reverted
+      await expect(
+        nftxVaultListing.connect(alice).setFloorPrice('1000000000000000000')
+      ).to.be.revertedWith('Ownable: caller is not the owner')
+    });
 
     it('Should prevent expired listings being created', async () => {
       cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);

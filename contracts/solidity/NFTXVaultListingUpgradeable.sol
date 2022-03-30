@@ -3,17 +3,23 @@
 pragma solidity ^0.8.0;
 
 import "./interface/INFTXVault.sol";
-import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXVaultListing.sol";
-import "./interface/INFTXFeeDistributor.sol";
 import "./testing/IERC721.sol";
-import "./util/ReentrancyGuardUpgradeable.sol";
+import "./util/OwnableUpgradeable.sol";
 
-import "hardhat/console.sol";
 
 // Authors: @tomwade.
 
-contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultListing {
+/**
+ * @dev Contract to allow listings to be created with a specified price
+ * against an NFTX vault.
+ */
+
+contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
+
+    /**
+     * @notice The structure of a listing.
+     */
 
     struct Listing {
         uint id;
@@ -26,32 +32,60 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         address seller;
     }
 
-    event ListingCreated();
-    event ListingUpdated();
-    event ListingFilled();
+    // {ListingCreated} fired when a new listing is created
+    event ListingCreated(uint256 listingId, uint256 nftId, address vault, uint256 price, uint256 expires);
 
-    // listings[vaultAddress][nftId] => listing.id index
+    // {ListingUpdated} fired when an existing listing is updated
+    event ListingUpdated(uint256 listingId, uint256 price, uint256 expires);
+
+    // {ListingFilled} fired when an existing listing is successfully filled
+    event ListingFilled(uint256 listingId);
+
+    // Mapping of vaultAddress => nftId => listing.id
     mapping(address => mapping(uint => uint)) public listingMapping;
 
     // Flat store of all listings
     Listing[] public listings;
 
-    // Listing vaults
+    // Stores listing IDs within a vault
     mapping(address => uint[]) listingVaultIds;
 
+    // Stores the minimum floor price for new listings
     uint public minFloorPrice;
 
-    INFTXVaultFactory vaultFactory;
 
-    function __NFTXVaultListing_init(address _vaultFactory) public virtual initializer {
-        vaultFactory = INFTXVaultFactory(_vaultFactory);
+    /**
+     * @notice Initialises the NFTX Vault Listing contract and sets a minimum
+     * listing price.
+     */
+
+    function __NFTXVaultListing_init() public virtual initializer {
+        __Ownable_init();
         minFloorPrice = 1200000000000000000;
     }
 
-    // TODO: Need floor access
-    function setFloorPrice(uint _minFloorPrice) external {
+
+    /**
+     * @notice Allows authorised users to set a new minimum listing price.
+     *
+     * @param _minFloorPrice New minimum listing price
+     */
+
+    function setFloorPrice(uint _minFloorPrice) external onlyOwner {
         minFloorPrice = _minFloorPrice;
     }
+
+
+    /**
+     * @notice Allows approved ERC721 NFTs to be listed against a vault. The NFT must
+     * belong to the asset address stored against the NFTX vault and have an expiry
+     * timestamp set in the future.
+     *
+     * @param nftIds The IDs of the NFTs being submitted
+     * @param vaults The addresses of the NFTX vaults
+     * @param prices Token price item will be listed at
+     * @param expires The timestamp the listing will expire
+     */
 
     function createListings(
         uint256[] calldata nftIds,
@@ -80,11 +114,21 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
             _createListing(msg.sender, nftIds[i], vaults[i], prices[i], expires[i]);
 
-            emit ListingCreated();
-
             unchecked { ++i; }
         }
     }
+
+
+    /**
+     * @notice Allows existing listings to have their expiry time and price updated. If
+     * the listing has it's expiry timestamp into the past, then it will set the listing
+     * to inactive. If a `0` value is set for the expiry timestamp then the listing will
+     * also be deleted from our mapping.
+     *
+     * @param nftIds The IDs of the NFTs being updated
+     * @param vaults The addresses of the NFTX vaults
+     * @param expires The updated timestamp the listing will expire
+     */
 
     function updateListings(
         uint256[] calldata nftIds,
@@ -95,6 +139,7 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         require(count > 0, 'No NFTs specified');
 
         for (uint i; i < count;) {
+            // Confirm that our listing exists
             uint listingId = listingMapping[vaults[i]][nftIds[i]];
             require(_listingExists(listingId), 'Listing ID does not exist');
 
@@ -108,11 +153,20 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
             _updateListing(nftIds[i], vaults[i], expires[i]);
 
-            emit ListingUpdated();
-
             unchecked { ++i; }
         }
     }
+
+
+    /**
+     * @notice Allows existing listings to have their expiry time and price updated. If
+     * the listing has it's expiry timestamp into the past, then it will set the listing
+     * to inactive. If a `0` value is set for the expiry timestamp then the listing will
+     * also be deleted from our mapping.
+     *
+     * @param nftIds The IDs of the NFTs being filled
+     * @param vaults The addresses of the NFTX vaults
+     */
 
     function fillListings(
         uint256[] calldata nftIds,
@@ -122,6 +176,7 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         require(count > 0);
 
         for (uint i; i < count;) {
+            // Confirm that our listing exists
             uint listingId = listingMapping[vaults[i]][nftIds[i]];
             require(_listingExists(listingId), 'Listing ID does not exist');
 
@@ -138,11 +193,18 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
             _fillListing(msg.sender, nftIds[i], vaults[i]);
 
-            emit ListingFilled();
-
             unchecked { ++i; }
         }
     }
+
+
+    /**
+     * @notice Returns a list of listing IDs for all active listings that match the
+     * user's requested vault addresses. If no vaults are specified then all active
+     * listings will be returned through the `_getAllListings()` function.
+     *
+     * @param vaults Optional array of specific NFTX vaults to query
+     */
 
     function getListings(address[] calldata vaults) external view returns (uint[] memory) {
         // If we have no vaults specified, we show results from all tracked listing vaults
@@ -187,6 +249,11 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         return _remapListings(_tmpListingIds, counter);
     }
 
+
+    /**
+     * @notice Returns all active listings from across all vaults.
+     */
+
     function _getAllListings() external view returns (uint[] memory) {
         uint listingsLength = listings.length;
 
@@ -213,6 +280,16 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         return _remapListings(_listingIds, counter);
     }
 
+
+    /**
+     * @notice Acts as an alternative to array slice as it's not possible for us to perform
+     * the shorthand [0:_counter] on a memory array. This allows us to strip unused space
+     * from our memory array.
+     *
+     * @param _listingIds Over-sized memory array of listing IDs
+     * @param _counter Number of results to return
+     */
+
     function _remapListings(uint[] memory _listingIds, uint _counter) internal view returns (uint[] memory) {
         // Set up our listings array with a length of all possible listings
         uint[] memory listingIds = new uint[](_counter);
@@ -226,17 +303,28 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         return listingIds;
     }
 
+
+    /**
+     * @notice Creates a listing object and updates our internal mappings.
+     *
+     * @param seller The address of the seller creating the listing
+     * @param nftId The ERC721 NFT ID
+     * @param vault The NFTX Vault address
+     * @param price The price of the listing in terms of the NFTX vault ERC20 token
+     * @param expiry The timestamp that the listing will expire
+     */
+
     function _createListing(address seller, uint256 nftId, address vault, uint256 price, uint256 expiry) internal {
         // Create our listing object
         Listing memory listing = Listing(
-            listings.length,        // id
-            _getVaultId(vault),     // vaultId
-            vault,                  // vaultAddress
-            nftId,                  // nftId
-            price,                  // price
-            true,                   // active
-            expiry,                 // expiry
-            seller                  // seller
+            listings.length,                // id
+            INFTXVault(vault).vaultId(),    // vaultId
+            vault,                          // vaultAddress
+            nftId,                          // nftId
+            price,                          // price
+            true,                           // active
+            expiry,                         // expiry
+            seller                          // seller
         );
 
         // Add our listing
@@ -247,7 +335,18 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
         // Add our internal tracking
         listingVaultIds[vault].push(listing.id);
+
+        emit ListingCreated(listing.id, listing.nftId, listing.vaultAddress, listing.price, listing.expiry);
     }
+
+
+    /**
+     * @notice Updates a listing object.
+     *
+     * @param nftId The ERC721 NFT ID
+     * @param vault The NFTX Vault address
+     * @param expiry The timestamp that the listing will expire
+     */
 
     function _updateListing(uint256 nftId, address vault, uint256 expiry) internal {
         // Listing ID validity should already be validated
@@ -259,11 +358,24 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
 
         Listing storage listing = listings[listingId];
 
+        // Set the listing to new expiry time, and if it is in the past then
+        // we also set it to inactive
         listing.expiry = expiry;
         if (expiry < block.timestamp) {
             listing.active = false;
         }
+
+        emit ListingUpdated(listing.id, listing.price, listing.expiry);
     }
+
+
+    /**
+     * @notice Fills a listing object and transfers the relevant tokens and NFTs.
+     *
+     * @param buyer The address of the user buying the NFT
+     * @param nftId The ERC721 NFT ID
+     * @param vault The NFTX Vault address
+     */
 
     function _fillListing(address buyer, uint256 nftId, address vault) internal {
         uint listingId = listingMapping[vault][nftId];
@@ -275,6 +387,7 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         // Get our vault reference
         INFTXVault nftxVault = INFTXVault(vault);
 
+        // Send the seller tokens from the buyer
         nftxVault.transferFrom(buyer, listing.seller, listing.price);
 
         // Send NFT to buyer
@@ -283,22 +396,28 @@ contract NFTXVaultListingUpgradeable is ReentrancyGuardUpgradeable, INFTXVaultLi
         // Deactivate the listing by setting expiry time to 0
         _updateListing(nftId, vault, 0);
 
-        /**
-         *  CAP$ SEZ:
-         * 
-         *  We don't need to look at fees and the marketplace zap will essentially let
-         *  people do the trade up. It will either do a buy on sushi that will fill the
-         *  order or a mint on NFTs that will return the remaining.
-         */
+        emit ListingFilled(listing.id);
     }
+
+
+    /**
+     * @notice Checks that a user owns the NFT specified.
+     *
+     * @param from The address of the user
+     * @param vault The NFTX Vault address
+     * @param nftId The ERC721 NFT ID
+     */
 
     function _senderOwnsNFT(address from, address vault, uint nftId) internal returns (bool) {
         return IERC721(INFTXVault(vault).assetAddress()).ownerOf(nftId) == from;
     }
 
-    function _getVaultId(address vault) internal returns (uint) {
-        return INFTXVault(vault).vaultId();
-    }
+
+    /**
+     * @notice Checks that a listing existst from our mapping.
+     *
+     * @param listingId The ID of the listing being queried
+     */
 
     function _listingExists(uint listingId) internal returns (bool) {
         return listingId >= 0;
