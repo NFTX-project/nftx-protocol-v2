@@ -459,7 +459,7 @@ describe('NFTX Vault Listings', async () => {
       // Update the expiry timestamp but leave the floor price as it was before
       await expect(nftxVaultListing.connect(alice).updateListings(
         [1], [punkVault.address], [validFloorPrice], [futureTimestamp + 10]
-      )).to.be.revertedWith('Sender is not listing owner')
+      )).to.be.revertedWith('Listing below floor price')
     });
 
     it('Should be able to deactivate a listing by setting a past expiry time', async () => {
