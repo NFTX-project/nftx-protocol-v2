@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultListing.sol";
 import "./testing/IERC721.sol";
+import "./testing/IERC1155.sol";
 import "./util/OwnableUpgradeable.sol";
 
 
@@ -26,6 +27,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint vaultId;
         address vaultAddress;
         uint nftId;
+        uint amount;
         uint price;
         bool active;
         uint expiry;
@@ -33,13 +35,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     }
 
     // {ListingCreated} fired when a new listing is created
-    event ListingCreated(uint256 listingId, uint256 nftId, address vault, uint256 price, uint256 expires);
+    event ListingCreated(uint listingId, uint nftId, address vault, uint price, uint expires);
 
     // {ListingUpdated} fired when an existing listing is updated
-    event ListingUpdated(uint256 listingId, uint256 price, uint256 expires);
+    event ListingUpdated(uint listingId, uint price, uint expires);
 
     // {ListingFilled} fired when an existing listing is successfully filled
-    event ListingFilled(uint256 listingId);
+    event ListingFilled(uint listingId);
 
     // Mapping of vaultAddress => nftId => listing.id
     mapping(address => mapping(uint => uint)) public listingMapping;
@@ -84,14 +86,16 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param nftIds The IDs of the NFTs being submitted
      * @param vaults The addresses of the NFTX vaults
      * @param prices Token price item will be listed at
+     * @param amounts Number of 1155 tokens, should be 0 for 721s
      * @param expires The timestamp the listing will expire
      */
 
     function createListings(
-        uint256[] calldata nftIds,
+        uint[] calldata nftIds,
         address[] calldata vaults,
-        uint256[] calldata prices,
-        uint256[] calldata expires
+        uint[] calldata prices,
+        uint[] calldata amounts,
+        uint[] calldata expires
     ) external override {
         uint count = nftIds.length;
         require(count > 0);
@@ -103,16 +107,26 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             // Sanity check our pricing is above minimum
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
-            // Ensure our sender actually owners the NFT they are wanting to list
-            require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i]), 'Sender does not own NFT');
+            require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i], amounts[i]), 'Sender does not own NFT');
 
-            // Ensure our sender has approved the NFT
-            require(
-                IERC721(INFTXVault(vaults[i]).assetAddress()).getApproved(nftIds[i]) == address(this),
-                'Sender has not approved NFT'
-            );
+            // ERC721 validation
+            if (amounts[i] == 0) {
+                // Ensure our sender has approved the NFT
+                require(
+                    IERC721(INFTXVault(vaults[i]).assetAddress()).getApproved(nftIds[i]) == address(this),
+                    'Sender has not approved NFT'
+                );
+            }
+            // ERC1155 validation
+            else {
+                // Ensure our sender has approved the NFT
+                require(
+                    IERC1155(INFTXVault(vaults[i]).assetAddress()).isApprovedForAll(msg.sender, address(this)),
+                    'Sender has not approved NFT'
+                );
+            }
 
-            _createListing(msg.sender, nftIds[i], vaults[i], prices[i], expires[i]);
+            _createListing(msg.sender, nftIds[i], vaults[i], prices[i], amounts[i], expires[i]);
 
             unchecked { ++i; }
         }
@@ -132,10 +146,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      */
 
     function updateListings(
-        uint256[] calldata nftIds,
+        uint[] calldata nftIds,
         address[] calldata vaults,
-        uint256[] calldata prices,
-        uint256[] calldata expires
+        uint[] calldata prices,
+        uint[] calldata expires
     ) external override {
         uint count = nftIds.length;
         require(count > 0, 'No NFTs specified');
@@ -154,7 +168,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
             // Ensure our sender actually owners the NFT they are wanting to update
-            require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i]), 'Sender does not own NFT');
+            require(
+                _senderOwnsNFT(msg.sender, vaults[i], nftIds[i], existingListing.amount),
+                'Sender does not own NFT'
+            );
 
             _updateListing(nftIds[i], vaults[i], prices[i], expires[i]);
 
@@ -171,11 +188,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      *
      * @param nftIds The IDs of the NFTs being filled
      * @param vaults The addresses of the NFTX vaults
+     * @param amounts Number of 1155 tokens, should be 0 for 721s
      */
 
     function fillListings(
-        uint256[] calldata nftIds,
-        address[] calldata vaults
+        uint[] calldata nftIds,
+        address[] calldata vaults,
+        uint[] calldata amounts
     ) external override {
         uint count = nftIds.length;
         require(count > 0);
@@ -196,7 +215,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             // Confirm the listing has not expired
             require(existingListing.expiry > block.timestamp, 'Listing has expired');
 
-            _fillListing(msg.sender, nftIds[i], vaults[i]);
+            // Confirm there is enough amount in the listing
+            require(existingListing.amount >= amounts[i], 'Not enough tokens in the listing');
+
+            _fillListing(msg.sender, nftIds[i], vaults[i], amounts[i]);
 
             unchecked { ++i; }
         }
@@ -295,7 +317,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param _counter Number of results to return
      */
 
-    function _remapListings(uint[] memory _listingIds, uint _counter) internal view returns (uint[] memory) {
+    function _remapListings(
+        uint[] memory _listingIds,
+        uint _counter
+    ) internal view returns (uint[] memory) {
         // Set up our listings array with a length of all possible listings
         uint[] memory listingIds = new uint[](_counter);
 
@@ -316,16 +341,25 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param nftId The ERC721 NFT ID
      * @param vault The NFTX Vault address
      * @param price The price of the listing in terms of the NFTX vault ERC20 token
+     * @param amount Number of 1155 tokens, should be 0 for 721s
      * @param expiry The timestamp that the listing will expire
      */
 
-    function _createListing(address seller, uint256 nftId, address vault, uint256 price, uint256 expiry) internal {
+    function _createListing(
+        address seller,
+        uint nftId,
+        address vault,
+        uint price,
+        uint amount,
+        uint expiry
+    ) internal {
         // Create our listing object
         Listing memory listing = Listing(
             listings.length,                // id
             INFTXVault(vault).vaultId(),    // vaultId
             vault,                          // vaultAddress
             nftId,                          // nftId
+            amount,                         // amount
             price,                          // price
             true,                           // active
             expiry,                         // expiry
@@ -354,7 +388,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param expiry The timestamp that the listing will expire
      */
 
-    function _updateListing(uint256 nftId, address vault, uint256 price, uint256 expiry) internal {
+    function _updateListing(
+        uint nftId,
+        address vault,
+        uint price,
+        uint expiry
+    ) internal {
         // Listing ID validity should already be validated
         uint listingId = listingMapping[vault][nftId];
 
@@ -384,9 +423,15 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param buyer The address of the user buying the NFT
      * @param nftId The ERC721 NFT ID
      * @param vault The NFTX Vault address
+     * @param amount Number of 1155 tokens, should be 0 for 721s
      */
 
-    function _fillListing(address buyer, uint256 nftId, address vault) internal {
+    function _fillListing(
+        address buyer,
+        uint nftId,
+        address vault,
+        uint amount
+    ) internal {
         uint listingId = listingMapping[vault][nftId];
         require(_listingExists(listingId), 'Listing ID does not exist');
 
@@ -396,11 +441,16 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Get our vault reference
         INFTXVault nftxVault = INFTXVault(vault);
 
+        uint purchaseAmount = listing.price;
+        if (amount > 0) {
+            purchaseAmount = purchaseAmount * amount;
+        }
+
         // Send the seller tokens from the buyer
-        nftxVault.transferFrom(buyer, listing.seller, listing.price);
+        nftxVault.transferFrom(buyer, listing.seller, purchaseAmount);
 
         // Send NFT to buyer
-        IERC721(nftxVault.assetAddress()).transferFrom(listing.seller, buyer, nftId);
+        _transfer(listing.seller, buyer, nftxVault.assetAddress(), nftId, amount);
 
         // Deactivate the listing by setting expiry time to 0
         _updateListing(nftId, vault, listing.price, 0);
@@ -414,11 +464,22 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      *
      * @param from The address of the user
      * @param vault The NFTX Vault address
-     * @param nftId The ERC721 NFT ID
+     * @param nftId The NFT ID
+     * @param amount Number of 1155 tokens, should be 0 for 721s
      */
 
-    function _senderOwnsNFT(address from, address vault, uint nftId) internal returns (bool) {
-        return IERC721(INFTXVault(vault).assetAddress()).ownerOf(nftId) == from;
+    function _senderOwnsNFT(
+        address from,
+        address vault,
+        uint nftId,
+        uint amount
+    ) internal returns (bool) {
+        if (amount == 0) {
+            return IERC721(INFTXVault(vault).assetAddress()).ownerOf(nftId) == from;
+        }
+        else {
+            return IERC1155(INFTXVault(vault).assetAddress()).balanceOf(from, nftId) >= amount;
+        }
     }
 
 
@@ -430,6 +491,60 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
     function _listingExists(uint listingId) internal returns (bool) {
         return listingId >= 0;
+    }
+
+
+    /**
+     * @notice Fills a listing object and transfers the relevant tokens and NFTs.
+     *
+     * @param from The address of the user selling the NFT
+     * @param to The address of the user buying the NFT
+     * @param nftId The NFT ID
+     * @param asset The NFTX Vault asset address
+     * @param amount Number of 1155 tokens, should be 0 for 721s
+     */
+    function _transfer(
+        address from,
+        address to,
+        address asset,
+        uint nftId,
+        uint amount
+    ) internal {
+        if (amount == 0) {
+            address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
+            address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+
+            bytes memory data;
+            bool success;
+            bytes memory resultData;
+
+            if (asset == kitties) {
+                data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, nftId);
+            } else if (asset == punks) {
+                // Fix here for frontrun attack. Added in v1.0.2.
+                bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", nftId);
+                (success, resultData) = address(asset).staticcall(punkIndexToAddress);
+                (address nftOwner) = abi.decode(resultData, (address));
+                require(success && nftOwner == from, "Not the NFT owner");
+                data = abi.encodeWithSignature("buyPunk(uint256)", nftId);
+            } else {
+                // We push to the vault to avoid an unneeded transfer.
+                data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, nftId);
+            }
+
+            (success, resultData) = address(asset).call(data);
+            require(success, string(resultData));
+
+            if (asset == punks) {
+                data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", nftId, 0, to);
+
+                (success, resultData) = address(asset).call(data);
+                require(success, string(resultData));
+            }
+        }
+        else {
+            IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
+        }
     }
 
 }
