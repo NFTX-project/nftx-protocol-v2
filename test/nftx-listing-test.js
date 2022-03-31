@@ -8,6 +8,7 @@ let nftxVaultUpgragableFactory, nftxVault;
 let nftxVaultListingFactory, nftxVaultListing;
 let nftxVaultFactoryFactory, nftxVaultFactory;
 let erc721Factory, vault, punkVault, tubbyVault;
+let erc1155Factory, multiTokenVault;
 
 let alice, bob, carol;
 
@@ -28,6 +29,7 @@ describe('NFTX Vault Listings', async () => {
     nftxVaultListingFactory = await ethers.getContractFactory("NFTXVaultListingUpgradeable")
     nftxVaultFactoryFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable")
     erc721Factory = await ethers.getContractFactory("ERC721")
+    erc1155Factory = await ethers.getContractFactory("ERC1155")
   })
 
   beforeEach(async () => {
@@ -37,6 +39,9 @@ describe('NFTX Vault Listings', async () => {
     // Set up an ERC721 token
     cryptopunk = await erc721Factory.deploy('CryptoPunk', 'PUNK')
     tubbycat = await erc721Factory.deploy('Tubby Cats', 'TUBBY')
+
+    // Set up an ERC1155 token
+    multiToken = await erc1155Factory.deploy('https://multi.token')
 
     const StakingProvider = await ethers.getContractFactory("MockStakingProvider");
     provider = await StakingProvider.deploy();
@@ -94,6 +99,13 @@ describe('NFTX Vault Listings', async () => {
     // Build our vault contract object form the address and artifact
     tubbyVault = new ethers.Contract(tubbyVaultAddr, vaultArtifact.abi, ethers.provider);
 
+    // Create our NFTX vault for Tubby cats
+    const multiTokenResponse = await nftx.createVault("MultiToken", "MULTI", multiToken.address, true, true);
+    const multiTokenAddr = await nftx.vault(2);
+
+    // Build our vault contract object form the address and artifact
+    multiTokenVault = new ethers.Contract(multiTokenAddr, vaultArtifact.abi, ethers.provider);
+
     // Create our inventory staking
     inventoryStaking = await upgrades.deployProxy(
       inventoryStakingFactory,
@@ -125,29 +137,39 @@ describe('NFTX Vault Listings', async () => {
     for (let i = 1; i <= 10; ++i) {
       await cryptopunk.publicMint(alice.address, i);
       await tubbycat.publicMint(alice.address, i);
+      await multiToken.publicMint(alice.address, i, 10);
     }
     await cryptopunk.connect(alice).setApprovalForAll(punkVault.address, true)
     await tubbycat.connect(alice).setApprovalForAll(tubbyVault.address, true)
+    await multiToken.connect(alice).setApprovalForAll(multiTokenVault.address, true)
 
     // Give bob tokens 11 - 15 inclusive and approve them all to be handled by our vault
     for (let i = 11; i <= 15; ++i) {
       await cryptopunk.publicMint(bob.address, i);
       await tubbycat.publicMint(bob.address, i);
+      await multiToken.publicMint(bob.address, i, 10);
     }
     await cryptopunk.connect(bob).setApprovalForAll(punkVault.address, true)
     await tubbycat.connect(bob).setApprovalForAll(tubbyVault.address, true)
+    await multiToken.connect(bob).setApprovalForAll(multiTokenVault.address, true)
 
     // Create a whale user that can distribute vault tokens
     for (let i = 16; i <= 25; ++i) {
       await cryptopunk.publicMint(whale.address, i);
       await tubbycat.publicMint(whale.address, i);
+      await multiToken.publicMint(whale.address, i, 10);
     }
 
     await cryptopunk.connect(whale).setApprovalForAll(punkVault.address, true);
     await tubbycat.connect(whale).setApprovalForAll(tubbyVault.address, true);
+    await multiToken.connect(whale).setApprovalForAll(multiTokenVault.address, true);
 
     await punkVault.connect(whale).mint([16, 17, 18, 19, 20, 21, 22, 23, 24, 25], []);
     await tubbyVault.connect(whale).mint([16, 17, 18, 19, 20, 21, 22, 23, 24, 25], []);
+    await multiTokenVault.connect(whale).mint(
+      [16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
+      [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+    );
   })
 
   describe('getListings', async () => {
@@ -368,6 +390,41 @@ describe('NFTX Vault Listings', async () => {
           [0, futureTimestamp, futureTimestamp, futureTimestamp]
         )
       ).to.be.reverted
+    })
+
+    it('Should not allow an ERC721 to be created as an ERC1155 listing', async () => {
+      cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
+
+      // Create 3 listings from alice
+      await expect(nftxVaultListing.connect(alice).createListings(
+        [1], [punkVault.address], [validFloorPrice], [2], [futureTimestamp]
+      )).to.be.revertedWith('XXX')
+    })
+
+    it('Should not allow an ERC1155 to be created as an ERC721 listing', async () => {
+      multiToken.connect(alice).approve(nftxVaultListing.address, 1);
+
+      // Create 3 listings from alice
+      await expect(nftxVaultListing.connect(alice).createListings(
+        [1], [multiTokenVault.address], [validFloorPrice], [0], [futureTimestamp]
+      )).to.be.revertedWith('XXX')
+    })
+
+    it('Should be able to create an ERC1155 listing', async () => {
+      multiToken.connect(alice).approve(nftxVaultListing.address, 1);
+      multiToken.connect(alice).approve(nftxVaultListing.address, 2);
+
+      // Create 3 listings from alice
+      await nftxVaultListing.connect(alice).createListings(
+        [1, 2, 1],
+        [multiTokenVault.address, multiTokenVault.address, multiTokenVault.address],
+        [validFloorPrice, validFloorPrice, validFloorPrice],
+        [2, 1, 3],
+        [futureTimestamp, futureTimestamp, futureTimestamp]
+      )
+
+      listings = await nftxVaultListing.getListings([])
+      expect(listings.length).to.equal(3)
     })
 
   })

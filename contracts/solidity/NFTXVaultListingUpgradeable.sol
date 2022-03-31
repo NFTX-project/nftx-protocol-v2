@@ -108,23 +108,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
             require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i], amounts[i]), 'Sender does not own NFT');
-
-            // ERC721 validation
-            if (amounts[i] == 0) {
-                // Ensure our sender has approved the NFT
-                require(
-                    IERC721(INFTXVault(vaults[i]).assetAddress()).getApproved(nftIds[i]) == address(this),
-                    'Sender has not approved NFT'
-                );
-            }
-            // ERC1155 validation
-            else {
-                // Ensure our sender has approved the NFT
-                require(
-                    IERC1155(INFTXVault(vaults[i]).assetAddress()).isApprovedForAll(msg.sender, address(this)),
-                    'Sender has not approved NFT'
-                );
-            }
+            require(_senderApprovedNFT(msg.sender, vaults[i], nftIds[i]), 'Sender has not approved NFT');
 
             _createListing(msg.sender, nftIds[i], vaults[i], prices[i], amounts[i], expires[i]);
 
@@ -167,14 +151,18 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             // Confirm the updated price is above minimum if changed
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
-            // Ensure our sender actually owners the NFT they are wanting to update
-            require(
-                _senderOwnsNFT(msg.sender, vaults[i], nftIds[i], existingListing.amount),
-                'Sender does not own NFT'
-            );
+            // If the NFT is no longer owned or is no longer approved, then we close the listing
+            // at the expense of the updater.
+            bool owned = _senderOwnsNFT(msg.sender, vaults[i], nftIds[i], existingListing.amount);
+            bool approved = _senderApprovedNFT(msg.sender, vaults[i], nftIds[i]);
+            if (!owned || !approved) {
+                _updateListing(nftIds[i], vaults[i], existingListing.price, 0);
+
+                unchecked { ++i; }
+                continue;
+            }
 
             _updateListing(nftIds[i], vaults[i], prices[i], expires[i]);
-
             unchecked { ++i; }
         }
     }
@@ -438,19 +426,16 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Reference our listing
         Listing storage listing = listings[listingId];
 
-        // Get our vault reference
-        INFTXVault nftxVault = INFTXVault(vault);
-
         uint purchaseAmount = listing.price;
         if (amount > 0) {
             purchaseAmount = purchaseAmount * amount;
         }
 
         // Send the seller tokens from the buyer
-        nftxVault.transferFrom(buyer, listing.seller, purchaseAmount);
+        INFTXVault(nftxVault).transferFrom(buyer, listing.seller, purchaseAmount);
 
         // Send NFT to buyer
-        _transfer(listing.seller, buyer, nftxVault.assetAddress(), nftId, amount);
+        _transfer(listing.seller, buyer, vault, nftId, amount);
 
         // Deactivate the listing by setting expiry time to 0
         _updateListing(nftId, vault, listing.price, 0);
@@ -474,12 +459,32 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint nftId,
         uint amount
     ) internal returns (bool) {
-        if (amount == 0) {
-            return IERC721(INFTXVault(vault).assetAddress()).ownerOf(nftId) == from;
+        INFTXVault nftxVault = INFTXVault(vault);
+
+        if (nftxVault.is1155) {
+            return IERC1155(nftxVault.assetAddress()).balanceOf(from, nftId) >= amount;
         }
-        else {
-            return IERC1155(INFTXVault(vault).assetAddress()).balanceOf(from, nftId) >= amount;
+
+        return IERC721(nftxVault.assetAddress()).ownerOf(nftId) == from;
+    }
+
+
+    /**
+     * @notice Checks that a user has approved the NFT specified.
+     *
+     * @param from The address of the user
+     * @param vault The NFTX Vault address
+     * @param nftId The NFT ID
+     */
+
+    function _senderApprovedNFT(address from, address vault, int nftId) internal returns (bool) {
+        INFTXVault nftxVault = INFTXVault(vault);
+
+        if (nftxVault.is1155) {
+            return IERC1155(nftxVault.assetAddress()).isApprovedForAll(msg.sender, address(this));
         }
+
+        return IERC721(nftxVault.assetAddress()).getApproved(nftIds[i]) == address(this);
     }
 
 
@@ -506,11 +511,17 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function _transfer(
         address from,
         address to,
-        address asset,
+        address vault,
         uint nftId,
         uint amount
     ) internal {
-        if (amount == 0) {
+        INFTXVault nftxVault = INFTXVault(vault);
+        address asset = nftxVault.assetAddress();
+
+        if (nftxVault.is1155) {
+            IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
+        }
+        else {
             address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
             address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
 
@@ -541,9 +552,6 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
                 (success, resultData) = address(asset).call(data);
                 require(success, string(resultData));
             }
-        }
-        else {
-            IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
         }
     }
 
