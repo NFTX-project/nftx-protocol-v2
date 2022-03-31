@@ -35,13 +35,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     }
 
     // {ListingCreated} fired when a new listing is created
-    event ListingCreated(uint listingId, uint nftId, address vault, uint price, uint expires);
+    event ListingCreated(uint listingId, uint nftId, address vault, uint price, uint amount, uint expires);
 
     // {ListingUpdated} fired when an existing listing is updated
     event ListingUpdated(uint listingId, uint price, uint expires);
 
     // {ListingFilled} fired when an existing listing is successfully filled
-    event ListingFilled(uint listingId);
+    event ListingFilled(uint listingId, uint amount);
 
     // Mapping of vaultAddress => nftId => listing.id
     mapping(address => mapping(uint => uint)) public listingMapping;
@@ -101,16 +101,24 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         require(count > 0);
 
         for (uint i; i < count;) {
+            address vault = vaults[i];
+            uint nftId = nftIds[i];
+            uint amount = amounts[i];
+
             // Don't let the user create a listing that expires in the past
             require(expires[i] > block.timestamp, 'Listing already expired');
 
             // Sanity check our pricing is above minimum
             require(prices[i] >= minFloorPrice, 'Listing below floor price');
 
-            require(_senderOwnsNFT(msg.sender, vaults[i], nftIds[i], amounts[i]), 'Sender does not own NFT');
-            require(_senderApprovedNFT(msg.sender, vaults[i], nftIds[i]), 'Sender has not approved NFT');
+            // Confirm that our user owns the NFT and has approved the listing to use
+            require(_senderOwnsNFT(msg.sender, vault, nftId, amount), 'Sender does not own NFT');
+            require(_senderApprovedNFT(msg.sender, vault, nftId), 'Sender has not approved NFT');
 
-            _createListing(msg.sender, nftIds[i], vaults[i], prices[i], amounts[i], expires[i]);
+            // Confirm that we are sending the correct ERC type
+            require(_validateVaultToken(vault, amount), 'Invalid token submitted to vault');
+
+            _createListing(msg.sender, nftId, vault, prices[i], amount, expires[i]);
 
             unchecked { ++i; }
         }
@@ -139,8 +147,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         require(count > 0, 'No NFTs specified');
 
         for (uint i; i < count;) {
+            address vault = vaults[i];
+            uint nftId = nftIds[i];
+
             // Confirm that our listing exists
-            uint listingId = listingMapping[vaults[i]][nftIds[i]];
+            uint listingId = listingMapping[vault][nftId];
             require(_listingExists(listingId), 'Listing ID does not exist');
 
             Listing memory existingListing = listings[listingId];
@@ -153,16 +164,17 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
             // If the NFT is no longer owned or is no longer approved, then we close the listing
             // at the expense of the updater.
-            bool owned = _senderOwnsNFT(msg.sender, vaults[i], nftIds[i], existingListing.amount);
-            bool approved = _senderApprovedNFT(msg.sender, vaults[i], nftIds[i]);
+            bool owned = _senderOwnsNFT(msg.sender, vault, nftId, existingListing.amount);
+            bool approved = _senderApprovedNFT(msg.sender, vault, nftId);
+
             if (!owned || !approved) {
-                _updateListing(nftIds[i], vaults[i], existingListing.price, 0);
+                _updateListing(nftId, vault, existingListing.price, 0);
 
                 unchecked { ++i; }
                 continue;
             }
 
-            _updateListing(nftIds[i], vaults[i], prices[i], expires[i]);
+            _updateListing(nftId, vault, prices[i], expires[i]);
             unchecked { ++i; }
         }
     }
@@ -188,8 +200,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         require(count > 0);
 
         for (uint i; i < count;) {
+            address vault = vaults[i];
+            uint nftId = nftIds[i];
+
             // Confirm that our listing exists
-            uint listingId = listingMapping[vaults[i]][nftIds[i]];
+            uint listingId = listingMapping[vault][nftId];
             require(_listingExists(listingId), 'Listing ID does not exist');
 
             Listing storage existingListing = listings[listingId];
@@ -204,9 +219,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             require(existingListing.expiry > block.timestamp, 'Listing has expired');
 
             // Confirm there is enough amount in the listing
-            require(existingListing.amount >= amounts[i], 'Not enough tokens in the listing');
+            require(existingListing.amount >= amounts[i], 'Insufficient tokens in listing');
 
-            _fillListing(msg.sender, nftIds[i], vaults[i], amounts[i]);
+            _fillListing(msg.sender, nftId, vault, amounts[i]);
 
             unchecked { ++i; }
         }
@@ -363,7 +378,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Add our internal tracking
         listingVaultIds[vault].push(listing.id);
 
-        emit ListingCreated(listing.id, listing.nftId, listing.vaultAddress, listing.price, listing.expiry);
+        emit ListingCreated(
+            listing.id,
+            listing.nftId,
+            listing.vaultAddress,
+            listing.price,
+            listing.amount,
+            listing.expiry
+        );
     }
 
 
@@ -431,16 +453,24 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             purchaseAmount = purchaseAmount * amount;
         }
 
+        INFTXVault nftxVault = INFTXVault(vault);
+
         // Send the seller tokens from the buyer
-        INFTXVault(nftxVault).transferFrom(buyer, listing.seller, purchaseAmount);
+        nftxVault.transferFrom(buyer, listing.seller, purchaseAmount);
 
         // Send NFT to buyer
         _transfer(listing.seller, buyer, vault, nftId, amount);
 
-        // Deactivate the listing by setting expiry time to 0
-        _updateListing(nftId, vault, listing.price, 0);
+        // Reduce the amount available in our listing
+        listing.amount = listing.amount - amount;
 
-        emit ListingFilled(listing.id);
+        // If we no longer have any amount in the listing, we can deactivate the
+        // listing by setting expiry time to 0.
+        if (!nftxVault.is1155() || listing.amount == 0) {
+            _updateListing(nftId, vault, listing.price, 0);
+        }
+
+        emit ListingFilled(listing.id, amount);
     }
 
 
@@ -461,7 +491,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     ) internal returns (bool) {
         INFTXVault nftxVault = INFTXVault(vault);
 
-        if (nftxVault.is1155) {
+        if (nftxVault.is1155()) {
             return IERC1155(nftxVault.assetAddress()).balanceOf(from, nftId) >= amount;
         }
 
@@ -477,14 +507,18 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param nftId The NFT ID
      */
 
-    function _senderApprovedNFT(address from, address vault, int nftId) internal returns (bool) {
+    function _senderApprovedNFT(
+        address from,
+        address vault,
+        uint nftId
+    ) internal returns (bool) {
         INFTXVault nftxVault = INFTXVault(vault);
 
-        if (nftxVault.is1155) {
+        if (nftxVault.is1155()) {
             return IERC1155(nftxVault.assetAddress()).isApprovedForAll(msg.sender, address(this));
         }
 
-        return IERC721(nftxVault.assetAddress()).getApproved(nftIds[i]) == address(this);
+        return IERC721(nftxVault.assetAddress()).getApproved(nftId) == address(this);
     }
 
 
@@ -504,10 +538,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      *
      * @param from The address of the user selling the NFT
      * @param to The address of the user buying the NFT
+     * @param vault The NFTX Vault asset address
      * @param nftId The NFT ID
-     * @param asset The NFTX Vault asset address
      * @param amount Number of 1155 tokens, should be 0 for 721s
      */
+
     function _transfer(
         address from,
         address to,
@@ -518,7 +553,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         INFTXVault nftxVault = INFTXVault(vault);
         address asset = nftxVault.assetAddress();
 
-        if (nftxVault.is1155) {
+        if (nftxVault.is1155()) {
             IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
         }
         else {
@@ -553,6 +588,25 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
                 require(success, string(resultData));
             }
         }
+    }
+
+
+    /**
+     * @notice Validates that the token ERC type matches expected vault token.
+     *
+     * @param vault The NFTX Vault asset address
+     * @param amount Number of 1155 tokens, should be 0 for 721s
+     */
+
+    function _validateVaultToken(
+        address vault,
+        uint amount
+    ) internal returns (bool) {
+        if(INFTXVault(vault).is1155()) {
+            return amount > 0;
+        }
+
+        return amount == 0;
     }
 
 }
