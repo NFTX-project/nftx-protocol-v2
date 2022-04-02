@@ -170,6 +170,24 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
+    function claimNFTs(address claimAddr, uint256[] calldata ids) external {
+        address _dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
+        require(msg.sender == _dao, "Not DAO");
+        bytes memory data = abi.encodeWithSignature("claim(uint256[])", ids);
+        (bool success, bytes memory resultData) = address(claimAddr).call(data);
+        require(success, string(resultData));
+    }
+
+    function adminWithdraw(address nft, uint256[] calldata ids) external {
+        address _dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
+        require(msg.sender == _dao, "Not DAO");
+        address _assetAddress = assetAddress;
+        require(nft != _assetAddress, "Cannot withdraw NFT of vault");
+        for (uint256 i; i < ids.length; ++i) {
+            transferERC721(_assetAddress, _dao, ids[i]);
+        }
+    }
+
     function mint(
         uint256[] calldata tokenIds,
         uint256[] calldata amounts /* ignored for ERC721 vaults */
