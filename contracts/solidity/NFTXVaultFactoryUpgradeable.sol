@@ -47,12 +47,31 @@ contract NFTXVaultFactoryUpgradeable is
     uint64 public override factoryRandomSwapFee;
     uint64 public override factoryTargetSwapFee;
 
+    uint256 public configCounter;
+    uint256 public constant FACTORY_FEE_CONFIG = 0;
+    struct VaultFeeConfig {
+        uint32 mintFee;
+        uint32 randomRedeemFee;
+        uint32 targetRedeemFee;
+        uint32 randomSwapFee;
+        uint32 targetSwapFee;
+        bool active;
+    }
+    mapping(uint256 => VaultFeeConfig) public feeConfig;
+    mapping(uint256 => uint256) public vaultToFeeConfig;
+
+    mapping(uint256 => address) public excludedFromFeesForVault;
+
     function __NFTXVaultFactory_init(address _vaultImpl, address _feeDistributor) public override initializer {
         __Pausable_init();
         // We use a beacon proxy so that every child contract follows the same implementation code.
         __UpgradeableBeacon__init(_vaultImpl);
         setFeeDistributor(_feeDistributor);
-        setFactoryFees(0.1 ether, 0.05 ether, 0.1 ether, 0.05 ether, 0.1 ether);
+        setFactoryFees(0.1 ether, 0.04 ether, 0.06 ether, 0.04 ether, 0.06 ether);
+    }
+
+    function migrateVaultFeeToConfig(uint256 vaultId) public {
+        
     }
 
     function createVault(
@@ -74,6 +93,16 @@ contract NFTXVaultFactoryUpgradeable is
         return _vaultId;
     }
 
+    function createFeeConfig(
+        uint256 mintFee, 
+        uint256 randomRedeemFee, 
+        uint256 targetRedeemFee,
+        uint256 randomSwapFee, 
+        uint256 targetSwapFee
+    ) public onlyOwner virtual {
+        _createConfig(mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
+    }
+
     function setFactoryFees(
         uint256 mintFee, 
         uint256 randomRedeemFee, 
@@ -87,11 +116,15 @@ contract NFTXVaultFactoryUpgradeable is
         require(randomSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
         require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
 
-        factoryMintFee = uint64(mintFee);
-        factoryRandomRedeemFee = uint64(randomRedeemFee);
-        factoryTargetRedeemFee = uint64(targetRedeemFee);
-        factoryRandomSwapFee = uint64(randomSwapFee);
-        factoryTargetSwapFee = uint64(targetSwapFee);
+        // Compress to gwei but preserve ether units due to infrastructure. 
+        feeConfig[FACTORY_FEE_CONFIG] = VaultFeeConfig(
+            uint32(mintFee/1 gwei),
+            uint32(randomRedeemFee/1 gwei),
+            uint32(targetRedeemFee/1 gwei),
+            uint32(randomSwapFee/1 gwei), 
+            uint32(targetSwapFee/1 gwei),
+            true
+        );
 
         emit UpdateFactoryFees(mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
     }
@@ -104,25 +137,28 @@ contract NFTXVaultFactoryUpgradeable is
         uint256 randomSwapFee, 
         uint256 targetSwapFee
     ) public virtual override {
+        // Check exisint config for vault?
         if (msg.sender != owner()) {
             address vaultAddr = vaults[vaultId];
             require(msg.sender == vaultAddr, "Not from vault");
         }
-        require(mintFee <= 0.5 ether, "Cannot > 0.5 ether");
-        require(randomRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
-        require(targetRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
-        require(randomSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
-        require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
+        uint256 configId = _createConfig(mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
+        vaultToFeeConfig[vaultId] = configId;
+        emit SetConfigForVault(vaultId, configId);
+    }
 
-        _vaultFees[vaultId] = VaultFees(
-            true, 
-            uint64(mintFee),
-            uint64(randomRedeemFee),
-            uint64(targetRedeemFee),
-            uint64(randomSwapFee), 
-            uint64(targetSwapFee)
-        );
-        emit UpdateVaultFees(vaultId, mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
+    function setVaultFeeConfig(
+        uint256 vaultId, 
+        uint256 feeConfigId
+    ) public virtual {
+        require(feeConfigId < configCounter, "Config ID doesn't exist");
+        // Check exisint config for vault?
+        if (msg.sender != owner()) {
+            address vaultAddr = vaults[vaultId];
+            require(msg.sender == vaultAddr, "Not from vault");
+        }
+        vaultToFeeConfig[vaultId] = feeConfigId;
+        // emit UpdateVaultFees(vaultId, mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
     }
 
     function disableVaultFees(uint256 vaultId) public virtual override {
@@ -130,7 +166,7 @@ contract NFTXVaultFactoryUpgradeable is
             address vaultAddr = vaults[vaultId];
             require(msg.sender == vaultAddr, "Not vault");
         }
-        delete _vaultFees[vaultId];
+        delete vaultToFeeConfig[vaultId];
         emit DisableVaultFees(vaultId);
     }
 
@@ -156,18 +192,22 @@ contract NFTXVaultFactoryUpgradeable is
     }
 
     function vaultFees(uint256 vaultId) external view virtual override returns (uint256, uint256, uint256, uint256, uint256) {
-        VaultFees memory fees = _vaultFees[vaultId];
-        if (fees.active) {
-            return (
-                uint256(fees.mintFee), 
-                uint256(fees.randomRedeemFee), 
-                uint256(fees.targetRedeemFee), 
-                uint256(fees.randomSwapFee), 
-                uint256(fees.targetSwapFee)
-            );
+        uint256 vaultConfigId = vaultToFeeConfig[vaultId];
+        if (vaultConfigId != FACTORY_FEE_CONFIG) {
+            VaultFeeConfig memory fees = feeConfig[vaultConfigId];
+            if (fees.active) {
+                return (
+                    uint256(fees.mintFee) * 1 gwei, 
+                    uint256(fees.randomRedeemFee) * 1 gwei, 
+                    uint256(fees.targetRedeemFee) * 1 gwei, 
+                    uint256(fees.randomSwapFee) * 1 gwei, 
+                    uint256(fees.targetSwapFee) * 1 gwei
+                );
+            }
         }
-        
-        return (uint256(factoryMintFee), uint256(factoryRandomRedeemFee), uint256(factoryTargetRedeemFee), uint256(factoryRandomSwapFee), uint256(factoryTargetSwapFee));
+
+        VaultFeeConfig memory factoryFees = feeConfig[FACTORY_FEE_CONFIG];
+        return (uint256(factoryFees.mintFee), uint256(factoryFees.randomRedeemFee), uint256(factoryFees.targetRedeemFee), uint256(factoryFees.randomSwapFee), uint256(factoryFees.targetSwapFee));
     }
 
     function isLocked(uint256 lockId) external view override virtual returns (bool) {
@@ -204,5 +244,35 @@ contract NFTXVaultFactoryUpgradeable is
         // Owner for administrative functions.
         NFTXVaultUpgradeable(newBeaconProxy).transferOwnership(owner());
         return newBeaconProxy;
+    }
+
+    function _createConfig(
+        uint256 mintFee, 
+        uint256 randomRedeemFee, 
+        uint256 targetRedeemFee,
+        uint256 randomSwapFee, 
+        uint256 targetSwapFee
+    ) internal virtual returns (uint256) {
+        require(mintFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetRedeemFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(randomSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
+        require(targetSwapFee <= 0.5 ether, "Cannot > 0.5 ether");
+
+        // Incrementing here so configs start at 1.
+        uint256 _counter = configCounter + 1; 
+        configCounter = _counter;
+        feeConfig[configCounter] = VaultFeeConfig(
+            uint32(mintFee/1 gwei),
+            uint32(randomRedeemFee/1 gwei),
+            uint32(targetRedeemFee/1 gwei),
+            uint32(randomSwapFee/1 gwei), 
+            uint32(targetSwapFee/1 gwei),
+            true
+        );
+
+        // EVENT HERE
+
+        return _counter;
     }
 }

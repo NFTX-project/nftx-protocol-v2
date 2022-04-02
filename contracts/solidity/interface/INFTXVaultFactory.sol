@@ -30,6 +30,9 @@ interface INFTXVaultFactory is IBeacon {
   event UpdateVaultFees(uint256 vaultId, uint256 mintFee, uint256 randomRedeemFee, uint256 targetRedeemFee, uint256 randomSwapFee, uint256 targetSwapFee);
   event DisableVaultFees(uint256 vaultId);
   event UpdateFactoryFees(uint256 mintFee, uint256 randomRedeemFee, uint256 targetRedeemFee, uint256 randomSwapFee, uint256 targetSwapFee);
+  event CreateConfig(uint256 configId, uint256 mintFee, uint256 randomRedeemFee, uint256 targetRedeemFee, uint256 randomSwapFee, uint256 targetSwapFee);
+  event EditConfig(uint256 configId, uint256 mintFee, uint256 randomRedeemFee, uint256 targetRedeemFee, uint256 randomSwapFee, uint256 targetSwapFee);
+  event SetConfigForVault(uint256 vaultId, uint256 configId);
 
   // Write functions.
   function __NFTXVaultFactory_init(address _vaultImpl, address _feeDistributor) external;
