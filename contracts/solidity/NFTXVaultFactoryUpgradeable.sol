@@ -47,17 +47,17 @@ contract NFTXVaultFactoryUpgradeable is
     uint64 public override factoryRandomSwapFee;
     uint64 public override factoryTargetSwapFee;
 
-    uint256 public configCounter;
+    uint256 public configsLength;
     uint256 public constant FACTORY_FEE_CONFIG = 0;
     struct VaultFeeConfig {
+        bool active;
         uint32 mintFee;
         uint32 randomRedeemFee;
         uint32 targetRedeemFee;
         uint32 randomSwapFee;
         uint32 targetSwapFee;
-        bool active;
     }
-    mapping(uint256 => VaultFeeConfig) public feeConfig;
+    mapping(uint256 => VaultFeeConfig) private feeConfig;
     mapping(uint256 => uint256) public vaultToFeeConfig;
 
     mapping(uint256 => address) public excludedFromFeesForVault;
@@ -246,7 +246,7 @@ contract NFTXVaultFactoryUpgradeable is
         return newBeaconProxy;
     }
 
-    function _createConfig(
+    function createFeeConfig(
         uint256 mintFee, 
         uint256 randomRedeemFee, 
         uint256 targetRedeemFee,
