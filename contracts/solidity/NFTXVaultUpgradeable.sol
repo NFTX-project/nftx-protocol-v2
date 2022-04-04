@@ -170,21 +170,33 @@ contract NFTXVaultUpgradeable is
         emit ManagerSet(_manager);
     }
 
+// 0x3c1de84de1cc0fc37e7aaef3f2b81a1c731b6ff9,2
+// fatdoinks.eth,2
+// 0x58d97151619418951010ea30623f9f89a3913403,1.5
+// upsidan.eth,0.3
+// 0x74aC45c146bcAA47A227C87a32860eb8aC3e57C4,0.25
+// 0x29526DF890815cd9f839A241995704bD633C7697,0.3
+// 0x62EFBD4F3BEc363e325D3Aa4f89eeF16024aFBaB,0.3
+// 0x7591AdebCe03a82300063462f67A8bE91E91d47f,0.25
+// 0x7F6e731eb599F1b8D6A181717B3D00517a251A93,0.3
+// 0xE717A3cadDDECF73B27EbB382dE3C1Eb866e8975,0.3
+// 0x2d989f93cd9f24a5ee5e900715edf7b987ecb2f2,0.25
+
     function claimNFTs(address claimAddr, uint256[] calldata ids) external {
-        address _dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
-        require(msg.sender == _dao, "Not DAO");
+        address _multisig = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
+        require(msg.sender == _multisig, "Not multisig");
         bytes memory data = abi.encodeWithSignature("claim(uint256[])", ids);
         (bool success, bytes memory resultData) = address(claimAddr).call(data);
         require(success, string(resultData));
     }
 
-    function adminWithdraw(address nft, uint256[] calldata ids) external {
+    function adminWithdraw(address nft, address to, uint256[] calldata ids) external {
         address _dao = 0x40D73Df4F99bae688CE3C23a01022224FE16C7b2;
         require(msg.sender == _dao, "Not DAO");
         address _assetAddress = assetAddress;
         require(nft != _assetAddress, "Cannot withdraw NFT of vault");
         for (uint256 i; i < ids.length; ++i) {
-            transferERC721(_assetAddress, _dao, ids[i]);
+            transferERC721(_assetAddress, to, ids[i]);
         }
     }
 
