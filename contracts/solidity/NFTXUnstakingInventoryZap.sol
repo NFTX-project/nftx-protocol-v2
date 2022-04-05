@@ -100,7 +100,7 @@ contract NFTXUnstakingInventoryZap is Ownable, ReentrancyGuard {
         }
         require(missingVToken < 100, "not enough vTokens");
 
-        if (missingVToken > 0) {
+        if (missingVToken > initialVTokenBal) {
             if (
                 vToken.balanceOf(msg.sender) >= missingVToken &&
                 vToken.allowance(address(this), vTokenAddr) >= missingVToken
@@ -175,6 +175,8 @@ contract NFTXUnstakingInventoryZap is Ownable, ReentrancyGuard {
             ) {
                 return (vTokensIntB, true);
             } else if (lpPair.totalSupply() >= 10000) {
+                return (vTokensIntB, true);
+            } else if (vToken.balanceOf(address(this)) >= 99) {
                 return (vTokensIntB, true);
             } else {
                 return (vTokensIntA, false);
