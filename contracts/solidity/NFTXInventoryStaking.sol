@@ -60,10 +60,10 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     }
 
     function isAddressTimelockExcluded(address addr, uint256 vaultId) public view returns (bool) {
-        try timelockExcludeList.isExcluded(addr, vaultId) returns (bool _isExcluded) {
-            return _isExcluded;
-        } catch (bytes memory) {
+        if (address(timelockExcludeList) == address(0)) {
             return false;
+        } else {
+            return timelockExcludeList.isExcluded(addr, vaultId);
         }
     }
 

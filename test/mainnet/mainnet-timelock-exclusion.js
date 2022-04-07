@@ -10,7 +10,7 @@ const BASE = BigNumber.from(10).pow(18);
 
 let zetsu;
 let dao;
-let invStaking, controller;
+let invStaking, multiController;
 
 const coolVaultId = 31;
 
@@ -46,7 +46,10 @@ describe("Mainnet timelock exclusion tests", function () {
 
     invStaking = await ethers.getContractAt("NFTXInventoryStaking", "0x3E135c3E981fAe3383A5aE0d323860a34CfAB893");
 
-    controller = await ethers.getContractAt("ProxyController", "0x4333d66Ec59762D1626Ec102d7700E64610437Df");
+    multiController = await ethers.getContractAt(
+      "MultiProxyController",
+      "0x35fb4026dcF19f8cA37dcca4D2D68A549548750C"
+    );
 
     xCool = await ethers.getContractAt("ERC20Upgradeable", "0xb31858B8a49DD6099869B034DA14a7a9CAd1382b");
     coolToken = await ethers.getContractAt("ERC20Upgradeable", "0x114f1388fAB456c4bA31B1850b244Eedcd024136");
@@ -62,7 +65,7 @@ describe("Mainnet timelock exclusion tests", function () {
     let inventoryStaking = await InventoryStaking.deploy();
     await inventoryStaking.deployed();
 
-    await controller.connect(dao).upgradeProxyTo(5, inventoryStaking.address);
+    await multiController.connect(dao).upgradeProxyTo(5, inventoryStaking.address);
   });
 
   it("Should set inventoryLockTimeErc20", async () => {
@@ -70,7 +73,7 @@ describe("Mainnet timelock exclusion tests", function () {
     await invStaking.connect(dao).setInventoryLockTimeErc20(2);
   });
 
-  /* it("Should stake coolToken with timelock", async () => {
+  it("Should stake coolToken with timelock", async () => {
     await coolToken.connect(zetsu).approve(invStaking.address, BASE.mul(1000));
 
     let coolTokenBal = await coolToken.balanceOf(zetsu._address);
@@ -80,19 +83,84 @@ describe("Mainnet timelock exclusion tests", function () {
     console.log("xCOOL balance (initial):", formatEther(xCoolBal));
 
     let timelockedUntil = await invStaking.timelockUntil(coolVaultId, zetsu._address);
-    console.log("timelockedUntil (initial):", timelockedUntil);
+    console.log("timelockedUntil (initial):", timelockedUntil.toString());
 
     await invStaking.connect(zetsu).deposit(coolVaultId, coolTokenBal.div(2));
 
     timelockedUntil = await invStaking.timelockUntil(coolVaultId, zetsu._address);
-    console.log("timelockedUntil (initial):", timelockedUntil);
+    console.log("timelockedUntil:", timelockedUntil.toString());
+
+    xCoolBal = await xCool.balanceOf(zetsu._address);
+    console.log("xCOOL balance (initial):", formatEther(xCoolBal));
+
+    await expectRevert(invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal));
+
+    console.log("Sleeping for 3s...\n");
+    await sleep(3000);
+
+    await invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal);
   });
 
-  it("Should deploy timelockexcludelist", async () => {
+  it("Should deploy and connect timelockexcludelist", async () => {
     const TimelockExcludeList = await ethers.getContractFactory("TimelockExcludeList");
     timelockExcludeList = await TimelockExcludeList.deploy();
     await timelockExcludeList.deployed();
 
-    // TODO
-  }); */
+    await timelockExcludeList.transferOwnership(dao._address);
+
+    await invStaking.connect(dao).setTimelockExcludeList(timelockExcludeList.address);
+  });
+
+  it("Should exclude address for all vaults", async () => {
+    await expectRevert(timelockExcludeList.connect(zetsu).setExcludeFromAll(zetsu._address, true));
+
+    await timelockExcludeList.connect(dao).setExcludeFromAll(zetsu._address, true);
+
+    let coolTokenBal = await coolToken.balanceOf(zetsu._address);
+    await invStaking.connect(zetsu).deposit(coolVaultId, coolTokenBal.div(2));
+
+    let xCoolBal = await xCool.balanceOf(zetsu._address);
+
+    await invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal);
+
+    await timelockExcludeList.connect(dao).setExcludeFromAll(zetsu._address, false);
+
+    await invStaking.connect(zetsu).deposit(coolVaultId, coolTokenBal.div(2));
+
+    xCoolBal = await xCool.balanceOf(zetsu._address);
+
+    await expectRevert(invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal));
+
+    console.log("Sleeping for 3s...\n");
+    await sleep(3000);
+
+    await invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal);
+  });
+
+  it("Should exclude address from single vault", async () => {
+    await expectRevert(timelockExcludeList.connect(zetsu).setExcludeFromVault(zetsu._address, coolVaultId, true));
+
+    await timelockExcludeList.connect(dao).setExcludeFromVault(zetsu._address, coolVaultId, true);
+
+    let coolTokenBal = await coolToken.balanceOf(zetsu._address);
+    await invStaking.connect(zetsu).deposit(coolVaultId, coolTokenBal.div(2));
+
+    let xCoolBal = await xCool.balanceOf(zetsu._address);
+
+    await invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal);
+
+    await timelockExcludeList.connect(dao).setExcludeFromVault(zetsu._address, coolVaultId, false);
+    await timelockExcludeList.connect(dao).setExcludeFromVault(zetsu._address, coolVaultId + 1, true);
+
+    await invStaking.connect(zetsu).deposit(coolVaultId, coolTokenBal.div(2));
+
+    xCoolBal = await xCool.balanceOf(zetsu._address);
+
+    await expectRevert(invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal));
+
+    console.log("Sleeping for 3s...\n");
+    await sleep(3000);
+
+    await invStaking.connect(zetsu).withdraw(coolVaultId, xCoolBal);
+  });
 });

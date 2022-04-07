@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../util/OwnableUpgradeable.sol";
+import "../util/Ownable.sol";
 
-contract TimelockExcludeList is OwnableUpgradeable {
+contract TimelockExcludeList is Ownable {
     mapping(address => bool) public excludeFromAll;
     mapping(address => mapping(uint256 => bool)) public excludeFromVault;
 
