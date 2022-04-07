@@ -27,9 +27,10 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Small locktime to prevent flash deposits.
     uint256 internal constant DEFAULT_LOCKTIME = 2;
     bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
-    uint256 public inventoryLockTimeErc20 = 7 days;
-
+    
     INFTXVaultFactory public override nftxVaultFactory;
+
+    uint256 public inventoryLockTimeErc20;
     ITimelockExcludeList public timelockExcludeList;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
@@ -54,8 +55,16 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     }
 
     function setInventoryLockTimeErc20(uint256 time) external onlyOwner {
-        require(time <= 14 days, "Lock too long");
+        // require(time <= 14 days, "Lock too long");
         inventoryLockTimeErc20 = time;
+    }
+
+    function isAddressTimelockExcluded(address addr, uint256 vaultId) public view returns (bool) {
+        try timelockExcludeList.isExcluded(addr, vaultId) returns (bool _isExcluded) {
+            return _isExcluded;
+        } catch (bytes memory) {
+            return false;
+        }
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual override {
@@ -90,7 +99,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function deposit(uint256 vaultId, uint256 _amount) external virtual override {
         onlyOwnerIfPaused(10);
 
-        uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTimeErc20;
+        uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : inventoryLockTimeErc20;
 
         (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, timelockTime);
         // Lock the base token in the xtoken contract

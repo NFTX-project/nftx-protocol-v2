@@ -425,8 +425,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     );
 
     // Stake in LP rewards contract 
-    address lpToken = pairFor(vault, address(WETH));
-    IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
+    IERC20Upgradeable(pairFor(vault, address(WETH))).safeApprove(address(lpStaking), liquidity);
     uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
     lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
     
