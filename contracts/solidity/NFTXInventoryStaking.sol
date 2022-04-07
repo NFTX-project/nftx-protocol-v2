@@ -27,7 +27,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Small locktime to prevent flash deposits.
     uint256 internal constant DEFAULT_LOCKTIME = 2;
     bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
-    
+
     INFTXVaultFactory public override nftxVaultFactory;
 
     uint256 public inventoryLockTimeErc20;
@@ -55,7 +55,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     }
 
     function setInventoryLockTimeErc20(uint256 time) external onlyOwner {
-        // require(time <= 14 days, "Lock too long");
+        require(time <= 14 days, "Lock too long");
         inventoryLockTimeErc20 = time;
     }
 
