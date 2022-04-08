@@ -193,10 +193,18 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
     inventoryLockTime = newInventoryLockTime;
   }
 
+  function isAddressTimelockExcluded(address addr, uint256 vaultId) public view returns (bool) {
+        if (address(timelockExcludeList) == address(0)) {
+            return false;
+        } else {
+            return timelockExcludeList.isExcluded(addr, vaultId);
+        }
+    }
+
   function provideInventory721(uint256 vaultId, uint256[] calldata tokenIds) external {
     uint256 count = tokenIds.length;
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
+    uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
     inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, timelockTime);
     address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(xToken);
@@ -222,7 +230,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
       count += amounts[i];
     }
     INFTXVault vault = INFTXVault(nftxFactory.vault(vaultId));
-    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
+    uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : inventoryLockTime;
     inventoryStaking.timelockMintFor(vaultId, count*BASE, msg.sender, timelockTime);
     address xToken = inventoryStaking.vaultXToken(vaultId);
     uint256 oldBal = IERC20Upgradeable(vault).balanceOf(address(xToken));
@@ -426,7 +434,7 @@ contract NFTXStakingZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ER
 
     // Stake in LP rewards contract 
     IERC20Upgradeable(pairFor(vault, address(WETH))).safeApprove(address(lpStaking), liquidity);
-    uint256 timelockTime = timelockExcludeList.isExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
+    uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
     lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
     
     uint256 remaining = minTokenIn-amountToken;
