@@ -81,7 +81,6 @@ describe("Mainnet timelock exclusion tests", function () {
     await inventoryStakingImpl.deployed();
 
     await multiController.connect(dao).upgradeProxyTo(5, inventoryStakingImpl.address);
-    await invStaking.connect(dao).setStakingZap("0x7a5e0B4069709cF4D02423b8cafDc608f4436791");
   });
 
   it("Should set inventoryLockTimeErc20", async () => {
@@ -190,7 +189,7 @@ describe("Mainnet timelock exclusion tests", function () {
     await stakingZap.transferOwnership(dao._address);
 
     await vaultFactory.connect(dao).setFeeExclusion(stakingZap.address, true);
-    await invStaking.connect(dao).setStakingZap(stakingZap.address);
+    await vaultFactory.connect(dao).setZapContract(stakingZap.address);
 
     await stakingZap.connect(dao).setTimelockExcludeList(timelockExcludeList.address);
   });

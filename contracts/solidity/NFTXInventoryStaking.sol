@@ -30,8 +30,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
     INFTXVaultFactory public override nftxVaultFactory;
 
-    address public stakingZap;
-
     uint256 public inventoryLockTimeErc20;
     ITimelockExcludeList public timelockExcludeList;
 
@@ -50,10 +48,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     modifier onlyAdmin() {
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
-    }
-
-    function setStakingZap(address addr) external onlyOwner {
-        stakingZap = addr;
     }
 
     function setTimelockExcludeList(address addr) external onlyOwner {
@@ -115,7 +109,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
 
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
         onlyOwnerIfPaused(10);
-        require(msg.sender == stakingZap, "Not staking zap");
+        require(msg.sender == nftxVaultFactory.zapContract(), "Not staking zap");
         require(nftxVaultFactory.excludedFromFees(msg.sender), "Not fee excluded"); // important for math that staking zap is excluded from fees
 
         (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
