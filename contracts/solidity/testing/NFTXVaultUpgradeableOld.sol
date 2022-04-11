@@ -2,23 +2,23 @@
 
 pragma solidity ^0.8.0;
 
-import "./interface/INFTXVault.sol";
-import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXEligibility.sol";
-import "./interface/INFTXEligibilityManager.sol";
-import "./interface/INFTXFeeDistributor.sol";
-import "./token/ERC20FlashMintUpgradeable.sol";
-import "./token/ERC721SafeHolderUpgradeable.sol";
-import "./token/ERC1155SafeHolderUpgradeable.sol";
-import "./token/IERC721Upgradeable.sol";
-import "./token/IERC1155Upgradeable.sol";
-import "./util/OwnableUpgradeable.sol";
-import "./util/ReentrancyGuardUpgradeable.sol";
-import "./util/EnumerableSetUpgradeable.sol";
+import "../interface/INFTXVault.sol";
+import "../interface/INFTXVaultFactory.sol";
+import "../interface/INFTXEligibility.sol";
+import "../interface/INFTXEligibilityManager.sol";
+import "../interface/INFTXFeeDistributor.sol";
+import "../token/ERC20FlashMintUpgradeable.sol";
+import "../token/ERC721SafeHolderUpgradeable.sol";
+import "../token/ERC1155SafeHolderUpgradeable.sol";
+import "../token/IERC721Upgradeable.sol";
+import "../token/IERC1155Upgradeable.sol";
+import "../util/OwnableUpgradeable.sol";
+import "../util/ReentrancyGuardUpgradeable.sol";
+import "../util/EnumerableSetUpgradeable.sol";
 
 // Authors: @0xKiwi_ and @alexgausman.
 
-contract NFTXVaultUpgradeable is
+contract NFTXVaultUpgradeableOld is
     OwnableUpgradeable,
     ERC20FlashMintUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -52,123 +52,6 @@ contract NFTXVaultUpgradeable is
 
     bool public override enableRandomSwap;
     bool public override enableTargetSwap;
-
-    struct HistoryStruct {
-        uint64 lastActiveBlock;
-        uint64 swapsAndRedeems;
-        uint64 maxInitialHoldings;
-    }
-    
-    mapping(uint256 => HistoryStruct) historyMap;
-
-    function _surgeFeeStep() internal pure returns (uint256) {
-        return 3;
-    }
-
-    function _getBlockIndex(uint256 _blockNum) internal pure returns (uint256) {
-        return _blockNum / 5;
-    }
-
-    function _storeHistory(uint64 _numSwapsOrRedeems) internal {
-        uint256 _blockIndex = _getBlockIndex(block.number);
-        HistoryStruct storage historyStruct = historyMap[_blockIndex];
-
-        if (historyStruct.lastActiveBlock != block.number) {
-            historyStruct.lastActiveBlock = uint64(block.number);
-        }
-
-        historyStruct.swapsAndRedeems += _numSwapsOrRedeems;
-
-        uint64 _numHoldings = uint64(holdings.length());
-        if (_numHoldings > historyStruct.maxInitialHoldings) {
-            historyStruct.maxInitialHoldings = _numHoldings;
-        }
-    }
-
-    function _recentTurnoverData(uint256 _blocksInFuture) internal view returns (uint256, uint256, uint256) {
-        uint256 _blockIndex = _getBlockIndex(block.number + _blocksInFuture);
-        uint256 _relativeTurnover;
-        uint256 _lastActiveBlock;
-        uint256 _maxRecentHoldings;
-        for(uint256 _i; _i < 5; ++_i) {
-            HistoryStruct storage historyStruct = historyMap[_blockIndex - _i];
-
-            if (_lastActiveBlock == 0 && historyStruct.lastActiveBlock != 0) {
-                _lastActiveBlock = uint256(historyStruct.lastActiveBlock);
-            }
-
-            if (historyStruct.maxInitialHoldings > 0) {
-                _relativeTurnover += uint256(historyStruct.swapsAndRedeems) * 1e18 / uint256(historyStruct.maxInitialHoldings);
-            }
-
-            if (historyStruct.maxInitialHoldings > _maxRecentHoldings) {
-                _maxRecentHoldings = uint256(historyStruct.maxInitialHoldings);
-            }
-        }
-        return (_relativeTurnover, _lastActiveBlock, _maxRecentHoldings);
-    }
-
-    function calcSurgeFee(uint256 _newSwapsOrRedeems, uint256 _blocksInFuture) public view returns (uint256) {
-        (
-            uint256 _recentRelativeTurnover, 
-            uint256 _lastActiveBlock, 
-            uint256 _maxRecentHoldings
-        ) = _recentTurnoverData(_blocksInFuture);
-        
-        uint256 _recentActivityFee;
-        if (_lastActiveBlock != 0) {
-            
-            _recentActivityFee = _calcRecentActivityFee(_recentRelativeTurnover, _lastActiveBlock - _blocksInFuture);
-        }
-        
-        uint256 _newActivityFee = _calcNewActivityFee(_newSwapsOrRedeems, _recentRelativeTurnover, _maxRecentHoldings);
-        
-        return (_recentActivityFee + _newActivityFee) * _newSwapsOrRedeems;
-    }
-
-    function _calcRecentActivityFee(uint256 _recentRelativeTurnover, uint256 _lastActiveBlock) internal view returns (uint256) {
-        if (_recentRelativeTurnover <= 15e16) {
-            return 0;
-        }
-        
-        _recentRelativeTurnover -= 15e16; // any turnover above 15%
-
-        uint256 _blocksSinceActivity = block.number - _lastActiveBlock;
-        if (_blocksSinceActivity > 25) {
-            _blocksSinceActivity = 25;
-        }
-        uint256 _timeCoefficient = 1e18 * (25 - _blocksSinceActivity) / 25;
-
-        return (_recentRelativeTurnover * _timeCoefficient / 1e18) * _surgeFeeStep();
-    }
-
-    function _calcNewActivityFee(
-        uint256 _newSwapsOrRedeems,
-        uint256 _recentRelativeTurnover,
-        uint256 _maxRecentHoldings
-    ) internal view returns (uint256) {
-        if (_newSwapsOrRedeems == 1) {
-            return 0;
-        }
-        _newSwapsOrRedeems -= 1;
-
-        uint256 _currentHoldings = holdings.length();
-        if (_maxRecentHoldings < _currentHoldings) {
-            _maxRecentHoldings = _currentHoldings;
-        }
-
-        uint256 _newRelativeTurnover = 1e18 * _newSwapsOrRedeems / _maxRecentHoldings;
-        uint256 _combinedRelativeTurnover = _newRelativeTurnover + _recentRelativeTurnover;
-
-        if (_combinedRelativeTurnover <= 15e16) {
-            return 0;
-        }
-        uint256 _newCoefficient = 1e18 * _newRelativeTurnover / _combinedRelativeTurnover;
-        
-        _combinedRelativeTurnover -= 15e16; // any turnover above 15%
-
-        return (_combinedRelativeTurnover * _newCoefficient / 1e18) * _surgeFeeStep();
-    }
 
     function __NFTXVault_init(
         string memory _name,
@@ -346,7 +229,7 @@ contract NFTXVaultUpgradeable is
         (, uint256 _randomRedeemFee, uint256 _targetRedeemFee, ,) = vaultFees();
         uint256 totalFee = (_targetRedeemFee * specificIds.length) + (
             _randomRedeemFee * (amount - specificIds.length)
-        ) + calcSurgeFee(amount, 0);
+        );
         _chargeAndDistributeFees(msg.sender, totalFee);
 
         // Withdraw from vault.
@@ -393,7 +276,7 @@ contract NFTXVaultUpgradeable is
         (, , ,uint256 _randomSwapFee, uint256 _targetSwapFee) = vaultFees();
         uint256 totalFee = (_targetSwapFee * specificIds.length) + (
             _randomSwapFee * (count - specificIds.length)
-        ) + calcSurgeFee(count, 0);
+        );
         _chargeAndDistributeFees(msg.sender, totalFee);
         
         // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
@@ -546,7 +429,6 @@ contract NFTXVaultUpgradeable is
         uint256[] memory specificIds,
         address to
     ) internal virtual returns (uint256[] memory) {
-        _storeHistory(uint64(amount));
         bool _is1155 = is1155;
         address _assetAddress = assetAddress;
         uint256[] memory redeemedIds = new uint256[](amount);
