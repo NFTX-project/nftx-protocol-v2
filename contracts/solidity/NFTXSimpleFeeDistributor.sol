@@ -53,6 +53,10 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
     uint256 tokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
 
+    if (tokenBalance == 0) {
+      return;
+    }
+
     if (distributionPaused || allocTotal == 0) {
       IERC20Upgradeable(_vault).safeTransfer(treasury, tokenBalance);
       return;

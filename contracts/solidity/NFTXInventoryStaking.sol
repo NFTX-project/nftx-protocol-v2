@@ -14,6 +14,7 @@ import "./util/Create2.sol";
 import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
+import "./interface/INFTXFeeDistributor.sol";
 
 // Author: 0xKiwi.
 
@@ -97,6 +98,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Leave the bar. Claim back your tokens.
     // Unlocks the staked + gained tokens and burns xTokens.
     function withdraw(uint256 vaultId, uint256 _share) external virtual override {
+        _distributeFees(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
@@ -140,6 +142,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     } 
 
     function _timelockMintFor(uint256 vaultId, address account, uint256 _amount, uint256 timelockLength) internal returns (IERC20Upgradeable, XTokenUpgradeable, uint256) {
+        _distributeFees(vaultId);
         deployXTokenForVault(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable((xTokenAddr(address(baseToken))));
@@ -166,5 +169,9 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         // solhint-disable-next-line no-inline-assembly
         assembly { size := extcodesize(account) }
         return size != 0;
+    }
+
+    function _distributeFees(uint256 vaultId) internal {
+        INFTXFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
 }

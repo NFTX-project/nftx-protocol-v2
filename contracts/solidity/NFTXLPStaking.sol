@@ -11,6 +11,8 @@ import "./util/Address.sol";
 import "./proxy/ClonesUpgradeable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
+import "./interface/INFTXFeeDistributor.sol";
+import "./interface/INFTXVault.sol";
 
 // Author: 0xKiwi.
 
@@ -118,6 +120,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function deposit(uint256 vaultId, uint256 amount) external {
         onlyOwnerIfPaused(10);
+        _distributeFees(vaultId);
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
 
@@ -143,6 +146,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         require(timelockLength < 2592000, "Timelock too long");
         require(nftxVaultFactory.excludedFromFees(msg.sender), "Not zap");
         onlyOwnerIfPaused(10);
+        _distributeFees(vaultId);
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
         StakingPool memory pool = vaultStakingInfo[vaultId];
@@ -153,6 +157,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function exit(uint256 vaultId) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
         _withdraw(pool, balanceOf(vaultId, msg.sender), msg.sender);
     }
@@ -161,6 +166,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
         TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
+        _distributeFees(INFTXVault(_rewardToken).vaultId());
         _claimRewards(pool, msg.sender);
         _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
     }
@@ -205,12 +211,14 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function withdraw(uint256 vaultId, uint256 amount) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
         _withdraw(pool, amount, msg.sender);
     }
 
     function claimRewards(uint256 vaultId) public {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
     }
 
@@ -333,6 +341,10 @@ contract NFTXLPStaking is PausableUpgradeable {
         bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken));
         address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(rewardDistTokenImpl), salt);
         return IRewardDistributionToken(tokenAddr);
+    }
+
+    function _distributeFees(uint256 vaultId) internal {
+        INFTXFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
 
     function isContract(address account) internal view returns (bool) {
