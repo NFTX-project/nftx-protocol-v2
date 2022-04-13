@@ -29,8 +29,10 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
     uint256 internal constant DEFAULT_LOCKTIME = 2;
     address public defaultPair;
     bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
-    int24 internal constant LOWER_TICK = type(int24).min;
-    int24 internal constant UPPER_TICK = type(int24).max;
+        /// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**-128
+    int24 internal constant MIN_TICK = -887272;
+    /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
+    int24 internal constant MAX_TICK = -MIN_TICK;
     uint24 internal constant DEFAULT_FEE = 200;
 
     address public v3Factory;
@@ -67,8 +69,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         token0: poolKey.token0,
         token1: poolKey.token1,
         fee: poolKey.fee,
-        tickLower: LOWER_TICK,
-        tickUpper: UPPER_TICK,
+        tickLower: MIN_TICK,
+        tickUpper: MAX_TICK,
         amount0Desired: 0,
         amount1Desired: 0,
         amount0Min: 0,
@@ -77,8 +79,24 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         deadline: block.timestamp
       });
       (uint256 tokenId, , ,) = nftManager.mint(params);
+      vaultV3PositionId[vaultId] = tokenId;
 
       return tokenId;
+    }
+
+    function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public {
+      uint256 tokenId = vaultV3PositionId[vaultId];
+      INonfungiblePositionManager.IncreaseLiquidityParams memory params = INonfungiblePositionManager.IncreaseLiquidityParams({
+        tokenId: tokenId,
+        amount0Desired: amount0,
+        amount1Desired: amount1,
+        amount0Min: amount0,
+        amount1Min: amount1,
+        deadline: block.timestamp
+      });
+
+      (uint128 liquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
+      // mintTokens
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual {
