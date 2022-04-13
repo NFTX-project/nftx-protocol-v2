@@ -62,6 +62,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
     }
 
     function initializeUniV3Position(uint256 vaultId, uint160 sqrtPrice) public returns (uint256) {
+      require(vaultV3PositionId[vaultId] == 0, "Vault V3 position exists");
       address vaultToken = nftxVaultFactory.vault(vaultId);
       PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(vaultToken, defaultPair, DEFAULT_FEE);
       address pool = nftManager.createAndInitializePoolIfNecessary(poolKey.token0, poolKey.token1, poolKey.fee, sqrtPrice);
@@ -84,8 +85,15 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
       return tokenId;
     }
 
-    function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public {
+    function addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public {
       uint256 tokenId = vaultV3PositionId[vaultId];
+      require(tokenId != 0, "No Vault V3 position");
+
+      // pull tokens 
+      // approve position manager
+
+      (,,,,,,, uint128 oldLiquidity,,,,) = nftManager.positions(tokenId);
+
       INonfungiblePositionManager.IncreaseLiquidityParams memory params = INonfungiblePositionManager.IncreaseLiquidityParams({
         tokenId: tokenId,
         amount0Desired: amount0,
@@ -94,79 +102,52 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon {
         amount1Min: amount1,
         deadline: block.timestamp
       });
+      (uint128 newLiquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
 
-      (uint128 liquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
-      // mintTokens
+      // _mintTokensForLiquidityAdded(vaultId, oldLiquidity, newLiquidity);
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual {
-        address vaultToken = nftxVaultFactory.vault(vaultId);
-        address deployedXToken = xTokenAddr(address(vaultToken));
+      address vaultToken = nftxVaultFactory.vault(vaultId);
+      address deployedXToken = xTokenAddr(address(vaultToken));
 
-        if (isContract(deployedXToken)) {
-            return;
-        }
+      if (isContract(deployedXToken)) {
+          return;
+      }
 
-        address xToken = _deployXToken(vaultToken);
-        emit XTokenCreated(vaultId, vaultToken, xToken);
+      address xToken = _deployXToken(vaultToken);
+      emit XTokenCreated(vaultId, vaultToken, xToken);
     }
 
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual onlyAdmin returns (bool) {
-        address vaultToken = nftxVaultFactory.vault(vaultId);
-        address deployedXToken = xTokenAddr(address(vaultToken));
-        
-        // Don't distribute rewards unless there are people to distribute to.
-        // Also added here if the distribution token is not deployed, just forfeit rewards for now.
-        if (!isContract(deployedXToken) || XTokenUpgradeable(deployedXToken).totalSupply() == 0) {
-            return false;
-        }
-        // We "pull" to the dividend tokens so the fee distributor only needs to approve this contract.
-        IERC20Upgradeable(vaultToken).safeTransferFrom(msg.sender, deployedXToken, amount);
-        emit FeesReceived(vaultId, amount);
-        return true;
+      address vaultToken = nftxVaultFactory.vault(vaultId);
+      address deployedXToken = xTokenAddr(address(vaultToken));
+      
+      // Don't distribute rewards unless there are people to distribute to.
+      // Also added here if the distribution token is not deployed, just forfeit rewards for now.
+      if (!isContract(deployedXToken) || XTokenUpgradeable(deployedXToken).totalSupply() == 0) {
+          return false;
+      }
+      // We "pull" to the dividend tokens so the fee distributor only needs to approve this contract.
+      IERC20Upgradeable(vaultToken).safeTransferFrom(msg.sender, deployedXToken, amount);
+      emit FeesReceived(vaultId, amount);
+      return true;
     }
 
-    // function _mintV3DepositTokens(uint256 vaultId, uint256 amount0, uint256 amount1, address account) internal returns (uint256) {
-    //   address vaultToken = nftxVaultFactory.vault(vaultId);
-    //   uint256 positionId = vaultV3PositionId[vaultId];
-
-
-    //     // Gets the amount of Base Token locked in the contract
-    //     uint256 totalBaseToken = baseToken.balanceOf(address(this));
-    //     // Gets the amount of xTokens in existence
-    //     uint256 totalShares = totalSupply();
-    //     // If no xTokens exist, mint it 1:1 to the amount put in
-    //     if (totalShares == 0 || totalBaseToken == 0) {
-    //         _timelockMint(account, _amount, timelockLength);
-    //         return _amount;
-    //     }
-    //     // Calculate and mint the amount of xTokens the base tokens are worth. The ratio will change overtime, as xTokens are burned/minted and base tokens deposited + gained from fees / withdrawn.
-    //     else {
-    //         uint256 what = (_amount * totalShares) / totalBaseToken;
-    //         _timelockMint(account, what, timelockLength);
-    //         return what;
-    //     }
-    // }
-
-    // function burnXTokens(address who, uint256 _share) external onlyOwner returns (uint256) {
-    //     // Gets the amount of xToken in existence
-    //     uint256 totalShares = totalSupply();
-    //     // Calculates the amount of base tokens the xToken is worth
-    //     uint256 what = (_share * baseToken.balanceOf(address(this))) / totalShares;
-    //     _burn(who, _share);
-    //     baseToken.safeTransfer(who, what);
-    //     return what;
-    // }
-
    function xTokenShareValue(uint256 vaultId) external view virtual returns (uint256) {
-        IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
-        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
-        require(address(xToken) != address(0), "XToken not deployed");
+      uint256 tokenId = vaultV3PositionId[vaultId];
+      require(tokenId != 0, "No Vault V3 position");
 
-        uint256 multiplier = 10 ** 18;
-        return xToken.totalSupply() > 0 
-            ? multiplier * baseToken.balanceOf(address(xToken)) / xToken.totalSupply() 
-            : multiplier;
+      (,,,,,,, uint128 liquidity,,,,) = nftManager.positions(tokenId);
+
+      address vaultToken = nftxVaultFactory.vault(vaultId);
+      XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(vaultToken)));
+      require(address(xToken) != address(0), "XToken not deployed");
+
+      uint256 multiplier = 10 ** 18;
+      return xToken.totalSupply() > 0 
+          ? multiplier * liquidity / xToken.totalSupply() 
+          : multiplier;
     }
 
     function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
