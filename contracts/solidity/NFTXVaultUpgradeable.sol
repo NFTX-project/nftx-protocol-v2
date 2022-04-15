@@ -555,4 +555,9 @@ contract NFTXVaultUpgradeable is
     function onlyOwnerIfPaused(uint256 lockId) internal view {
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
     }
+
+    function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
+        _burn(from, amount);
+        _mint(to, amount);
+    }
 }
