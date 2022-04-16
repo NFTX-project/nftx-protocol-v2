@@ -193,7 +193,7 @@ describe("Mainnet surge fees", function () {
 
     let newTurnover = (numRedeemsC - 1) / holdings;
     let combinedTurnover = newTurnover + recentRelativeTurnover;
-    let newCoefficient = newTurnover / combinedTurnover;
+    let newCoefficient = newTurnover / (combinedTurnover - 0.15);
     let expectedNewFeeRate = (combinedTurnover - 0.15) * newCoefficient * surgeFeeStep;
     expectedNewFeeRate = Math.max(expectedNewFeeRate, 0);
     let expectedNewFee = expectedNewFeeRate * numRedeemsC;
@@ -210,7 +210,53 @@ describe("Mainnet surge fees", function () {
     console.log("--- surge fee rate:", expectedNewFeeRate + expectedRecentFeeRate);
   });
 
-  /* it("Should see surge fee decrease over time", async () => {
+  it("Should charge surge fee for recent activity, again", async () => {
+    let numRedeems = 1;
+    let prevBlockNum = blockNumC;
+    let recentRedeems = numRedeemsA + numRedeemsB + numRedeemsC;
+
+    for (let i = 0; i < 3; i++) {
+      console.log("");
+      let initialPunkBal = await punkToken.balanceOf(zetsu._address);
+
+      let tx = await punkVault.connect(zetsu).redeem(numRedeems, []);
+      let receipt = await tx.wait();
+      let blockNumNew = receipt.blockNumber;
+
+      // retroactively figure out expected fee using blocknumber...
+
+      let blocksPassed = blockNumNew - prevBlockNum;
+
+      let absoluteTurnover = recentRedeems + i * numRedeems;
+      let recentRelativeTurnover = absoluteTurnover / holdings;
+      let timeCoefficient = (25 - blocksPassed) / 25;
+      let expectedRecentFeeRate = (recentRelativeTurnover - 0.15) * timeCoefficient * surgeFeeStep;
+      expectedRecentFeeRate = Math.max(expectedRecentFeeRate, 0);
+      let expectedRecentFee = expectedRecentFeeRate * numRedeems;
+
+      let newTurnover = (numRedeems - 1) / holdings;
+      let combinedTurnover = newTurnover + recentRelativeTurnover;
+      let newCoefficient = newTurnover / (combinedTurnover - 0.15);
+      let expectedNewFeeRate = (combinedTurnover - 0.15) * newCoefficient * surgeFeeStep;
+      expectedNewFeeRate = Math.max(expectedNewFeeRate, 0);
+      let expectedNewFee = expectedNewFeeRate * numRedeems;
+
+      let newPunkBal = await punkToken.balanceOf(zetsu._address);
+
+      let punkSpent = initialPunkBal.sub(newPunkBal);
+      let surgeFeeSpent = punkSpent.sub(BASE.add(randomRedeemFee).mul(numRedeems));
+
+      console.log("num redeems:", numRedeems);
+      console.log("expected surge fee:", (expectedRecentFee + expectedNewFee).toString());
+      console.log("surge fee spent:", formatEther(surgeFeeSpent));
+      console.log("--- total turnover:", (recentRedeems + (i + 1) * numRedeems) / holdings);
+      console.log("--- surge fee rate:", expectedNewFeeRate + expectedRecentFeeRate);
+
+      prevBlockNum = blockNumNew;
+    }
+  });
+
+  it("Should see surge fee decrease over time", async () => {
     console.log("");
     for (let i = 0; i < 20; i++) {
       let blockNum = await provider.getBlockNumber();
@@ -224,5 +270,5 @@ describe("Mainnet surge fees", function () {
       let surgeFeeFuture = await punkVault.calcSurgeFee(1, 10);
       console.log("surge fee (C):", formatEther(surgeFeeFuture));
     }
-  }); */
+  });
 });

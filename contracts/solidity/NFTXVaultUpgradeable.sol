@@ -16,6 +16,8 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/EnumerableSetUpgradeable.sol";
 
+// import "hardhat/console.sol";
+
 // Authors: @0xKiwi_ and @alexgausman.
 
 contract NFTXVaultUpgradeable is
@@ -87,7 +89,7 @@ contract NFTXVaultUpgradeable is
 
     function _recentTurnoverData(uint256 _blocksInFuture) internal view returns (uint256, uint256, uint256) {
         uint256 _blockIndex = _getBlockIndex(block.number + _blocksInFuture);
-        uint256 _relativeTurnover;
+        uint256 _absoluteTurnover;
         uint256 _lastActiveBlock;
         uint256 _maxRecentHoldings;
         for(uint256 _i; _i < 5; ++_i) {
@@ -97,13 +99,17 @@ contract NFTXVaultUpgradeable is
                 _lastActiveBlock = uint256(historyStruct.lastActiveBlock);
             }
 
-            if (historyStruct.maxInitialHoldings > 0) {
-                _relativeTurnover += uint256(historyStruct.swapsAndRedeems) * 1e18 / uint256(historyStruct.maxInitialHoldings);
+            if (historyStruct.swapsAndRedeems > 0) {
+                _absoluteTurnover += uint256(historyStruct.swapsAndRedeems);
             }
 
             if (historyStruct.maxInitialHoldings > _maxRecentHoldings) {
                 _maxRecentHoldings = uint256(historyStruct.maxInitialHoldings);
             }
+        }
+        uint256 _relativeTurnover;
+        if (_maxRecentHoldings > 0) {
+            _relativeTurnover = _absoluteTurnover * 1e18 / _maxRecentHoldings;
         }
         return (_relativeTurnover, _lastActiveBlock, _maxRecentHoldings);
     }
@@ -163,7 +169,10 @@ contract NFTXVaultUpgradeable is
         if (_combinedRelativeTurnover <= 15e16) {
             return 0;
         }
-        uint256 _newCoefficient = 1e18 * _newRelativeTurnover / _combinedRelativeTurnover;
+        uint256 _newCoefficient = 1e18 * _newRelativeTurnover / (_combinedRelativeTurnover - 15e16);
+        if (_newCoefficient > 1e18) {
+            _newCoefficient = 1e18;
+        }
         
         _combinedRelativeTurnover -= 15e16; // any turnover above 15%
 
