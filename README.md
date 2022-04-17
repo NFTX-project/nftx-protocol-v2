@@ -1,5 +1,5 @@
 # NFTX Protocol v2
-The new and updated version of NFTX.
+The new and updated version of NFTX
 
 ## Getting Started
 
