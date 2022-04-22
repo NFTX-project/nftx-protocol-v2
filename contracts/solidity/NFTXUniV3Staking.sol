@@ -117,22 +117,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, ERC721Upgradeable {
     //   return true;
     // }
 
-//    function xTokenShareValue(uint256 vaultId) external view virtual returns (uint256) {
-//       uint256 tokenId = vaultV3PositionId[vaultId];
-//       require(tokenId != 0, "No Vault V3 position");
-
-//       (,,,,,,, uint128 liquidity,,,,) = nftManager.positions(tokenId);
-
-//       address vaultToken = nftxVaultFactory.vault(vaultId);
-//       XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(vaultToken)));
-//       require(address(xToken) != address(0), "XToken not deployed");
-
-//       uint256 multiplier = 10 ** 18;
-//       return xToken.totalSupply() > 0 
-//           ? multiplier * liquidity / xToken.totalSupply() 
-//           : multiplier;
-//     }
-
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
     //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
     //     return xToken.timelockUntil(who);
@@ -141,21 +125,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, ERC721Upgradeable {
     // function balanceOf(uint256 vaultId, address who) external view returns (uint256) {
     //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
     //     return xToken.balanceOf(who);
-    // }
-
-    // Note: this function does not guarantee the token is deployed, we leave that check to elsewhere to save gas.
-    // function xTokenAddr(address baseToken) public view virtual returns (address) {
-    //     bytes32 salt = keccak256(abi.encodePacked(baseToken, defaultPair));
-    //     address tokenAddr = Create2.computeAddress(salt, keccak256(type(Create2BeaconProxy).creationCode));
-    //     return tokenAddr;
-    // }
-    
-    // function vaultXToken(uint256 vaultId) public view virtual returns (address) {
-    //     address baseToken = nftxVaultFactory.vault(vaultId);
-    //     address xToken = xTokenAddr(baseToken);
-    //     require(isContract(xToken), "XToken not deployed");
-    //     return xToken;
-    // } 
+    // }2
 
     function isContract(address account) internal view returns (bool) {
         // This method relies on extcodesize, which returns 0 for contracts in

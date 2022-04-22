@@ -9,12 +9,14 @@ import "../util/SafeERC20Upgradeable.sol";
 import "../util/SafeMathUpgradeable.sol";
 import "../util/SafeMathInt.sol";
 
+import "hardhat/console.sol";
+
 /// @title Reward-Paying Token (renamed from Dividend)
 /// @author Roger Wu (https://github.com/roger-wu)
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute a target token
 ///  to token holders as dividends and allows token holders to withdraw their dividends.
 ///  Reference: the source code of PoWH3D: https://etherscan.io/address/0xB3775fB83F7D12A36E0475aBdD1FCA35c091efBe#code
-contract V3DepositTokenUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
+contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   using SafeMathUpgradeable for uint256;
   using SafeMathInt for int256;
   using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -22,13 +24,21 @@ contract V3DepositTokenUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   IERC20Upgradeable public target1;
   IERC20Upgradeable public target2;
 
+  type VaultID is uint256;
+  type TokenID is uint256;
+
   // With `magnitude`, we can properly distribute dividends even if the amount of received target is small.
   // For more discussion about choosing the value of `magnitude`,
   //  see https://github.com/ethereum/EIPs/issues/1726#issuecomment-472352728
   uint256 constant internal magnitude = 2**128;
 
-  uint256 internal magnifiedRewardPerShare;
+  mapping(TokenID => VaultID) internal _tokenToVaultMapping;
+  mapping(VaultID => uint256) internal totalStaked;
+  mapping(VaultID => uint256) internal magnifiedRewardPerShare1;
+  mapping(VaultID => uint256) internal magnifiedRewardPerShare2;
 
+  // NOTE: The below comments are adjusted for per vault (and per nft) instead of for everyone per token.
+  //  
   // About dividendCorrection:
   // If the token balance of a `_user` is never changed, the dividend of `_user` can be computed with:
   //   `dividendOf(_user) = dividendPerShare * balanceOf(_user)`.
@@ -40,13 +50,22 @@ contract V3DepositTokenUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   //   where `dividendCorrectionOf(_user)` is updated whenever `balanceOf(_user)` is changed:
   //   `dividendCorrectionOf(_user) = dividendPerShare * (old balanceOf(_user)) - (new balanceOf(_user))`.
   // So now `dividendOf(_user)` returns the same value before and after `balanceOf(_user)` is changed.
-  mapping(address => int256) internal magnifiedRewardCorrections;
-  mapping(address => uint256) internal withdrawnRewards;
+  mapping(TokenID => int256) internal magnifiedRewardCorrections;
+  mapping(TokenID => uint256) internal withdrawnRewards1;
+  mapping(TokenID => uint256) internal withdrawnRewards2;
 
-  function __RewardDistributionToken_init(IERC20Upgradeable _target, string memory _name, string memory _symbol) public initializer {
+  function __DividendNFT_init(string memory _name, string memory _symbol) public initializer {
     __Ownable_init();
-    __ERC20_init(_name, _symbol);
-    target = _target;
+    __ERC721_init(_name, _symbol);
+  }
+
+  function _distributeRewards(address target) internal {
+    
+  }
+
+  function _mint(address to, VaultID vaultID, TokenID tokenId) internal override virtual {
+    super._mint(to, tokenId)
+    _tokenToVaultMapping[tokenId] = VaultID(vaultID);
   }
 
   function transfer(address recipient, uint256 amount)
@@ -122,7 +141,7 @@ contract V3DepositTokenUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   ///     and try to distribute it in the next distribution,
   ///     but keeping track of such data on-chain costs much more than
   ///     the saved target, so we don't do that.
-  function distributeRewards(uint amount) external virtual onlyOwner {
+  function _distributeRewards(uint256 vault, uint256 amount1, uint256 amount2) external virtual onlyOwner {
     require(totalSupply() > 0, "RewardDist: 0 supply");
     require(amount > 0, "RewardDist: 0 amount");
 
