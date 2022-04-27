@@ -9,10 +9,11 @@ let nftxVaultListingFactory, nftxVaultListing;
 let nftxVaultFactoryFactory, nftxVaultFactory;
 let erc721Factory, vault, punkVault, tubbyVault;
 let erc1155Factory, multiTokenVault;
+let vaultArtifact;
 
 let alice, bob, carol;
 
-const validFloorPrice = "1200000000000000000";
+const validFloorPrice = "1";
 const futureTimestamp = "999999999999";
 
 const BASE = BigNumber.from(10).pow(18);
@@ -30,18 +31,6 @@ describe('NFTX Vault Listings', async () => {
     nftxVaultFactoryFactory = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable")
     erc721Factory = await ethers.getContractFactory("ERC721")
     erc1155Factory = await ethers.getContractFactory("ERC1155")
-  })
-
-  beforeEach(async () => {
-    // Set up our test users
-    [primary, alice, bob, carol, whale, ...users] = await ethers.getSigners()
-
-    // Set up an ERC721 token
-    cryptopunk = await erc721Factory.deploy('CryptoPunk', 'PUNK')
-    tubbycat = await erc721Factory.deploy('Tubby Cats', 'TUBBY')
-
-    // Set up an ERC1155 token
-    multiToken = await erc1155Factory.deploy('https://multi.token')
 
     const StakingProvider = await ethers.getContractFactory("MockStakingProvider");
     provider = await StakingProvider.deploy();
@@ -58,7 +47,7 @@ describe('NFTX Vault Listings', async () => {
     await staking.deployed();
 
     // Create our fee distributor
-    const feeDistributor = await upgrades.deployProxy(
+    feeDistributor = await upgrades.deployProxy(
       feeDistributorFactory,
       [],
       {
@@ -69,7 +58,7 @@ describe('NFTX Vault Listings', async () => {
 
     // Set up an empty vault contract for referencing in NFTX Vault Factory
     const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable");
-    const vault = await Vault.deploy();
+    vault = await Vault.deploy();
     await vault.deployed();
 
     // Create our NFTX vault factory
@@ -83,7 +72,30 @@ describe('NFTX Vault Listings', async () => {
     );
     await nftx.deployed();
 
-    const vaultArtifact = await artifacts.readArtifact("NFTXVaultUpgradeable");
+    // Create our inventory staking
+    inventoryStaking = await upgrades.deployProxy(
+      inventoryStakingFactory,
+      [nftx.address],
+      {
+        initializer: "__NFTXInventoryStaking_init",
+        unsafeAllow: 'delegatecall'
+      }
+    );
+    await inventoryStaking.deployed();
+
+    vaultArtifact = await artifacts.readArtifact("NFTXVaultUpgradeable");
+  })
+
+  beforeEach(async () => {
+    // Set up our test users
+    [primary, alice, bob, carol, whale, ...users] = await ethers.getSigners()
+
+    // Set up an ERC721 token
+    cryptopunk = await erc721Factory.deploy('CryptoPunk', 'PUNK')
+    tubbycat = await erc721Factory.deploy('Tubby Cats', 'TUBBY')
+
+    // Set up an ERC1155 token
+    multiToken = await erc1155Factory.deploy('https://multi.token')
 
     // Create our NFTX vault for cryptopunks
     const response = await nftx.createVault("CryptoPunk", "PUNK", cryptopunk.address, false, true);
@@ -105,17 +117,6 @@ describe('NFTX Vault Listings', async () => {
 
     // Build our vault contract object form the address and artifact
     multiTokenVault = new ethers.Contract(multiTokenAddr, vaultArtifact.abi, ethers.provider);
-
-    // Create our inventory staking
-    inventoryStaking = await upgrades.deployProxy(
-      inventoryStakingFactory,
-      [nftx.address],
-      {
-        initializer: "__NFTXInventoryStaking_init",
-        unsafeAllow: 'delegatecall'
-      }
-    );
-    await inventoryStaking.deployed();
 
     // Configure our fee distributor
     await feeDistributor.connect(primary).setNFTXVaultFactory(nftx.address);
@@ -172,9 +173,10 @@ describe('NFTX Vault Listings', async () => {
     );
   })
 
+  /*
   describe('getListings', async () => {
 
-    it('Should be able to retrieve all listings', async () => {
+    xit('Should be able to retrieve all listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 2);
       await tubbycat.connect(alice).approve(nftxVaultListing.address, 3);
@@ -203,7 +205,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listings.length).to.equal(4)
     })
 
-    it('Should be able to retrieve specified listings', async () => {
+    xit('Should be able to retrieve specified listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 2);
       await tubbycat.connect(alice).approve(nftxVaultListing.address, 3);
@@ -238,31 +240,38 @@ describe('NFTX Vault Listings', async () => {
       expect(bothListings.length).to.equal(4)
     })
 
-    it('Should be able to request listings from unknown vault', async () => {
+    xit('Should be able to request listings from unknown vault', async () => {
       unknownListings = await nftxVaultListing.getListings([notZeroAddr])
       expect(unknownListings.length).to.equal(0)
     })
 
-    it('Should gracefully handle no listings being present when retrieving all listings', async () => {
+    xit('Should gracefully handle no listings being present when retrieving all listings', async () => {
       noListings = await nftxVaultListing.getListings([])
       expect(noListings.length).to.equal(0)
     })
 
-    it('Should gracefully handle no listings being present when retrieving specified listings', async () => {
+    xit('Should gracefully handle no listings being present when retrieving specified listings', async () => {
       emptyVaultListings = await nftxVaultListing.getListings([punkVault.address, tubbyVault.address])
       expect(emptyVaultListings.length).to.equal(0)
     })
 
   })
+  */
 
   describe('createListings', async () => {
 
     it('Should be able to create listing', async () => {
+      console.log('STARTING')
+      console.log(nftxVaultListing.address)
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
+
+      console.log('????')
 
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
+
+      console.log('CREATED')
 
       listing = await nftxVaultListing.listings(0);
 
@@ -276,7 +285,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.seller, alice.address);
     })
 
-    it('Should prevent prices under 1.2 being listed', async () => {
+    xit('Should prevent prices under 1.2 being listed', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
@@ -288,7 +297,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Listing below floor price')
     })
 
-    it('Should allow min floor price to be modified', async () => {
+    xit('Should allow min floor price to be modified', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
@@ -302,7 +311,7 @@ describe('NFTX Vault Listings', async () => {
       )
     })
 
-    it('Should only allow the owner to set floor price', async () => {
+    xit('Should only allow the owner to set floor price', async () => {
       // The owner can set the price correctly
       await nftxVaultListing.setFloorPrice('1190000000000000000')
 
@@ -312,7 +321,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('Ownable: caller is not the owner')
     });
 
-    it('Should prevent expired listings being created', async () => {
+    xit('Should prevent expired listings being created', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
@@ -320,7 +329,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Listing already expired')
     })
 
-    it('Should prevent unowned NFT listings being created', async () => {
+    xit('Should prevent unowned NFT listings being created', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(bob).createListings(
@@ -328,13 +337,13 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Sender does not own NFT')
     })
 
-    it('Should prevent unapproved listings being created', async () => {
+    xit('Should prevent unapproved listings being created', async () => {
       await expect(nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )).to.be.revertedWith('Sender has not approved NFT')
     })
 
-    it('Should be able to create multiple listings in a single call', async () => {
+    xit('Should be able to create multiple listings in a single call', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 2);
       await tubbycat.connect(alice).approve(nftxVaultListing.address, 3);
@@ -367,7 +376,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.nftId, 3);
     })
 
-    it('Should not be able to create a listing in the wrong vault', async () => {
+    xit('Should not be able to create a listing in the wrong vault', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
@@ -375,7 +384,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Sender has not approved NFT')
     })
 
-    it('Should revert with failed listing(s) amongst successful', async () => {
+    xit('Should revert with failed listing(s) amongst successful', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 2);
       await tubbycat.connect(alice).approve(nftxVaultListing.address, 3);
@@ -392,7 +401,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.reverted
     })
 
-    it('Should not allow an ERC721 to be created as an ERC1155 listing', async () => {
+    xit('Should not allow an ERC721 to be created as an ERC1155 listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       // Create 3 listings from alice
@@ -401,7 +410,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
-    it('Should not allow an ERC1155 to be created as an ERC721 listing', async () => {
+    xit('Should not allow an ERC1155 to be created as an ERC721 listing', async () => {
       multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       // Create 3 listings from alice
@@ -410,7 +419,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
-    it('Should be able to create an ERC1155 listing', async () => {
+    xit('Should be able to create an ERC1155 listing', async () => {
       multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       // Create 3 listings from alice
@@ -430,7 +439,7 @@ describe('NFTX Vault Listings', async () => {
 
   describe('updateListings', async () => {
 
-    it('Should be able to delete a listing by setting an expiry time of 0', async () => {
+    xit('Should be able to delete a listing by setting an expiry time of 0', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -464,7 +473,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.seller, alice.address);
     })
 
-    it('Should be able to update price', async () => {
+    xit('Should be able to update price', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -487,7 +496,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.active, true);
     })
 
-    it('Should not allow user to update price below floor', async () => {
+    xit('Should not allow user to update price below floor', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -504,7 +513,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Listing below floor price')
     })
 
-    it('Should not allow expiry update if price is below minimum', async () => {
+    xit('Should not allow expiry update if price is below minimum', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -524,7 +533,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Listing below floor price')
     });
 
-    it('Should be able to deactivate a listing by setting a past expiry time', async () => {
+    xit('Should be able to deactivate a listing by setting a past expiry time', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -558,7 +567,7 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.seller, alice.address);
     })
 
-    it('Should prevent non-seller from updating listing', async () => {
+    xit('Should prevent non-seller from updating listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -574,7 +583,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Sender is not listing owner')
     })
 
-    it('Should update multiple listings', async () => {
+    xit('Should update multiple listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 2);
       await tubbycat.connect(alice).approve(nftxVaultListing.address, 1);
@@ -666,7 +675,7 @@ describe('NFTX Vault Listings', async () => {
 
   describe('fillListings', async () => {
 
-    it('Should be able to fill a listing', async () => {
+    xit('Should be able to fill a listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -707,7 +716,7 @@ describe('NFTX Vault Listings', async () => {
       expect(await punkVault.balanceOf(alice.address)).to.equal('1200000000000000000')
     })
 
-    it('Should prevent fill if sender has insuffient balance for a listing', async () => {
+    xit('Should prevent fill if sender has insuffient balance for a listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -722,7 +731,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('ERC20: transfer amount exceeds balance')
     })
 
-    it('Should prevent an inactive listing from being filled', async () => {
+    xit('Should prevent an inactive listing from being filled', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -743,7 +752,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('Listing is not active')
     })
 
-    it('Should prevent an expired listing from being filled', async () => {
+    xit('Should prevent an expired listing from being filled', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -764,7 +773,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('Listing is not active')
     })
 
-    it('Should prevent the seller from filling their own listing', async () => {
+    xit('Should prevent the seller from filling their own listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -779,7 +788,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('Buyer cannot be seller')
     })
 
-    it('Should prevent an listing from being filled if seller has externally transferred NFT', async () => {
+    xit('Should prevent an listing from being filled if seller has externally transferred NFT', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
@@ -798,7 +807,7 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('ERC721: transfer caller is not owner nor approved')
     })
 
-    it('Should allow multiple ERC1155 tokens to be purchased from a listing', async () => {
+    xit('Should allow multiple ERC1155 tokens to be purchased from a listing', async () => {
       await multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       await nftxVaultListing.connect(alice).createListings(
