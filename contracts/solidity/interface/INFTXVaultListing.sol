@@ -6,28 +6,24 @@ pragma solidity ^0.8.0;
 interface INFTXVaultListing {
 
     function createListings(
-        uint[] calldata nftIds,
+        uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint[] calldata prices,
-        uint[] calldata amounts,
-        uint[] calldata expiries
+        uint24[] calldata prices,
+        uint24[] calldata amounts,
+        uint32[] calldata expiries
     ) external;
 
     function updateListings(
-        uint[] calldata nftIds,
+        uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint[] calldata prices,
-        uint[] calldata expiries
+        uint24[] calldata prices,
+        uint32[] calldata expiries
     ) external;
 
     function fillListings(
-        uint[] calldata nftIds,
+        uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint[] calldata amounts
+        uint24[] calldata amounts
     ) external;
-
-    function getListings(
-        address[] calldata vaults
-    ) external returns (uint[] memory);
 
 }
