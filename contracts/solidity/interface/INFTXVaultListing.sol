@@ -8,7 +8,7 @@ interface INFTXVaultListing {
     function createListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint24[] calldata prices,
+        uint32[] calldata prices,
         uint24[] calldata amounts,
         uint32[] calldata expiries
     ) external;
@@ -16,7 +16,7 @@ interface INFTXVaultListing {
     function updateListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint24[] calldata prices,
+        uint32[] calldata prices,
         uint32[] calldata expiries
     ) external;
 

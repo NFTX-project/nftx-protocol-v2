@@ -24,9 +24,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
     struct Listing721 {
         address seller;     // 160/256
-        uint24 price;       // 184/256
-        uint32 expiryTime;  // 216/256
-        uint8 settings;     // 224/256
+        uint32 price;       // 192/256  Allows for 6 decimal accuracy
+        uint32 expiryTime;  // 224/256
+        uint8 settings;     // 232/256
     }
 
 
@@ -37,9 +37,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     struct Listing1155 {
         address seller;     // 160/256
         uint24 amount;      // 184/256
-        uint24 price;       // 208/256
-        uint32 expiryTime;  // 240/256
-        uint8 settings;     // 248/256
+        uint32 price;       // 216/256  Allows for 6 decimal accuracy
+        uint32 expiryTime;  // 248/256
+        uint8 settings;     // 256/256
     }
 
     // {ListingCreated} fired when a new listing is created
@@ -52,11 +52,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     event ListingFilled(bytes32 listingId, uint amount);
 
     // Mapping of listingId => Listing
-    mapping(bytes32 => Listing721) listings721;
-    mapping(bytes32 => Listing1155) listings1155;
+    mapping(bytes32 => Listing721) public listings721;
+    mapping(bytes32 => Listing1155) public listings1155;
 
     // Stores the minimum floor price for new listings
-    uint public minFloorPrice;
+    uint32 public minFloorPrice;
 
 
     /**
@@ -66,7 +66,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
     function __NFTXVaultListing_init() public virtual initializer {
         __Ownable_init();
-        minFloorPrice = 1200000000000000000;
+        minFloorPrice = 1200000;
     }
 
 
@@ -76,7 +76,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param _minFloorPrice New minimum listing price
      */
 
-    function setFloorPrice(uint _minFloorPrice) external onlyOwner {
+    function setFloorPrice(uint32 _minFloorPrice) external onlyOwner {
         minFloorPrice = _minFloorPrice;
     }
 
@@ -96,7 +96,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function createListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint24[] calldata prices,
+        uint32[] calldata prices,
         uint24[] calldata amounts,
         uint32[] calldata expires
     ) external override {
@@ -106,7 +106,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         for (uint i; i < count;) {
             address vault = vaults[i];
             uint256 nftId = nftIds[i];
-            uint24 price = prices[i];
+            uint32 price = prices[i];
             uint24 amount = amounts[i];
             uint32 expiryTime = expires[i];
 
@@ -148,7 +148,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address seller,
         uint256 nftId,
         address vault,
-        uint24 price,
+        uint32 price,
         uint32 expiry
     ) internal {
         // Get our 721 listing ID
@@ -179,7 +179,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function updateListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
-        uint24[] calldata prices,
+        uint32[] calldata prices,
         uint32[] calldata expires
     ) external override {
         uint count = nftIds.length;
@@ -188,7 +188,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         for (uint i; i < count;) {
             address vault = vaults[i];
             uint256 nftId = nftIds[i];
-            uint24 price = prices[i];
+            uint32 price = prices[i];
             uint32 expiry = expires[i];
 
             if(INFTXVault(vault).is1155()) {
@@ -214,7 +214,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function _updateListing721(
         uint256 nftId,
         address vault,
-        uint24 price,
+        uint32 price,
         uint32 expiry
     ) internal {
         // Confirm that our listing exists
@@ -549,7 +549,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function getListingId721(
         address vault,
         uint256 nftId
-    ) public returns (bytes32) {
+    ) public view returns (bytes32) {
         return keccak256(abi.encode(vault, nftId));
     }
 
@@ -567,8 +567,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address vault,
         uint256 nftId,
         address seller,
-        uint24 price
-    ) public returns (bytes32) {
+        uint32 price
+    ) public view returns (bytes32) {
         return keccak256(abi.encode(vault, nftId, seller, price));
     }
 
