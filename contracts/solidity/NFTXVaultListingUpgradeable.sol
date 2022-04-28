@@ -43,13 +43,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     }
 
     // {ListingCreated} fired when a new listing is created
-    event ListingCreated(bytes32 listingId);
+    event ListingCreated(address vault, uint256 nftId);
 
     // {ListingUpdated} fired when an existing listing is updated
-    event ListingUpdated(bytes32 listingId);
+    event ListingUpdated(address vault, uint256 nftId);
 
     // {ListingFilled} fired when an existing listing is successfully filled
-    event ListingFilled(bytes32 listingId, uint amount);
+    event ListingFilled(address vault, uint256 nftId, uint amount);
 
     // Mapping of listingId => Listing
     mapping(bytes32 => Listing721) public listings721;
@@ -160,7 +160,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Add our listing
         listings721[listingId] = listing;
 
-        emit ListingCreated(listingId);
+        emit ListingCreated(vault, nftId);
     }
 
 
@@ -223,7 +223,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         Listing721 memory existingListing = listings721[listingId];
 
-        require(existingListing.expiryTime < block.timestamp, 'Listing is not active');
+        require(existingListing.expiryTime > block.timestamp, 'Listing is not active');
         require(existingListing.seller == msg.sender, 'Sender is not listing owner');
 
         // Confirm the updated price is above minimum if changed
@@ -251,7 +251,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Set the listing to new expiry time
         listing.expiryTime = expiry;
 
-        emit ListingUpdated(listingId);
+        emit ListingUpdated(vault, nftId);
     }
 
 
@@ -325,14 +325,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Send the seller tokens from the buyer
         nftxVault.transferFrom(buyer, existingListing.seller, existingListing.price);
 
-        // Send NFT to buyer
-        _transfer(existingListing.seller, buyer, vault, nftId, 0);
-
         // If we no longer have any amount in the listing, we can deactivate the
         // listing by setting expiry time to 0.
         _updateListing721(nftId, vault, existingListing.price, 0);
 
-        emit ListingFilled(listingId, 1);
+        // Send NFT to buyer
+        _transfer(existingListing.seller, buyer, vault, nftId, 0);
+
+        emit ListingFilled(vault, nftId, 1);
     }
 
 

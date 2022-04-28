@@ -13,8 +13,12 @@ let vaultArtifact;
 
 let alice, bob, carol;
 
+const belowValidFloorPrice = "1100000";
 const validFloorPrice = "1200000";
+const aboveValidFloorPrice = "1300000"
+
 const futureTimestamp = "2000000000";  // Wed May 18 2033 03:33:20 GMT+0000
+const anotherFutureTimestamp = "2000000010";  // Wed May 18 2033 03:33:30 GMT+0000
 
 const BASE = BigNumber.from(10).pow(18);
 const zeroAddr = "0x0000000000000000000000000000000000000000";
@@ -171,7 +175,16 @@ describe('NFTX Vault Listings', async () => {
     );
   })
 
+  beforeEach(async () => {
+    // Reset our NFTX Vault Listing contract variables back to expected default
+    await nftxVaultListing.setFloorPrice(validFloorPrice)
+  });
+
   describe('createListings', async () => {
+
+    /**
+     * GENERIC AND 721 LISTING CREATION TESTS
+     */
 
     it('Should be able to create listing', async () => {
       // Approve our NFT on the NFTX Vault Listing contract
@@ -195,6 +208,10 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.price, validFloorPrice)
       expect(listing.expiryTime, futureTimestamp)
       expect(listing.settings, 0)
+    })
+
+    it('Should emit event for created listings', async () => {
+      // TODO
     })
 
     it('Should prevent prices under 1.2 being listed', async () => {
@@ -251,7 +268,7 @@ describe('NFTX Vault Listings', async () => {
 
     it('Should prevent unapproved listings being created', async () => {
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [9], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )).to.be.revertedWith('Sender has not approved NFT')
     })
 
@@ -269,23 +286,26 @@ describe('NFTX Vault Listings', async () => {
         [futureTimestamp, futureTimestamp, futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
-      expect(listing.id, 0);
-      expect(listing.vaultId, punkVault.id);
-      expect(listing.vaultAddress, punkVault.address);
-      expect(listing.nftId, 1);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId)
+      expect(listing.seller, alice.address)
+      expect(listing.price, validFloorPrice)
+      expect(listing.expiryTime, futureTimestamp)
+      expect(listing.settings, 0)
 
-      listing = await nftxVaultListing.listings(1);
-      expect(listing.id, 1);
-      expect(listing.vaultId, punkVault.id);
-      expect(listing.vaultAddress, punkVault.address);
-      expect(listing.nftId, 2);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 2)
+      listing = await nftxVaultListing.listings721(listingId);
+      expect(listing.seller, alice.address)
+      expect(listing.price, validFloorPrice)
+      expect(listing.expiryTime, futureTimestamp)
+      expect(listing.settings, 0)
 
-      listing = await nftxVaultListing.listings(2);
-      expect(listing.id, 2);
-      expect(listing.vaultId, tubbyVault.id);
-      expect(listing.vaultAddress, tubbyVault.address);
-      expect(listing.nftId, 3);
+      listingId = await nftxVaultListing.getListingId721(tubbyVault.address, 3)
+      listing = await nftxVaultListing.listings721(listingId);
+      expect(listing.seller, alice.address)
+      expect(listing.price, validFloorPrice)
+      expect(listing.expiryTime, futureTimestamp)
+      expect(listing.settings, 0)
     })
 
     it('Should not be able to create a listing in the wrong vault', async () => {
@@ -313,6 +333,11 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.reverted
     })
 
+
+    /**
+     * CROSS LISTING STANDARD CREATION TESTS
+     */
+
     it('Should not allow an ERC721 to be created as an ERC1155 listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
@@ -322,7 +347,7 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
-    it('Should not allow an ERC1155 to be created as an ERC721 listing', async () => {
+    xit('Should not allow an ERC1155 to be created as an ERC721 listing', async () => {
       multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       // Create 3 listings from alice
@@ -331,7 +356,12 @@ describe('NFTX Vault Listings', async () => {
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
-    it('Should be able to create an ERC1155 listing', async () => {
+
+    /**
+     * ERC1155 SPECIFIC TESTS
+     */
+
+    xit('Should be able to create an ERC1155 listing', async () => {
       multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       // Create 3 listings from alice
@@ -357,7 +387,8 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -373,7 +404,7 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -391,20 +422,21 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.price, validFloorPrice);
 
       // Set the listing to be expired
       await nftxVaultListing.connect(alice).updateListings(
-        [1], [punkVault.address], [validFloorPrice + 1e18], [futureTimestamp]
+        [1], [punkVault.address], [aboveValidFloorPrice], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
-      expect(listing.price, validFloorPrice + 1e18);
+      expect(listing.price, aboveValidFloorPrice);
       expect(listing.active, true);
     })
 
@@ -414,14 +446,15 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.price, validFloorPrice);
 
       // Set the listing to be expired
       await expect(nftxVaultListing.connect(alice).updateListings(
-        [1], [punkVault.address], ['100000000000000000'], [futureTimestamp]
+        [1], [punkVault.address], [belowValidFloorPrice], [futureTimestamp]
       )).to.be.revertedWith('Listing below floor price')
     })
 
@@ -431,18 +464,25 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.price, validFloorPrice);
-      expect(listing.expiry, futureTimestamp + 10);
+      expect(listing.expiry, futureTimestamp);
 
-      await nftxVaultListing.setFloorPrice('2400000000000000000')
+      await nftxVaultListing.setFloorPrice(aboveValidFloorPrice)
 
       // Update the expiry timestamp but leave the floor price as it was before
       await expect(nftxVaultListing.connect(alice).updateListings(
-        [1], [punkVault.address], [validFloorPrice], [futureTimestamp + 10]
+        [1], [punkVault.address], [validFloorPrice], [anotherFutureTimestamp]
       )).to.be.revertedWith('Listing below floor price')
+
+      listing = await nftxVaultListing.listings721(listingId);
+
+      expect(listing.id, 0);
+      expect(listing.price, validFloorPrice);
+      expect(listing.expiry, futureTimestamp);
     });
 
     it('Should be able to deactivate a listing by setting a past expiry time', async () => {
@@ -451,7 +491,8 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -467,7 +508,7 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [1]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -485,7 +526,8 @@ describe('NFTX Vault Listings', async () => {
         [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.seller, alice.address);
@@ -508,7 +550,8 @@ describe('NFTX Vault Listings', async () => {
         [futureTimestamp, futureTimestamp, futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -519,7 +562,8 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.expiry, futureTimestamp);
       expect(listing.seller, alice.address);
 
-      listing = await nftxVaultListing.listings(1);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 2)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 1);
       expect(listing.vaultId, punkVault.id);
@@ -530,7 +574,8 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.expiry, futureTimestamp);
       expect(listing.seller, alice.address);
 
-      listing = await nftxVaultListing.listings(2);
+      listingId = await nftxVaultListing.getListingId721(tubbyVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 2);
       expect(listing.vaultId, punkVault.id);
@@ -546,10 +591,11 @@ describe('NFTX Vault Listings', async () => {
         [1, 2, 1],
         [punkVault.address, punkVault.address, tubbyVault.address],
         [validFloorPrice, validFloorPrice, validFloorPrice],
-        [1, futureTimestamp + 10, 0]
+        [1, anotherFutureTimestamp, 0]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -560,7 +606,8 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.expiry, 1);
       expect(listing.seller, alice.address);
 
-      listing = await nftxVaultListing.listings(1);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 2)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 1);
       expect(listing.vaultId, punkVault.id);
@@ -568,10 +615,11 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.nftId, 2);
       expect(listing.price, validFloorPrice);
       expect(listing.active, true);
-      expect(listing.expiry, futureTimestamp + 10);
+      expect(listing.expiry, anotherFutureTimestamp);
       expect(listing.seller, alice.address);
 
-      listing = await nftxVaultListing.listings(2);
+      listingId = await nftxVaultListing.getListingId721(tubbyVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 2);
       expect(listing.vaultId, punkVault.id);
@@ -600,7 +648,8 @@ describe('NFTX Vault Listings', async () => {
       await punkVault.connect(bob).approve(nftxVaultListing.address, '5000000000000000000')
       await nftxVaultListing.connect(bob).fillListings([1], [punkVault.address], [0])
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
+      listing = await nftxVaultListing.listings721(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, punkVault.id);
@@ -719,14 +768,15 @@ describe('NFTX Vault Listings', async () => {
       ).to.be.revertedWith('ERC721: transfer caller is not owner nor approved')
     })
 
-    it('Should allow multiple ERC1155 tokens to be purchased from a listing', async () => {
+    xit('Should allow multiple ERC1155 tokens to be purchased from a listing', async () => {
       await multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       await nftxVaultListing.connect(alice).createListings(
         [1], [multiTokenVault.address], [validFloorPrice], [3], [futureTimestamp]
       )
 
-      listing = await nftxVaultListing.listings(0);
+      listingId = await nftxVaultListing.getListingId1155(multiTokenVault.address, 1)
+      listing = await nftxVaultListing.listings1155(listingId);
 
       expect(listing.id, 0);
       expect(listing.vaultId, multiTokenVault.id);
