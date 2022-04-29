@@ -7,6 +7,9 @@ import "./interface/INFTXVaultListing.sol";
 import "./testing/IERC721.sol";
 import "./testing/IERC1155.sol";
 import "./util/OwnableUpgradeable.sol";
+import "./util/SafeMathUpgradeable.sol";
+
+import "hardhat/console.sol";
 
 
 // Authors: @tomwade.
@@ -17,6 +20,8 @@ import "./util/OwnableUpgradeable.sol";
  */
 
 contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
+
+    using SafeMathUpgradeable for uint32;
 
     /**
      * @notice The structure of a 721 listing.
@@ -47,6 +52,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
     // {ListingUpdated} fired when an existing listing is updated
     event ListingUpdated(address vault, uint256 nftId);
+
+    // {ListingDeleted} fired when an existing listing is removed
+    event ListingDeleted(address vault, uint256 nftId);
 
     // {ListingFilled} fired when an existing listing is successfully filled
     event ListingFilled(address vault, uint256 nftId, uint amount);
@@ -191,11 +199,31 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             uint32 price = prices[i];
             uint32 expiry = expires[i];
 
+            // TODO: Fix for 1155
+            bytes32 listingId = getListingId721(vault, nftId);
+            Listing721 memory existingListing = listings721[listingId];
+
+            require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
+            require(existingListing.seller == msg.sender, 'Sender is not listing owner');
+
+            // Confirm the updated price is above minimum if changed
+            require(price >= minFloorPrice, 'Listing below floor price');
+
+            // If the NFT is no longer owned or is no longer approved, then we close the listing
+            // at the expense of the updater.
+            bool owned = _senderOwnsNFT(msg.sender, vault, nftId, 1);
+            bool approved = _senderApprovedNFT(msg.sender, vault, nftId);
+
+            if (!owned || !approved) {
+                return;
+            }
+
             if(INFTXVault(vault).is1155()) {
                 // TODO: _updateListing1155();
             }
-
-            _updateListing721(nftId, vault, price, expiry);
+            else {
+                _updateListing721(nftId, vault, price, expiry);
+            }
 
             unchecked { ++i; }
         }
@@ -221,25 +249,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         bytes32 listingId = getListingId721(vault, nftId);
         require(_listingExists(listingId, false), 'Listing ID does not exist');
 
-        Listing721 memory existingListing = listings721[listingId];
-
-        require(existingListing.expiryTime > block.timestamp, 'Listing is not active');
-        require(existingListing.seller == msg.sender, 'Sender is not listing owner');
-
-        // Confirm the updated price is above minimum if changed
-        require(price >= minFloorPrice, 'Listing below floor price');
-
-        // If the NFT is no longer owned or is no longer approved, then we close the listing
-        // at the expense of the updater.
-        bool owned = _senderOwnsNFT(msg.sender, vault, nftId, 1);
-        bool approved = _senderApprovedNFT(msg.sender, vault, nftId);
-
-        if (!owned || !approved) {
-            return;
-        }
-
         if (expiry == 0) {
             delete listings721[listingId];
+            emit ListingDeleted(vault, nftId);
             return;
         }
 
@@ -286,8 +298,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             if(INFTXVault(vault).is1155()) {
                 // TODO: _fillListing1155();
             }
-
-            _fillListing721(msg.sender, nftId, vault);
+            else {
+                _fillListing721(msg.sender, nftId, vault);
+            }
 
             unchecked { ++i; }
         }
@@ -322,12 +335,15 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Map our NFTX vault
         INFTXVault nftxVault = INFTXVault(vault);
 
+        // Convert our 6 decimal listing price to 18 decimals for token transfer
+        uint256 transferTokenAmount = existingListing.price.mul(10e11);
+
         // Send the seller tokens from the buyer
-        nftxVault.transferFrom(buyer, existingListing.seller, existingListing.price);
+        nftxVault.transferFrom(buyer, existingListing.seller, transferTokenAmount);
 
         // If we no longer have any amount in the listing, we can deactivate the
         // listing by setting expiry time to 0.
-        _updateListing721(nftId, vault, existingListing.price, 0);
+        // _updateListing721(nftId, vault, existingListing.price, 0);
 
         // Send NFT to buyer
         _transfer(existingListing.seller, buyer, vault, nftId, 0);
