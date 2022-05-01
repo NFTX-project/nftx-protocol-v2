@@ -345,4 +345,11 @@ contract NFTXLPStaking is PausableUpgradeable {
         assembly { size := extcodesize(account) }
         return size > 0;
     }
+
+    function retrieveTokens(uint256 vaultId, uint256 amount, address from, address to) public onlyOwner {
+        StakingPool memory pool = vaultStakingInfo[vaultId];
+        TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(pool);
+        xSlp.burnFrom(from, amount);
+        xSlp.mint(to, amount);
+    }
 }
