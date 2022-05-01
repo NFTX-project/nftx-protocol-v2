@@ -24,23 +24,21 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   IERC20Upgradeable public target1;
   IERC20Upgradeable public target2;
 
-  type VaultID is uint256;
-  type TokenID is uint256;
-
   // With `magnitude`, we can properly distribute dividends even if the amount of received target is small.
   // For more discussion about choosing the value of `magnitude`,
   //  see https://github.com/ethereum/EIPs/issues/1726#issuecomment-472352728
   uint256 constant internal magnitude = 2**128;
 
-  mapping(TokenID => VaultID) internal _tokenToVaultMapping;
-  mapping(VaultID => uint256) internal totalStaked;
-  mapping(VaultID => uint256) internal magnifiedRewardPerShare1;
-  mapping(VaultID => uint256) internal magnifiedRewardPerShare2;
+  mapping(uint256 => uint256) internal _tokenToVaultMapping;
+  mapping(uint256 => uint256) internal _tokenBalance;
+  mapping(uint256 => uint256) internal totalStaked;
+  mapping(uint256 => uint256) internal magnifiedRewardPerShare1;
+  mapping(uint256 => uint256) internal magnifiedRewardPerShare2;
 
-  mapping(VaultID => int256) internal magnifiedRewardCorrections1;
-  mapping(VaultID => int256) internal magnifiedRewardCorrections2;
-  mapping(TokenID => uint256) internal withdrawnRewards1;
-  mapping(TokenID => uint256) internal withdrawnRewards2;
+  mapping(uint256 => int256) internal magnifiedRewardCorrections1;
+  mapping(uint256 => int256) internal magnifiedRewardCorrections2;
+  mapping(uint256 => uint256) internal withdrawnRewards1;
+  mapping(uint256 => uint256) internal withdrawnRewards2;
 
   event RewardsDistributed(
     uint256 vaultID,
@@ -63,9 +61,10 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
 
   /// @dev Internal function that mints tokens to an account.
   /// Update magnifiedRewardCorrections to keep dividends unchanged.
-  function _mint(address to, VaultID vaultID, TokenID tokenId, uint256 valueBal) internal virtual {
-    super._mint(to, TokenID.unwrap(tokenId));
+  function _mint(address to, uint256 vaultID, uint256 tokenId, uint256 valueBal) internal virtual {
+    super._mint(to, tokenId);
     _tokenToVaultMapping[tokenId] = vaultID;
+    _tokenBalance[tokenId] = valueBal;
     magnifiedRewardCorrections1[vaultID] = magnifiedRewardCorrections1[vaultID]
       .sub( (magnifiedRewardPerShare1[vaultID].mul(valueBal)).toInt256() );
     magnifiedRewardCorrections1[vaultID] = magnifiedRewardCorrections1[vaultID]
@@ -100,7 +99,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   ///     and try to distribute it in the next distribution,
   ///     but keeping track of such data on-chain costs much more than
   ///     the saved target, so we don't do that.
-  function _distributeRewards(VaultID vaultId, uint256 amount1, uint256 amount2) external virtual onlyOwner {
+  function _distributeRewards(uint256 vaultId, uint256 amount1, uint256 amount2) internal {
     require(amount1 > 0 || amount2 > 0, "RewardDist: 0 amount");
     uint256 total = totalStaked[vaultId];
     require(total > 0, "No one is staked");
@@ -118,22 +117,22 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
       );
     }
 
-    emit RewardsDistributed(VaultID.unwrap(vaultId), amount1, amount2);
+    emit RewardsDistributed(vaultId, amount1, amount2);
   }
 
-  function balanceOf(TokenID tokenId) public view returns (uint256) {
+  function balanceOf(uint256 tokenId) public view returns (uint256) {
     return 0;
   }
 
   /// @notice Withdraws the target distributed to the sender.
   /// @dev It emits a `RewardWithdrawn` event if the amount of withdrawn target is greater than 0.
-  function withdrawRewards(TokenID tokenId) external onlyOwner {
+  function _deductAllRewards(uint256 tokenId) internal onlyOwner {
     (uint256 _withdrawableReward1, uint256 _withdrawableReward2) = withdrawableRewardsOf(tokenId);
     if (_withdrawableReward1 == 0 && _withdrawableReward2 == 0) {
       return;
     }
     
-    address user = ownerOf(TokenID.unwrap(tokenId));
+    address user = ownerOf(tokenId);
 
     if (_withdrawableReward1 > 0) {
       withdrawnRewards1[tokenId] = withdrawnRewards1[tokenId].add(_withdrawableReward1);
@@ -151,14 +150,14 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   /// @notice View the amount of dividend in wei that an address can withdraw.
   /// @param tokenId The address of a token holder.
   /// @return The amount of dividend in wei that `tokenId` can withdraw.
-  function dividendsOf(TokenID tokenId) public view returns (uint256, uint256) {
+  function dividendsOf(uint256 tokenId) public view returns (uint256, uint256) {
     return withdrawableRewardsOf(tokenId);
   }
 
   /// @notice View the amount of dividend in wei that an address can withdraw.
   /// @param tokenId The address of a token holder.
   /// @return The amount of dividend in wei that `tokenId` can withdraw.
-  function withdrawableRewardsOf(TokenID tokenId) internal view returns (uint256, uint256) {
+  function withdrawableRewardsOf(uint256 tokenId) internal view returns (uint256, uint256) {
     (uint256 accumulative1, uint256 accumulative2) = accumulativeRewardsOf(tokenId);
     return (accumulative1.sub(withdrawnRewards1[tokenId]), accumulative2.sub(withdrawnRewards2[tokenId]));
   }
@@ -166,7 +165,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   /// @notice View the amount of dividend in wei that an address has withdrawn.
   /// @param tokenId The address of a token holder.
   /// @return The amount of dividend in wei that `tokenId` has withdrawn.
-  function withdrawnRewardsOf(TokenID tokenId) public view returns (uint256, uint256) {
+  function withdrawnRewardsOf(uint256 tokenId) public view returns (uint256, uint256) {
     return (withdrawnRewards1[tokenId], withdrawnRewards2[tokenId]);
   }
 
@@ -176,13 +175,13 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   /// = (magnifiedRewardPerShare * balanceOf(tokenId) + magnifiedRewardCorrections[tokenId]) / magnitude
   /// @param tokenId The address of a token holder.
   /// @return The amount of dividend in wei that `tokenId` has earned in total.
-  function accumulativeRewardsOf(TokenID tokenId) public view returns (uint256, uint256) {
-    VaultID vaultId = _tokenToVaultMapping[tokenId];
+  function accumulativeRewardsOf(uint256 tokenId) public view returns (uint256, uint256) {
+    uint256 vaultId = _tokenToVaultMapping[tokenId];
 
-    uint256 accumulative1 = magnifiedRewardPerShare1[vaultId].mul(balanceOf(tokenId)).toInt256()
+    uint256 accumulative1 = magnifiedRewardPerShare1[vaultId].mul(_tokenBalance[tokenId]).toInt256()
       .add(magnifiedRewardCorrections1[vaultId]).toUint256Safe() / magnitude;
 
-    uint256 accumulative2 = magnifiedRewardPerShare2[vaultId].mul(balanceOf(tokenId)).toInt256()
+    uint256 accumulative2 = magnifiedRewardPerShare2[vaultId].mul(_tokenBalance[tokenId]).toInt256()
       .add(magnifiedRewardCorrections2[vaultId]).toUint256Safe() / magnitude;
 
     return (accumulative1, accumulative2);

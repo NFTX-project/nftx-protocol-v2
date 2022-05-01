@@ -10,7 +10,7 @@ import "./token/IERC20Metadata.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
-import "./token/ERC721Upgradeable.sol";
+import "./token/DividendNFTUpgradeable.sol";
 import "./univ3/INonfungiblePositionManager.sol";
 import "./univ3/PoolAddress.sol";
 
@@ -19,7 +19,7 @@ import "./univ3/PoolAddress.sol";
 // Pausing codes for inventory staking are:
 // 10: Deposit
 
-contract NFTXInventoryStaking is PausableUpgradeable, ERC721Upgradeable {
+contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Small locktime to prevent flash deposits.
@@ -44,6 +44,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, ERC721Upgradeable {
 
     function __NFTXInventoryStaking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
         __Ownable_init();
+        __DividendNFT_init("NFTX", "NFTXLP");
         nftxVaultFactory = INFTXVaultFactory(_nftxVaultFactory);
         v3Factory = _v3Factory;
         nftManager = INonfungiblePositionManager(_nftManager);
