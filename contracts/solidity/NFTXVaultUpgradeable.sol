@@ -53,6 +53,8 @@ contract NFTXVaultUpgradeable is
     bool public override enableRandomSwap;
     bool public override enableTargetSwap;
 
+    event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
+
     function __NFTXVault_init(
         string memory _name,
         string memory _symbol,
@@ -559,5 +561,14 @@ contract NFTXVaultUpgradeable is
     function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
         _burn(from, amount);
         _mint(to, amount);
+    }
+
+    function shutdown(address recipient) public onlyOwner {
+        uint256 numItems = totalSupply() / base;
+        require(numItems < 4, "too many items");
+        uint256[] memory specificIds = new uint256[](0);
+        withdrawNFTsTo(numItems, specificIds, recipient);
+        emit VaultShutdown(assetAddress, numItems, recipient);
+        assetAddress = address(0);
     }
 }
