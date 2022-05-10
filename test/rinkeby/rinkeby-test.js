@@ -11,10 +11,11 @@ const BASE = BigNumber.from(10).pow(18);
 let myAddress;
 let nft, factory, lpStaking, stakingZap, marketplaceZap, sushiRouter;
 let vaultId, vault;
+let randomRedeemFee, targetRedeemFee;
 
 // const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-describe("Rinkeby unstaking test ERC721", function () {
+describe("Rinkeby vault tests", function () {
   before("Setup", async () => {
     let signers = await ethers.getSigners();
     let signer = signers[0];
@@ -94,29 +95,74 @@ describe("Rinkeby unstaking test ERC721", function () {
     slp = await ethers.getContractAt("IUniswapV2Pair", slpAddr);
   });
 
-  async function fetchBuyCost(slothAmount) {
-    let token0Addr = await slp.token0();
-    let isSlothFirstToken = vault.address == token0Addr;
-    let slothReserves, wethReserves;
+  it("Should fetch prices of SLOTH tokens", async () => {
+    let cost1 = await fetchBuyCost(parseEther('0.0000001'));
+    console.log('cost of 0.0000001 SLOTH = ' + formatEther(cost1) + ' WETH')
+    let cost2 = await fetchBuyCost(parseEther('1.0'));
+    console.log('cost of 1.0 SLOTH = ' + formatEther(cost2) + ' WETH');
+    
+  })
 
-    if (isSlothFirstToken) {
-      [slothReserves, wethReserves] = await slp.getReserves();
-    } else {
-      [wethReserves, slothReserves] = await slp.getReserves();
-    }
-    console.log("slothReserves:", formatEther(slothReserves));
-    console.log("wethReserves:", formatEther(wethReserves));
-    let cost = await sushiRouter.quote(slothAmount, slothReserves, wethReserves);
-    return cost;
+  async function fetchBuyCost(slothAmount) {
+    let wethAddr = await sushiRouter.WETH();
+    let path = [wethAddr, vault.address];
+    let amountsIn = await sushiRouter.getAmountsIn(slothAmount, path);
+    let costInWeth = amountsIn[0];
+    return costInWeth;
   }
 
-  it("Should retrieve cost of SLOTH buys", async () => {
-    console.log("\nCalculating cost of SLOTH buys (in WETH)");
+  it("Should fetch SLOTH vault redeem fees", async () => {
+    randomRedeemFee = await vault.randomRedeemFee();
+    targetRedeemFee = await vault.targetRedeemFee();
+    
+    console.log('randomRedeemFee', formatEther(randomRedeemFee));
+    console.log('targetRedeemFee', formatEther(targetRedeemFee));
+  })
 
-    let smallBuyCost = await fetchBuyCost(parseEther("0.0000001"));
-    console.log("smallBuyCost:", formatEther(smallBuyCost.toString()));
+  it("Should random redeem a Sloth NFT manually (without marketplace zap)", async () => {
+    // Caclulate cost to redeem in SLOTH
+    slothTokenCost = BASE.add(randomRedeemFee);
+    console.log('Cost to random redeem a Sloth NFT:', formatEther(slothTokenCost) + ' SLOTH');
+    // Caclulate cost to redeem in WETH
+    let wethCost = await fetchBuyCost(slothTokenCost);
+    console.log('Cost to buy ' + formatEther(slothTokenCost) + ' SLOTH:', formatEther(wethCost) + ' WETH');
 
-    let fullTokenPrice = await fetchBuyCost(parseEther("1"));
-    console.log("fullTokenPrice:", formatEther(fullTokenPrice.toString()));
-  });
+    // Buy necessary amount of SLOTH from sushiswap (using ETH)
+    let wethAddr = await sushiRouter.WETH();
+    let path = [wethAddr, vault.address];
+    let timestamp = 1652224275;
+    let slothTokenBalanceInitial = await vault.balanceOf(myAddress);
+    // Add 0.1 ETH to cost to ensure transaction goes through
+    await sushiRouter.swapETHForExactTokens(slothTokenCost, path, myAddress, timestamp, {value: wethCost.add(parseEther("0.1"))});
+    let newSlothTokenBalance = await vault.balanceOf(myAddress);
+    console.log('initial SLOTH balance:', formatEther(slothTokenBalanceInitial));
+    console.log('new SLOTH balance:', formatEther(newSlothTokenBalance));
+
+    // Use SLOTH tokens to redeem Sloth NFT
+    let slothNFTBalanceInitial = await nft.balanceOf(myAddress);
+    await vault.redeem(1, []);
+    let newSlothNFTBalance = await nft.balanceOf(myAddress);
+    console.log('initial Sloth NFT balance:', slothNFTBalanceInitial.toString());
+    console.log('new Sloth NFT balance:', newSlothNFTBalance.toString());
+  })
+
+  it("Should random redeem a Sloth NFT with marketplace zap", async () => {
+    // Caclulate cost to redeem in SLOTH
+    slothTokenCost = BASE.add(randomRedeemFee);
+    console.log('Cost to random redeem a Sloth NFT:', formatEther(slothTokenCost) + ' SLOTH');
+    // Caclulate cost to redeem in WETH
+    let wethCost = await fetchBuyCost(slothTokenCost);
+    console.log('Cost to buy ' + formatEther(slothTokenCost) + ' SLOTH:', formatEther(wethCost) + ' WETH');
+
+    // Approve SLOTH token (same as vault) to get pulled by MarketplaceZap
+    await vault.approve(marketplaceZap.address, parseEther('1000'));
+    let wethAddr = await sushiRouter.WETH();
+    let path = [wethAddr, vault.address];
+    let slothNFTBalanceInitial = await nft.balanceOf(myAddress);
+    // Redeem with ETH using MarketplaceZap (which buys SLOTH behind the scenes) — also add 0.1 ETH to cost to ensure tx goes through
+    await marketplaceZap.buyAndRedeem(vaultId, 1, [], path, myAddress, {value: wethCost.add(parseEther("0.1"))});
+    let newSlothNFTBalance = await nft.balanceOf(myAddress);
+    console.log('initial Sloth NFT balance:', slothNFTBalanceInitial.toString());
+    console.log('new Sloth NFT balance:', newSlothNFTBalance.toString());
+  })
 });
