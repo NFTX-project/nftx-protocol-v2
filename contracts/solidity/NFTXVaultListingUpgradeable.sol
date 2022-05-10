@@ -22,6 +22,7 @@ import "hardhat/console.sol";
 contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
     using SafeMathUpgradeable for uint32;
+    using SafeMathUpgradeable for uint256;
 
     /**
      * @notice The structure of a 721 listing.
@@ -166,6 +167,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Create our listing object
         Listing721 memory listing = Listing721(seller, price, expiry, 0);
 
+        console.log('CREATED SELLER');
+        console.log(listing.seller);
+
         // Add our listing
         listings721[listingId] = listing;
 
@@ -192,8 +196,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint32 expiry,
         uint24 amount
     ) internal {
-        // Get our 721 listing ID
-        bytes32 listingId = getListingId1155(vault, nftId);  // TODO: Will fail
+        // Get our 1155 listing ID
+        bytes32 listingId = getListingId1155(vault, nftId, seller, price);
 
         // Create our listing object
         Listing1155 memory listing = Listing1155(seller, amount, price, expiry, 0);
@@ -220,6 +224,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function updateListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
+        bytes32[] calldata listingIds,
         uint32[] calldata prices,
         uint32[] calldata expires,
         uint24[] calldata amounts
@@ -230,6 +235,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         for (uint i; i < count;) {
             address vault = vaults[i];
             uint256 nftId = nftIds[i];
+            bytes32 listingId = listingIds[i];
             uint32 price = prices[i];
             uint32 expiry = expires[i];
             uint24 amount = amounts[i];
@@ -237,17 +243,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             require(price >= minFloorPrice, 'Listing below floor price');
 
             INFTXVault nftxVault = INFTXVault(vault);
-            bytes32 listingId;
 
             if(nftxVault.is1155()) {
-                listingId = getListingId1155(vault, nftId, msg.sender, price);
                 Listing1155 memory existingListing = listings1155[listingId];
 
                 require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
                 require(existingListing.seller == msg.sender, 'Sender is not listing owner');
             }
             else {
-                listingId = getListingId721(vault, nftId);
                 Listing721 memory existingListing = listings721[listingId];
 
                 require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
@@ -264,10 +267,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             }
 
             if(nftxVault.is1155()) {
-                _updateListing1155(nftId, vault, price, expiry, amount);
+                _updateListing1155(nftId, vault, listingId, price, expiry, amount);
             }
             else {
-                _updateListing721(nftId, vault, price, expiry);
+                _updateListing721(nftId, vault, listingId, price, expiry);
             }
 
             unchecked { ++i; }
@@ -287,11 +290,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function _updateListing721(
         uint256 nftId,
         address vault,
+        bytes32 listingId,
         uint32 price,
         uint32 expiry
     ) internal {
         // Confirm that our listing exists
-        bytes32 listingId = getListingId721(vault, nftId);
         require(_listingExists(listingId, false), 'Listing ID does not exist');
 
         if (expiry == 0) {
@@ -329,12 +332,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function _updateListing1155(
         uint256 nftId,
         address vault,
+        bytes32 listingId,
         uint32 price,
         uint32 expiry,
         uint24 amount
     ) internal {
         // Confirm that our listing exists
-        bytes32 listingId = getListingId1155(vault, nftId);  // TODO: Will fail
         require(_listingExists(listingId, true), 'Listing ID does not exist');
 
         if (expiry == 0) {
@@ -364,7 +367,6 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     }
 
 
-
     /**
      * @notice Allows existing listings to have their expiry time and price updated. If
      * the listing has it's expiry timestamp into the past, then it will set the listing
@@ -379,6 +381,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function fillListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
+        bytes32[] calldata listingIds,
         uint24[] calldata amounts
     ) external override {
         uint count = nftIds.length;
@@ -387,13 +390,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         for (uint i; i < count;) {
             address vault = vaults[i];
             uint256 nftId = nftIds[i];
+            bytes32 listingId = listingIds[i];
             uint24 amount = amounts[i];
 
             if(INFTXVault(vault).is1155()) {
-                _fillListing1155(msg.sender, nftId, vault, amount);
+                _fillListing1155(msg.sender, nftId, vault, listingId, amount);
             }
             else {
-                _fillListing721(msg.sender, nftId, vault);
+                _fillListing721(msg.sender, nftId, vault, listingId);
             }
 
             unchecked { ++i; }
@@ -412,16 +416,16 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function _fillListing721(
         address buyer,
         uint256 nftId,
-        address vault
+        address vault,
+        bytes32 listingId
     ) internal {
         // Confirm that our listing exists
-        bytes32 listingId = getListingId721(vault, nftId);
         require(_listingExists(listingId, false), 'Listing ID does not exist');
 
         Listing721 storage existingListing = listings721[listingId];
 
         // Confirm the buyer is not the seller
-        require(existingListing.seller != msg.sender, 'Buyer cannot be seller');
+        require(existingListing.seller != buyer, 'Buyer cannot be seller');
 
         // Confirm the listing has not expired
         require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
@@ -432,15 +436,26 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Convert our 6 decimal listing price to 18 decimals for token transfer
         uint256 transferTokenAmount = existingListing.price.mul(10e11);
 
+        console.log('AAA');
+
+        console.log('PRE-TRANSFER SELLER');
+        console.log(existingListing.seller);
+
         // Send the seller tokens from the buyer
         nftxVault.transferFrom(buyer, existingListing.seller, transferTokenAmount);
 
-        // If we no longer have any amount in the listing, we can deactivate the
-        // listing by setting expiry time to 0.
-        _updateListing721(nftId, vault, existingListing.price, 0);
+        console.log('BBB');
 
         // Send NFT to buyer
         _transfer(existingListing.seller, buyer, vault, nftId, 0);
+
+        console.log('CCC');
+
+        // If we no longer have any amount in the listing, we can deactivate the
+        // listing by setting expiry time to 0.
+        _updateListing721(nftId, vault, listingId, existingListing.price, 0);
+
+        console.log('DDD');
 
         emit ListingFilled(vault, nftId, 1);
     }
@@ -459,10 +474,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address buyer,
         uint256 nftId,
         address vault,
-        uint32 amount
+        bytes32 listingId,
+        uint24 amount
     ) internal {
         // Confirm that our listing exists
-        bytes32 listingId = getListingId1155(vault, nftId);  // TODO: Will fail
         require(_listingExists(listingId, true), 'Listing ID does not exist');
 
         Listing1155 storage existingListing = listings1155[listingId];
@@ -471,10 +486,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         require(amount > 0, 'Cannot buy 0 tokens');
 
         // Confirm the buyer is not the seller
-        require(existingListing.seller != msg.sender, 'Buyer cannot be seller');
+        require(existingListing.seller != buyer, 'Buyer cannot be seller');
 
         // Confirm the listing has not expired
-        require(existingListing.expiry > block.timestamp, 'Listing has expired');
+        require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
 
         // Confirm there is enough amount in the listing
         require(existingListing.amount >= amount, 'Insufficient tokens in listing');
@@ -496,9 +511,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         // If we no longer have any amount in the listing, we can deactivate the
         // listing by setting expiry time to 0.
-        _updateListing1155(nftId, vault, existingListing.price, existingListing.amount);
+        if (existingListing.amount == 0) {
+            _updateListing1155(nftId, vault, listingId, existingListing.price, 0, 0);
+        }
 
-        emit ListingFilled(listingId, amount);
+        emit ListingFilled(vault, nftId, amount);
     }
 
 
@@ -586,7 +603,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address asset = nftxVault.assetAddress();
 
         if (nftxVault.is1155()) {
-            IERC1155(asset).transferFrom(from, to, nftId, amount, '');
+            IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
             return;
         }
 
@@ -611,8 +628,18 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, nftId);
         }
 
+        console.log('DATA VARIABLE RENDERED');
+
         (success, resultData) = address(asset).call(data);
+
+        console.log('POST ADDRESS CALL');
+        console.log(from);
+        console.log(to);
+        console.log(nftId);
+        console.log(asset);
         require(success, string(resultData));
+
+        console.log('REQUIRE');
 
         if (asset == punks) {
             data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", nftId, 0, to);
