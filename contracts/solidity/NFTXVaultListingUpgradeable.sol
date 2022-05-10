@@ -234,22 +234,25 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             uint32 expiry = expires[i];
             uint24 amount = amounts[i];
 
-            INFTXVault nftxVault = INFTXVault(vault);
+            require(price >= minFloorPrice, 'Listing below floor price');
 
+            INFTXVault nftxVault = INFTXVault(vault);
             bytes32 listingId;
+
             if(nftxVault.is1155()) {
                 listingId = getListingId1155(vault, nftId, msg.sender, price);
                 Listing1155 memory existingListing = listings1155[listingId];
+
+                require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
+                require(existingListing.seller == msg.sender, 'Sender is not listing owner');
             }
             else {
                 listingId = getListingId721(vault, nftId);
                 Listing721 memory existingListing = listings721[listingId];
-            }
 
-            // Run our generic listing requirements
-            require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
-            require(existingListing.seller == msg.sender, 'Sender is not listing owner');
-            require(price >= minFloorPrice, 'Listing below floor price');
+                require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
+                require(existingListing.seller == msg.sender, 'Sender is not listing owner');
+            }
 
             // If the NFT is no longer owned or is no longer approved, then we close the listing
             // at the expense of the updater.
@@ -460,15 +463,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     ) internal {
         // Confirm that our listing exists
         bytes32 listingId = getListingId1155(vault, nftId);  // TODO: Will fail
-        require(_listingExists(listingId), 'Listing ID does not exist');
+        require(_listingExists(listingId, true), 'Listing ID does not exist');
 
         Listing1155 storage existingListing = listings1155[listingId];
 
         // Request must be for more than 0 tokens
         require(amount > 0, 'Cannot buy 0 tokens');
-
-        // Confirm the listing is active
-        require(existingListing.active, 'Listing is not active');
 
         // Confirm the buyer is not the seller
         require(existingListing.seller != msg.sender, 'Buyer cannot be seller');
