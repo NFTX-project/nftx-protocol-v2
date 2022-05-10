@@ -9,8 +9,6 @@ import "./testing/IERC1155.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/SafeMathUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 
 // Authors: @tomwade.
 
@@ -648,8 +646,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Creates a listing ID for a 721 listing.
      *
-     * @param vault TODO
-     * @param nftId TODO
+     * @param vault The NFTX Vault asset address
+     * @param nftId The ID of the NFT token
      */
 
     function getListingId721(
@@ -663,10 +661,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Creates a listing ID for a 1155 listing.
      *
-     * @param vault TODO
-     * @param nftId TODO
-     * @param seller TODO
-     * @param price TODO
+     * @param vault The NFTX Vault asset address
+     * @param nftId The ID of the NFT token
+     * @param seller The address of the seller that created the listing
+     * @param price Token price item is listed at
      */
 
     function getListingId1155(
