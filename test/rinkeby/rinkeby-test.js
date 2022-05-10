@@ -81,7 +81,7 @@ describe("Rinkeby vault tests", function () {
   });
 
   it("Should liquidity stake", async () => {
-    console.log("\nUsing 6 CryptoSloths and 6 ETH to liquidity stake");
+    console.log("\nUsing 6 CryptoSloths and 3 ETH to liquidity stake");
     for (let tokenId = 2; tokenId < 8; tokenId++) {
       await nft.approve(stakingZap.address, tokenId);
     }
@@ -149,7 +149,7 @@ describe("Rinkeby vault tests", function () {
   it("Should random redeem a Sloth NFT with marketplace zap", async () => {
     // Caclulate cost to redeem in SLOTH
     slothTokenCost = BASE.add(randomRedeemFee);
-    console.log('Cost to random redeem a Sloth NFT:', formatEther(slothTokenCost) + ' SLOTH');
+    console.log('Cost to random redeem a CryptoSloth NFT:', formatEther(slothTokenCost) + ' SLOTH');
     // Caclulate cost to redeem in WETH
     let wethCost = await fetchBuyCost(slothTokenCost);
     console.log('Cost to buy ' + formatEther(slothTokenCost) + ' SLOTH:', formatEther(wethCost) + ' WETH');
@@ -162,7 +162,7 @@ describe("Rinkeby vault tests", function () {
     // Redeem with ETH using MarketplaceZap (which buys SLOTH behind the scenes) — also add 0.1 ETH to cost to ensure tx goes through
     await marketplaceZap.buyAndRedeem(vaultId, 1, [], path, myAddress, {value: wethCost.add(parseEther("0.1"))});
     let newSlothNFTBalance = await nft.balanceOf(myAddress);
-    console.log('initial Sloth NFT balance:', slothNFTBalanceInitial.toString());
-    console.log('new Sloth NFT balance:', newSlothNFTBalance.toString());
+    console.log('initial CryptoSloths NFT balance:', slothNFTBalanceInitial.toString());
+    console.log('new CryptoSloths NFT balance:', newSlothNFTBalance.toString());
   })
 });
