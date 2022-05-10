@@ -123,12 +123,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             // Sanity check our pricing is above minimum
             require(price >= minFloorPrice, 'Listing below floor price');
 
+            // Confirm that we are sending the correct ERC type
+            require(_validateVaultToken(vault, amount), 'Invalid token submitted to vault');
+
             // Confirm that our user owns the NFT and has approved the listing to use
             require(_senderOwnsNFT(msg.sender, vault, nftId, amount), 'Sender does not own NFT');
             require(_senderApprovedNFT(msg.sender, vault, nftId), 'Sender has not approved NFT');
-
-            // Confirm that we are sending the correct ERC type
-            require(_validateVaultToken(vault, amount), 'Invalid token submitted to vault');
 
             if(INFTXVault(vault).is1155()) {
                 _createListing1155(msg.sender, nftId, vault, price, expiryTime, amount);
@@ -544,7 +544,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         INFTXVault nftxVault = INFTXVault(vault);
 
         if (nftxVault.is1155()) {
-            return IERC1155(nftxVault.assetAddress()).isApprovedForAll(msg.sender, address(this));
+            return IERC1155(nftxVault.assetAddress()).isApprovedForAll(from, address(this));
         }
 
         return IERC721(nftxVault.assetAddress()).getApproved(nftId) == address(this);
