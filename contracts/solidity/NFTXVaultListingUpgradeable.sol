@@ -167,9 +167,6 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Create our listing object
         Listing721 memory listing = Listing721(seller, price, expiry, 0);
 
-        console.log('CREATED SELLER');
-        console.log(listing.seller);
-
         // Add our listing
         listings721[listingId] = listing;
 
@@ -436,26 +433,15 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Convert our 6 decimal listing price to 18 decimals for token transfer
         uint256 transferTokenAmount = existingListing.price.mul(10e11);
 
-        console.log('AAA');
-
-        console.log('PRE-TRANSFER SELLER');
-        console.log(existingListing.seller);
-
         // Send the seller tokens from the buyer
         nftxVault.transferFrom(buyer, existingListing.seller, transferTokenAmount);
-
-        console.log('BBB');
 
         // Send NFT to buyer
         _transfer(existingListing.seller, buyer, vault, nftId, 0);
 
-        console.log('CCC');
-
         // If we no longer have any amount in the listing, we can deactivate the
         // listing by setting expiry time to 0.
         _updateListing721(nftId, vault, listingId, existingListing.price, 0);
-
-        console.log('DDD');
 
         emit ListingFilled(vault, nftId, 1);
     }
@@ -628,18 +614,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             data = abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, nftId);
         }
 
-        console.log('DATA VARIABLE RENDERED');
-
         (success, resultData) = address(asset).call(data);
-
-        console.log('POST ADDRESS CALL');
-        console.log(from);
-        console.log(to);
-        console.log(nftId);
-        console.log(asset);
         require(success, string(resultData));
-
-        console.log('REQUIRE');
 
         if (asset == punks) {
             data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", nftId, 0, to);

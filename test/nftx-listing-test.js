@@ -698,15 +698,11 @@ describe('NFTX Vault Listings', async () => {
         [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
 
-      console.log('A')
-
       // Get the listing ID that we created
       listingId = await nftxVaultListing.getListingId721(punkVault.address, testNftId)
 
       // Give bob sufficient tokens to fill the listing
       await punkVault.connect(whale).transfer(bob.address, '5000000000000000000')
-
-      console.log('B')
 
       // Fill the listing
       await punkVault.connect(bob).approve(nftxVaultListing.address, '5000000000000000000')
@@ -716,8 +712,6 @@ describe('NFTX Vault Listings', async () => {
         [listingId],          // listingIds
         [0]                   // amounts
       )
-
-      console.log('C')
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, testNftId)
       listing = await nftxVaultListing.listings721(listingId);
@@ -732,8 +726,6 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.expiry, futureTimestamp);
       expect(listing.seller, alice.address);
 
-      console.log('D')
-
       // Confirm that alice no longer owns the NFT, but bob does
       expect(await cryptopunk.ownerOf(testNftId)).to.equal(bob.address);
 
@@ -742,8 +734,6 @@ describe('NFTX Vault Listings', async () => {
       await nftxVaultListing.connect(bob).createListings(
         [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
       )
-
-      console.log('E')
 
       // Confirm that bob's token balance has been reduced by the listing price
       expect(await punkVault.balanceOf(bob.address)).to.equal('3800000000000000000')
