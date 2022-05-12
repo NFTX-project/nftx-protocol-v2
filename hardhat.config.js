@@ -12,6 +12,11 @@ module.exports = {
       url: `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_RINKEBY_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
     },
+    ropsten: {
+      url: `https://eth-ropsten.alchemyapi.io/v2/${process.env.ALCHEMY_ROPSTEN_API_KEY}`,
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      timeout: 600000,
+    },
     mainnet: {
       url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
