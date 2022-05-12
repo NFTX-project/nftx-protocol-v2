@@ -46,16 +46,36 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     }
 
     // {ListingCreated} fired when a new listing is created
-    event ListingCreated(address vault, uint256 nftId);
+    event ListingCreated(
+        address seller,
+        address vault,
+        uint256 nftId,
+        uint24 amount,
+        uint32 price,
+        uint32 expiryTime
+    );
 
     // {ListingUpdated} fired when an existing listing is updated
-    event ListingUpdated(address vault, uint256 nftId);
+    event ListingUpdated(
+        address seller,
+        address vault,
+        uint256 nftId,
+        uint24 amount,
+        uint32 price,
+        uint32 expiryTime
+    );
 
     // {ListingDeleted} fired when an existing listing is removed
-    event ListingDeleted(address vault, uint256 nftId);
+    event ListingDeleted(
+        bytes32 listingId
+    );
 
     // {ListingFilled} fired when an existing listing is successfully filled
-    event ListingFilled(address vault, uint256 nftId, uint24 amount);
+    event ListingFilled(
+        bytes32 listingId,
+        uint24 amount,
+        uint32 price
+    );
 
     // Mapping of listingId => Listing
     mapping(bytes32 => Listing721) public listings721;
@@ -157,12 +177,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         bytes32 listingId = getListingId721(vault, nftId);
 
         // Create our listing object
-        Listing721 memory listing = Listing721(seller, price, expiry);
+        // Listing721 memory listing = Listing721(seller, price, expiry);
 
         // Add our listing
-        listings721[listingId] = listing;
+        listings721[listingId] = Listing721(seller, price, expiry);
 
-        emit ListingCreated(vault, nftId);
+        emit ListingCreated(seller, vault, nftId, 0, price, expiry);
     }
 
 
@@ -189,12 +209,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         bytes32 listingId = getListingId1155(vault, nftId, seller, price);
 
         // Create our listing object
-        Listing1155 memory listing = Listing1155(seller, amount, price, expiry);
+        // Listing1155 memory listing = Listing1155(seller, amount, price, expiry);
 
         // Add our listing
-        listings1155[listingId] = listing;
+        listings1155[listingId] = Listing1155(seller, amount, price, expiry);
 
-        emit ListingCreated(vault, nftId);
+        emit ListingCreated(seller, vault, nftId, amount, price, expiry);
     }
 
 
@@ -276,23 +296,19 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         if (expiry == 0) {
             delete listings721[listingId];
-            emit ListingDeleted(vault, nftId);
+            emit ListingDeleted(listingId);
             return;
         }
 
         Listing721 storage listing = listings721[listingId];
 
         // Set our listing price
-        if (listing.price != price) {
-            listing.price = price;
-        }
+        listing.price = price;
 
         // Set the listing to new expiry time
-        if (listing.expiryTime != expiry) {
-            listing.expiryTime = expiry;
-        }
+        listing.expiryTime = expiry;
 
-        emit ListingUpdated(vault, nftId);
+        emit ListingUpdated(listing.seller, vault, nftId, 0, price, expiry);
     }
 
 
@@ -319,28 +335,22 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         if (expiry == 0) {
             delete listings1155[listingId];
-            emit ListingDeleted(vault, nftId);
+            emit ListingDeleted(listingId);
             return;
         }
 
         Listing1155 storage listing = listings1155[listingId];
 
         // Set our listing price
-        if (listing.price != price) {
-            listing.price = price;
-        }
+        listing.price = price;
 
         // Set the listing to new expiry time
-        if (listing.expiryTime != expiry) {
-            listing.expiryTime = expiry;
-        }
+        listing.expiryTime = expiry;
 
         // Set our amount price
-        if (listing.amount != amount) {
-            listing.amount = amount;
-        }
+        listing.amount = amount;
 
-        emit ListingUpdated(vault, nftId);
+        emit ListingUpdated(listing.seller, vault, nftId, amount, price, expiry);
     }
 
 
@@ -420,7 +430,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // listing by setting expiry time to 0.
         delete listings721[listingId];
 
-        emit ListingFilled(vault, nftId, 1);
+        emit ListingFilled(listingId, 0, existingListing.price);
     }
 
 
@@ -475,7 +485,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             delete listings1155[listingId];
         }
 
-        emit ListingFilled(vault, nftId, amount);
+        emit ListingFilled(listingId, amount, existingListing.price);
     }
 
 
