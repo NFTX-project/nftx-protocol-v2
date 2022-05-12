@@ -474,7 +474,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         nftxVault.transferFrom(buyer, existingListing.seller, purchaseAmount);
 
         // Send NFT to buyer
-        _transfer(existingListing.seller, buyer, vault, nftId, amount);
+        IERC1155(nftxVault.assetAddress()).safeTransferFrom(
+            existingListing.seller, buyer, nftId, amount, ''
+        );
 
         // Reduce the amount available in our listing
         existingListing.amount = existingListing.amount - amount;
@@ -523,11 +525,6 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     ) internal {
         INFTXVault nftxVault = INFTXVault(vault);
         address asset = nftxVault.assetAddress();
-
-        if (nftxVault.is1155()) {
-            IERC1155(asset).safeTransferFrom(from, to, nftId, amount, '');
-            return;
-        }
 
         address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
         address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
