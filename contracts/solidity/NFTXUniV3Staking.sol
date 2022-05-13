@@ -10,7 +10,7 @@ import "./token/IERC20Metadata.sol";
 import "./util/SafeERC20Upgradeable.sol";
 import "./util/PausableUpgradeable.sol";
 import "./util/Address.sol";
-import "./token/DividendNFTUpgradeable.sol";
+import "./token/DividendNFT.sol";
 import "./univ3/INonfungiblePositionManager.sol";
 import "./univ3/PoolAddress.sol";
 
@@ -31,6 +31,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
     int24 internal constant MAX_TICK = -MIN_TICK;
     uint24 internal constant DEFAULT_FEE = 200;
 
+    uint256 public positionsCreated;
     address public v3Factory;
     INonfungiblePositionManager public nftManager;
     INFTXVaultFactory public nftxVaultFactory;
@@ -44,6 +45,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
 
     function __NFTXInventoryStaking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
         __Ownable_init();
+        // Amount 1 is for vault token
+        // Amount 2 is for pairing token
         __DividendNFT_init("NFTX", "NFTXLP");
         nftxVaultFactory = INFTXVaultFactory(_nftxVaultFactory);
         v3Factory = _v3Factory;
@@ -104,19 +107,41 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
       });
       (uint128 newLiquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
 
-      // _mintNFT(vaultId, oldLiquidity, newLiquidity);
+      _mint(msg.sender, positionsCreated, tokenId, newLiquidity);
+      positionsCreated++;
     }
 
-    // function receiveRewards(uint256 vaultId, uint256 amount) external virtual onlyAdmin returns (bool) {
-    //   address vaultToken = nftxVaultFactory.vault(vaultId);
-    //   address deployedXToken = xTokenAddr(address(vaultToken));
-      
+    function _distributeFeeRewards(uint256 tokenId) internal {
+        INonfungiblePositionManager.CollectParams memory params = INonfungiblePositionManager.CollectParams({
+          tokenId: tokenId,
+          recipient: ownerOf(tokenId),
+          amount0Max: type(uint128).max,
+          amount1Max: type(uint128).max
+        });
+      (uint256 amount0, uint256 amount1) = nftManager.collect(params);
+      uint256 vaultId = _tokenToVaultMapping[tokenId];
+      _distributeRewards(vaultId, amount0, amount1);
+    }
 
-    //   // We "pull" to the dividend tokens so the fee distributor only needs to approve this contract.
-    //   IERC20Upgradeable(vaultToken).safeTransferFrom(msg.sender, deployedXToken, amount);
-    //   emit FeesReceived(vaultId, amount);
-    //   return true;
-    // }
+    function claimRewards(uint256 tokenId) public {
+      require(msg.sender == ownerOf(tokenId), "Not owner");
+      (uint256 amount1, uint256 amount2) = _deductAllRewards(tokenId);
+      uint256 vaultId = _tokenToVaultMapping[tokenId];
+      address vaultToken = nftxVaultFactory.vault(vaultId);
+      IERC20Upgradeable(vaultToken).transfer(msg.sender, amount1);
+      IERC20Upgradeable(defaultPair).transfer(msg.sender, amount2);
+    }
+
+    // NFTX fee rewards are distributed through this function.
+    function receiveRewards(uint256 vaultId, uint256 amount) external virtual onlyAdmin returns (bool) {
+      address vaultToken = nftxVaultFactory.vault(vaultId);
+      
+      _distributeRewards(vaultId, amount, 0);
+      // We "pull" so the fee distributer only has to approved this contract once.
+      IERC20Upgradeable(vaultToken).safeTransferFrom(msg.sender, address(this), amount);
+      emit FeesReceived(vaultId, amount);
+      return true;
+    }
 
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
     //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
@@ -126,7 +151,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
     // function balanceOf(uint256 vaultId, address who) external view returns (uint256) {
     //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
     //     return xToken.balanceOf(who);
-    // }2
+    // }
 
     function isContract(address account) internal view returns (bool) {
         // This method relies on extcodesize, which returns 0 for contracts in
