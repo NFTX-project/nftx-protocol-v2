@@ -66,13 +66,14 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   }
 
   // does no transferring
-  function _increaseBalance(uint256 vaultId, uint256 tokenId, uint256 valueBal) internal virtual {
+  function _increaseBalance(uint256 tokenId, uint256 valueBal) internal virtual {
+    uint256 vaultId = _tokenToVaultMapping[tokenId];
     uint256 oldBal = _tokenBalance[tokenId];
     _tokenBalance[tokenId] = oldBal + valueBal;
     magnifiedRewardCorrections1[vaultId] = magnifiedRewardCorrections1[vaultId]
       .sub( (magnifiedRewardPerShare1[vaultId].mul(valueBal)).toInt256() );
-    magnifiedRewardCorrections1[vaultId] = magnifiedRewardCorrections1[vaultId]
-      .sub( (magnifiedRewardPerShare1[vaultId].mul(valueBal)).toInt256() );
+    magnifiedRewardCorrections2[vaultId] = magnifiedRewardCorrections2[vaultId]
+      .sub( (magnifiedRewardPerShare2[vaultId].mul(valueBal)).toInt256() );
   }
 
   // does no transferring
@@ -141,7 +142,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
 
   /// @notice Withdraws the target distributed to the sender.
   /// @dev It emits a `RewardWithdrawn` event if the amount of withdrawn target is greater than 0.
-  function _deductAllRewards(uint256 tokenId) internal returns (uint256, uint256) {
+  function _deductWithdrawableRewards(uint256 tokenId) internal returns (uint256, uint256) {
     (uint256 _withdrawableReward1, uint256 _withdrawableReward2) = withdrawableRewardsOf(tokenId);
     if (_withdrawableReward1 == 0 && _withdrawableReward2 == 0) {
       return (0, 0);
@@ -156,7 +157,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     }
 
     if (_withdrawableReward2 > 0) {
-      withdrawnRewards2[tokenId] = withdrawnRewards1[tokenId].add(_withdrawableReward2);
+      withdrawnRewards2[tokenId] = withdrawnRewards2[tokenId].add(_withdrawableReward2);
       // target.safeTransfer(user, _withdrawableReward2);
       // emit RewardWithdrawn(tokenId, user, _withdrawableReward1);
     }
@@ -193,11 +194,12 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   /// @return The amount of dividend in wei that `tokenId` has earned in total.
   function accumulativeRewardsOf(uint256 tokenId) public view returns (uint256, uint256) {
     uint256 vaultId = _tokenToVaultMapping[tokenId];
+    uint256 _bal = _tokenBalance[tokenId];
 
-    uint256 accumulative1 = magnifiedRewardPerShare1[vaultId].mul(_tokenBalance[tokenId]).toInt256()
+    uint256 accumulative1 = magnifiedRewardPerShare1[vaultId].mul(_bal).toInt256()
       .add(magnifiedRewardCorrections1[vaultId]).toUint256Safe() / magnitude;
 
-    uint256 accumulative2 = magnifiedRewardPerShare2[vaultId].mul(_tokenBalance[tokenId]).toInt256()
+    uint256 accumulative2 = magnifiedRewardPerShare2[vaultId].mul(_bal).toInt256()
       .add(magnifiedRewardCorrections2[vaultId]).toUint256Safe() / magnitude;
 
     return (accumulative1, accumulative2);

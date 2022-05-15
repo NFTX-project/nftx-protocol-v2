@@ -111,21 +111,20 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
       positionsCreated++;
     }
 
-    function _distributeFeeRewards(uint256 tokenId) internal {
+    function _distributeTradingFeeRewards(uint256 vaultId) internal {
         INonfungiblePositionManager.CollectParams memory params = INonfungiblePositionManager.CollectParams({
-          tokenId: tokenId,
-          recipient: ownerOf(tokenId),
+          tokenId: vaultV3PositionId[vaultId],
+          recipient: address(this),
           amount0Max: type(uint128).max,
           amount1Max: type(uint128).max
         });
       (uint256 amount0, uint256 amount1) = nftManager.collect(params);
-      uint256 vaultId = _tokenToVaultMapping[tokenId];
       _distributeRewards(vaultId, amount0, amount1);
     }
 
     function claimRewards(uint256 tokenId) public {
       require(msg.sender == ownerOf(tokenId), "Not owner");
-      (uint256 amount1, uint256 amount2) = _deductAllRewards(tokenId);
+      (uint256 amount1, uint256 amount2) = _deductWithdrawableRewards(tokenId);
       uint256 vaultId = _tokenToVaultMapping[tokenId];
       address vaultToken = nftxVaultFactory.vault(vaultId);
       IERC20Upgradeable(vaultToken).transfer(msg.sender, amount1);
@@ -138,6 +137,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
       
       _distributeRewards(vaultId, amount, 0);
       // We "pull" so the fee distributer only has to approved this contract once.
+      // Only vault tokens wil come from this, never anything else.
       IERC20Upgradeable(vaultToken).safeTransferFrom(msg.sender, address(this), amount);
       emit FeesReceived(vaultId, amount);
       return true;
