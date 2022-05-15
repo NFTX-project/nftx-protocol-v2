@@ -29,7 +29,7 @@ module.exports = {
     arbitrum: {
       url: "https://arb1.arbitrum.io/rpc",
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
-      timeout: 100000,
+      timeout: 600000,
     },
     hardhat: {
       mining: {
@@ -51,6 +51,6 @@ module.exports = {
     },
   },
   mocha: {
-timeout: 100000,
+    timeout: 100000,
   },
 };
