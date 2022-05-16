@@ -119,6 +119,42 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * @param expires The timestamp the listing will expire
      */
 
+    function createListing(
+        uint256 calldata nftId,
+        address calldata vault,
+        uint32 calldata price,
+        uint24 calldata amount,
+        uint32 calldata expiry
+    ) external override {
+        // Don't let the user create a listing that expires in the past
+        require(expiry > block.timestamp, 'Listing already expired');
+
+        // Sanity check our pricing is above minimum
+        require(price >= minFloorPrice, 'Listing below floor price');
+
+        if(INFTXVault(vault).is1155()) {
+            require(amount > 0, 'Invalid token submitted to vault');
+            _createListing1155(msg.sender, nftId, vault, price, expiry, amount);
+        }
+        else {
+            require(amount == 0, 'Invalid token submitted to vault');
+            _createListing721(msg.sender, nftId, vault, price, expiry);
+        }
+    }
+
+
+    /**
+     * @notice Allows approved ERC721 NFTs to be listed against a vault. The NFT must
+     * belong to the asset address stored against the NFTX vault and have an expiry
+     * timestamp set in the future.
+     *
+     * @param nftIds The IDs of the NFTs being submitted
+     * @param vaults The addresses of the NFTX vaults
+     * @param prices Token price item will be listed at
+     * @param amounts Number of 1155 tokens, should be 0 for 721s
+     * @param expires The timestamp the listing will expire
+     */
+
     function createListings(
         uint256[] calldata nftIds,
         address[] calldata vaults,
@@ -215,6 +251,49 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         listings1155[listingId] = Listing1155(seller, amount, price, expiry);
 
         emit ListingCreated(seller, vault, nftId, amount, price, expiry);
+    }
+
+
+    /**
+     * @notice Allows existing listings to have their expiry time and price updated. If
+     * the listing has it's expiry timestamp into the past, then it will set the listing
+     * to inactive. If a `0` value is set for the expiry timestamp then the listing will
+     * also be deleted from our mapping.
+     *
+     * @param nftIds The IDs of the NFTs being updated
+     * @param vaults The addresses of the NFTX vaults
+     * @param prices Token price listing will be updated to
+     * @param expires The updated timestamp the listing will expire
+     */
+
+    function updateListing(
+        uint256 calldata nftId,
+        address calldata vault,
+        bytes32 calldata listingId,
+        uint32 calldata price,
+        uint32 calldata expiy,
+        uint24 calldata amount
+    ) external override {
+        require(price >= minFloorPrice, 'Listing below floor price');
+
+        INFTXVault nftxVault = INFTXVault(vault);
+
+        if(nftxVault.is1155()) {
+            Listing1155 memory existingListing = listings1155[listingId];
+
+            require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
+            require(existingListing.seller == msg.sender, 'Sender is not listing owner');
+
+            _updateListing1155(nftId, vault, listingId, price, expiry, amount);
+        }
+        else {
+            Listing721 memory existingListing = listings721[listingId];
+
+            require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
+            require(existingListing.seller == msg.sender, 'Sender is not listing owner');
+
+            _updateListing721(nftId, vault, listingId, price, expiry);
+        }
     }
 
 
@@ -351,6 +430,32 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         listing.amount = amount;
 
         emit ListingUpdated(listing.seller, vault, nftId, amount, price, expiry);
+    }
+
+
+    /**
+     * @notice Allows existing listings to have their expiry time and price updated. If
+     * the listing has it's expiry timestamp into the past, then it will set the listing
+     * to inactive. If a `0` value is set for the expiry timestamp then the listing will
+     * also be deleted from our mapping.
+     *
+     * @param nftIds The IDs of the NFTs being filled
+     * @param vaults The addresses of the NFTX vaults
+     * @param amounts Number of 1155 tokens, should be 0 for 721s
+     */
+
+    function fillListing(
+        uint256 calldata nftId,
+        address calldata vault,
+        bytes32 calldata listingId,
+        uint24 calldata amount
+    ) external override {
+        if(INFTXVault(vault).is1155()) {
+            _fillListing1155(msg.sender, nftId, vault, listingId, amount);
+        }
+        else {
+            _fillListing721(msg.sender, nftId, vault, listingId);
+        }
     }
 
 
