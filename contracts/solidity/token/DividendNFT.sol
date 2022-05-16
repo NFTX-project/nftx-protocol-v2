@@ -58,11 +58,11 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
 
   /// @dev Internal function that mints tokens to an account.
   /// Update magnifiedRewardCorrections to keep dividends unchanged.
-  function _mint(address to, uint256 vaultID, uint256 tokenId, uint256 valueBal) internal virtual {
+  function _mint(address to, uint256 tokenId, uint256 vaultID, uint256 valueBal) internal virtual {
     super._mint(to, tokenId);
     _tokenToVaultMapping[tokenId] = vaultID;
     _tokenBalance[tokenId] = valueBal;
-    _increaseBalance(vaultID, tokenId, valueBal);
+    _increaseBalance(tokenId, valueBal);
   }
 
   // does no transferring
