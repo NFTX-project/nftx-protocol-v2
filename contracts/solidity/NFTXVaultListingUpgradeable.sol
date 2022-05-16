@@ -705,6 +705,18 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         return keccak256(abi.encode(vault, nftId, seller, price));
     }
 
+
+    /**
+     * @notice Caches an NFTX vault's boolean value for if it is a 721 or
+     * 1155 vault. This stores the value as an integer internally, as we
+     * need to also check if it has been set or not.
+     * 
+     * If this value needs to be updated (if the external vault is updated),
+     * then `purgeNFTXCache` should be called by the owner to flush this cache.
+     *
+     * @param vault The NFTX Vault asset address
+     */
+
     function getNFTXVaultIs1155(address vault) internal returns (bool) {
         if (nftxVault1155[vault] > 0) {
             return nftxVault1155[vault] == 1;
@@ -714,6 +726,17 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         return nftxVault1155[vault] == 1;
     }
 
+
+    /**
+     * @notice Caches an NFTX asset address to reduce gas costs. This stores
+     * the address to prevent having to load an external contract.
+     * 
+     * If this value needs to be updated (if the external vault is updated),
+     * then `purgeNFTXCache` should be called by the owner to flush this cache.
+     *
+     * @param vault The NFTX Vault asset address
+     */
+
     function getNFTXVaultAssetAddress(address vault) internal returns (address) {
         if (nftxVaultAsset[vault] != address(0)) {
             return nftxVaultAsset[vault];
@@ -722,6 +745,13 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         nftxVaultAsset[vault] = INFTXVault(vault).assetAddress();
         return nftxVaultAsset[vault];
     }
+
+
+    /**
+     * @notice Clears any cached external NFTX vault data,
+     * 
+     * @param vault The NFTX Vault asset address
+     */
 
     function purgeNFTXCache(address vault) external onlyOwner {
         nftxVault1155[vault] = 0;
