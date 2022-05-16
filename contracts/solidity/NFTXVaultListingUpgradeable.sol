@@ -112,19 +112,19 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * belong to the asset address stored against the NFTX vault and have an expiry
      * timestamp set in the future.
      *
-     * @param nftIds The IDs of the NFTs being submitted
-     * @param vaults The addresses of the NFTX vaults
-     * @param prices Token price item will be listed at
-     * @param amounts Number of 1155 tokens, should be 0 for 721s
-     * @param expires The timestamp the listing will expire
+     * @param nftId   The IDs of the NFTs being submitted
+     * @param vault   The addresses of the NFTX vaults
+     * @param price   Token price item will be listed at
+     * @param amount  Number of 1155 tokens, should be 0 for 721s
+     * @param expiry  The timestamp the listing will expire
      */
 
     function createListing(
-        uint256 calldata nftId,
-        address calldata vault,
-        uint32 calldata price,
-        uint24 calldata amount,
-        uint32 calldata expiry
+        uint256 nftId,
+        address vault,
+        uint32 price,
+        uint24 amount,
+        uint32 expiry
     ) external override {
         // Don't let the user create a listing that expires in the past
         require(expiry > block.timestamp, 'Listing already expired');
@@ -148,11 +148,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * belong to the asset address stored against the NFTX vault and have an expiry
      * timestamp set in the future.
      *
-     * @param nftIds The IDs of the NFTs being submitted
-     * @param vaults The addresses of the NFTX vaults
-     * @param prices Token price item will be listed at
-     * @param amounts Number of 1155 tokens, should be 0 for 721s
-     * @param expires The timestamp the listing will expire
+     * @param nftIds   The IDs of the NFTs being submitted
+     * @param vaults   The addresses of the NFTX vaults
+     * @param prices   Token price item will be listed at
+     * @param amounts  Number of 1155 tokens, should be 0 for 721s
+     * @param expires  The timestamp the listing will expire
      */
 
     function createListings(
@@ -195,11 +195,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Creates a listing object and updates our internal mappings.
      *
-     * @param seller The address of the seller creating the listing
-     * @param nftId The ERC721 NFT ID
-     * @param vault The NFTX Vault address
-     * @param price The price of the listing in terms of the NFTX vault ERC20 token
-     * @param expiry The timestamp that the listing will expire
+     * @param seller  The address of the seller creating the listing
+     * @param nftId   The ERC721 NFT ID
+     * @param vault   The NFTX Vault address
+     * @param price   The price of the listing in terms of the NFTX vault ERC20 token
+     * @param expiry  The timestamp that the listing will expire
      */
 
     function _createListing721(
@@ -260,19 +260,21 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * to inactive. If a `0` value is set for the expiry timestamp then the listing will
      * also be deleted from our mapping.
      *
-     * @param nftIds The IDs of the NFTs being updated
-     * @param vaults The addresses of the NFTX vaults
-     * @param prices Token price listing will be updated to
-     * @param expires The updated timestamp the listing will expire
+     * @param nftId      The IDs of the NFTs being updated
+     * @param vault      The addresses of the NFTX vaults
+     * @param listingId  The listing ID previously generated
+     * @param price      Token price listing will be updated to
+     * @param expiry     The updated timestamp the listing will expire
+     * @param amount     Amount of NFT tokens in the listing
      */
 
     function updateListing(
-        uint256 calldata nftId,
-        address calldata vault,
-        bytes32 calldata listingId,
-        uint32 calldata price,
-        uint32 calldata expiy,
-        uint24 calldata amount
+        uint256 nftId,
+        address vault,
+        bytes32 listingId,
+        uint32 price,
+        uint32 expiry,
+        uint24 amount
     ) external override {
         require(price >= minFloorPrice, 'Listing below floor price');
 
@@ -303,10 +305,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * to inactive. If a `0` value is set for the expiry timestamp then the listing will
      * also be deleted from our mapping.
      *
-     * @param nftIds The IDs of the NFTs being updated
-     * @param vaults The addresses of the NFTX vaults
-     * @param prices Token price listing will be updated to
-     * @param expires The updated timestamp the listing will expire
+     * @param nftIds      The IDs of the NFTs being updated
+     * @param vaults      The addresses of the NFTX vaults
+     * @param listingIds  The listing IDs previously generated
+     * @param prices      Token price listing will be updated to
+     * @param expires     The updated timestamp the listing will expire
      */
 
     function updateListings(
@@ -357,10 +360,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Updates a listing object.
      *
-     * @param nftId The ERC721 NFT ID
-     * @param vault The NFTX Vault address
-     * @param price The price of the listing in terms of the NFTX vault ERC20 token
-     * @param expiry The timestamp that the listing will expire
+     * @param nftId      The ERC721 NFT ID
+     * @param vault      The NFTX Vault address
+     * @param listingId  The listing ID previously generated
+     * @param price      The price of the listing in terms of the NFTX vault ERC20 token
+     * @param expiry     The timestamp that the listing will expire
      */
 
     function _updateListing721(
@@ -394,11 +398,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Updates a listing object.
      *
-     * @param nftId The ERC1155 NFT ID
-     * @param vault The NFTX Vault address
-     * @param price The price of the listing in terms of the NFTX vault ERC20 token
-     * @param expiry The timestamp that the listing will expire
-     * @param amount Amount of NFT tokens in the listing
+     * @param nftId      The ERC1155 NFT ID
+     * @param vault      The NFTX Vault address
+     * @param listingId  The listing ID previously generated
+     * @param price      The price of the listing in terms of the NFTX vault ERC20 token
+     * @param expiry     The timestamp that the listing will expire
+     * @param amount     Amount of NFT tokens in the listing
      */
 
     function _updateListing1155(
@@ -439,16 +444,17 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * to inactive. If a `0` value is set for the expiry timestamp then the listing will
      * also be deleted from our mapping.
      *
-     * @param nftIds The IDs of the NFTs being filled
-     * @param vaults The addresses of the NFTX vaults
-     * @param amounts Number of 1155 tokens, should be 0 for 721s
+     * @param nftId      The IDs of the NFTs being filled
+     * @param vault      The addresses of the NFTX vaults
+     * @param listingId  The listing ID previously generated
+     * @param amount     Number of 1155 tokens, should be 0 for 721s
      */
 
     function fillListing(
-        uint256 calldata nftId,
-        address calldata vault,
-        bytes32 calldata listingId,
-        uint24 calldata amount
+        uint256 nftId,
+        address vault,
+        bytes32 listingId,
+        uint24 amount
     ) external override {
         if(INFTXVault(vault).is1155()) {
             _fillListing1155(msg.sender, nftId, vault, listingId, amount);
@@ -465,9 +471,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
      * to inactive. If a `0` value is set for the expiry timestamp then the listing will
      * also be deleted from our mapping.
      *
-     * @param nftIds The IDs of the NFTs being filled
-     * @param vaults The addresses of the NFTX vaults
-     * @param amounts Number of 1155 tokens, should be 0 for 721s
+     * @param nftIds      The IDs of the NFTs being filled
+     * @param vaults      The addresses of the NFTX vaults
+     * @param listingIds  The listing ID previously generated
+     * @param amounts     Number of 1155 tokens, should be 0 for 721s
      */
 
     function fillListings(
@@ -542,10 +549,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     /**
      * @notice Fills a listing object and transfers the relevant tokens and NFTs.
      *
-     * @param buyer  The address of the user buying the NFT
-     * @param nftId  The ERC721 NFT ID
-     * @param vault  The NFTX Vault address
-     * @param amount Number of tokens to purchase
+     * @param buyer      The address of the user buying the NFT
+     * @param nftId      The ERC721 NFT ID
+     * @param vault      The NFTX Vault address
+     * @param listingId  The listing ID previously generated
+     * @param amount     Number of tokens to purchase
      */
 
     function _fillListing1155(
