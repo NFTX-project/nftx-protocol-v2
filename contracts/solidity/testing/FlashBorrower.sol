@@ -3,8 +3,12 @@ pragma solidity ^0.8.0;
 
 import "../token/IERC20Upgradeable.sol";
 import "../interface/IERC3156Upgradeable.sol";
+import "../NFTXVaultUpgradeable.sol";
+import"../token/IERC721Upgradeable.sol";
+import "../token/ERC721HolderUpgradeable.sol";
+import "hardhat/console.sol";
 
-contract FlashBorrower is IERC3156FlashBorrowerUpgradeable {
+contract FlashBorrower is IERC3156FlashBorrowerUpgradeable, ERC721HolderUpgradeable {
     enum Action {NORMAL, STEAL, REENTER}
 
     uint256 public flashBalance;
@@ -22,6 +26,18 @@ contract FlashBorrower is IERC3156FlashBorrowerUpgradeable {
         flashFee = fee;
         if (action == Action.NORMAL) {
             flashBalance = IERC20Upgradeable(token).balanceOf(address(this));
+            console.log(flashBalance);
+            uint256[] memory specificIds = new uint256[](1);
+            specificIds[0] = 2858;
+            NFTXVaultUpgradeable vault = NFTXVaultUpgradeable(msg.sender);
+            vault.redeem(1, specificIds);
+            IERC721Upgradeable coolcats = IERC721Upgradeable(vault.assetAddress());
+            console.log('Got the cool cat');
+            coolcats.setApprovalForAll(msg.sender, true);
+            uint256[] memory tokenIds = new uint256[](1);
+            tokenIds[0] = 2858;
+            uint256[] memory amounts = new uint256[](0);
+            vault.mint(tokenIds, amounts);
             IERC20Upgradeable(token).approve(msg.sender, value + fee); // Resolve the flash loan
         } else if (action == Action.STEAL) {
             // Do nothing
