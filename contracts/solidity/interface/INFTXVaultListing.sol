@@ -10,7 +10,8 @@ interface INFTXVaultListing {
         address vault,
         uint32 price,
         uint24 amount,
-        uint32 expiry
+        uint32 expiry,
+        uint8 royaltyFee
     ) external;
 
     function updateListing(
@@ -34,7 +35,8 @@ interface INFTXVaultListing {
         address[] calldata vaults,
         uint32[] calldata prices,
         uint24[] calldata amounts,
-        uint32[] calldata expiries
+        uint32[] calldata expiries,
+        uint8[] calldata royaltyFees
     ) external;
 
     function updateListings(
