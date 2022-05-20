@@ -38,11 +38,51 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
 
   uint256 constant BASE = 1e18;
 
-  event BoughtTokens(IERC20 sellToken, IERC20 buyToken, uint256 boughtAmount);
+  event Buy(uint256 count, uint256 ethSpent, address to);
+  event Sell(uint256 count, uint256 ethReceived, address to);
+  event Swap(uint256 count, uint256 ethSpent, address to);
 
-  constructor(IWETH weth) Ownable() ReentrancyGuard() {
-      WETH = weth;
-      owner = msg.sender;
+  constructor(address _nftxFactory, IWETH weth) Ownable() ReentrancyGuard() {
+    nftxFactory = INFTXVaultFactory(_nftxFactory);
+    WETH = weth;
+  }
+
+  function mintAndSell721(
+    address sellTokenAddress,
+    address buyTokenAddress,
+    address allowanceTarget,
+    address swapTarget,
+    bytes swapCallData
+  ) external nonReentrant {
+    require(sellTokenAddress != address(0));
+    require(buyTokenAddress != address(0));
+    require(allowanceTarget != address(0));
+
+    (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
+    fillQuote(sellTokenAddress, buyTokenAddress, allowanceTarget, swapTarget, swapCallData);
+
+    // emit Sell(ids.length, amounts[amounts.length-1], to);
+  }
+
+  function _mint721(
+    uint256 vaultId, 
+    uint256[] memory ids
+  ) internal returns (address, uint256) {
+    address vault = nftxFactory.vault(vaultId);
+
+    // Transfer tokens to zap and mint to NFTX.
+    address assetAddress = INFTXVault(vault).assetAddress();
+    uint256 length = ids.length;
+    for (uint256 i; i < length; ++i) {
+      transferFromERC721(assetAddress, ids[i], vault);
+      approveERC721(assetAddress, vault, ids[i]);
+    }
+    uint256[] memory emptyIds;
+    INFTXVault(vault).mint(ids, emptyIds);
+    uint256 count = ids.length;
+    uint256 balance = (count * BASE) - (count * INFTXVault(vault).mintFee()); 
+    
+    return (vault, balance);
   }
 
     // Swaps ERC20->ERC20 tokens held by this contract using a 0x-API quote.
@@ -89,6 +129,55 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }
   }
+
+
+
+
+  function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
+    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
+    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+    bytes memory data;
+    if (assetAddr == kitties) {
+        // Cryptokitties.
+        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
+    } else if (assetAddr == punks) {
+        // CryptoPunks.
+        // Fix here for frontrun attack. Added in v1.0.2.
+        bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
+        (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
+        (address nftOwner) = abi.decode(result, (address));
+        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
+        data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
+    } else {
+        // Default.
+        // We push to the vault to avoid an unneeded transfer.
+        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
+    }
+    (bool success, bytes memory resultData) = address(assetAddr).call(data);
+    require(success, string(resultData));
+  }
+
+  function approveERC721(address assetAddr, address to, uint256 tokenId) internal virtual {
+    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
+    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+    bytes memory data;
+    if (assetAddr == kitties) {
+        // // Cryptokitties.
+        // data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
+        // No longer needed to approve with pushing.
+        return;
+    } else if (assetAddr == punks) {
+        // CryptoPunks.
+        data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
+    } else {
+      // No longer needed to approve with pushing.
+      return;
+    }
+    (bool success, bytes memory resultData) = address(assetAddr).call(data);
+    require(success, string(resultData));
+  }
+
+
 
   receive() external payable {
     require(msg.sender == address(WETH), "Only WETH");
