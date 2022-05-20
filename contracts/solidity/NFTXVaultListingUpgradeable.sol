@@ -6,6 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultListing.sol";
 import "./testing/IERC721.sol";
 import "./testing/IERC1155.sol";
+import "./testing/IERC2981.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/SafeMathUpgradeable.sol";
 
@@ -31,6 +32,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address seller;     // 160/256
         uint32 price;       // 192/256  Allows for 6 decimal accuracy
         uint32 expiryTime;  // 224/256
+        uint8 royaltyFee;   // 232/256  Allows for 0 - 99 support
     }
 
 
@@ -43,6 +45,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint24 amount;      // 184/256
         uint32 price;       // 216/256  Allows for 6 decimal accuracy
         uint32 expiryTime;  // 248/256
+        uint8 royaltyFee;   // 256/256  Allows for 0 - 99 support
     }
 
 
@@ -78,6 +81,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint32 price
     );
 
+    // {ListingFilled} fired when an existing listing is successfully filled
+    event RoyaltiesUpdated(
+        address vault,
+        uint256 royaltyFee
+    );
+
     // Mapping of listingId => Listing
     mapping(bytes32 => Listing721) public listings721;
     mapping(bytes32 => Listing1155) public listings1155;
@@ -85,6 +94,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     // Mapping of NFTX vault data
     mapping(address => uint8) public nftxVault1155;
     mapping(address => address) public nftxVaultAsset;
+    mapping(address => uint256) public nftxVaultMintFee;
 
     // Stores the minimum floor price for new listings
     uint32 public minFloorPrice;
@@ -129,7 +139,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address vault,
         uint32 price,
         uint24 amount,
-        uint32 expiry
+        uint32 expiry,
+        uint8 royaltyFee
     ) external override {
         // Don't let the user create a listing that expires in the past
         require(expiry > block.timestamp, 'Listing already expired');
@@ -139,11 +150,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         if(getNFTXVaultIs1155(vault)) {
             require(amount > 0, 'Invalid token submitted to vault');
-            _createListing1155(msg.sender, nftId, vault, price, expiry, amount);
+            _createListing1155(msg.sender, nftId, vault, price, expiry, amount, royaltyFee);
         }
         else {
             require(amount == 0, 'Invalid token submitted to vault');
-            _createListing721(msg.sender, nftId, vault, price, expiry);
+            _createListing721(msg.sender, nftId, vault, price, expiry, royaltyFee);
         }
     }
 
@@ -165,7 +176,8 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address[] calldata vaults,
         uint32[] calldata prices,
         uint24[] calldata amounts,
-        uint32[] calldata expires
+        uint32[] calldata expires,
+        uint8[] calldata royaltyFees
     ) external override {
         uint256 count = nftIds.length;
         require(count > 0);
@@ -176,6 +188,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
             uint32 price = prices[i];
             uint24 amount = amounts[i];
             uint32 expiryTime = expires[i];
+            uint8 royaltyFee = royaltyFees[i];
 
             // Don't let the user create a listing that expires in the past
             require(expiryTime > block.timestamp, 'Listing already expired');
@@ -185,11 +198,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
             if (getNFTXVaultIs1155(vault)) {
                 require(amount > 0, 'Invalid token submitted to vault');
-                _createListing1155(msg.sender, nftId, vault, price, expiryTime, amount);
+                _createListing1155(msg.sender, nftId, vault, price, expiryTime, amount, royaltyFee);
             }
             else {
                 require(amount == 0, 'Invalid token submitted to vault');
-                _createListing721(msg.sender, nftId, vault, price, expiryTime);
+                _createListing721(msg.sender, nftId, vault, price, expiryTime, royaltyFee);
             }
 
             unchecked { ++i; }
@@ -212,16 +225,14 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint256 nftId,
         address vault,
         uint32 price,
-        uint32 expiry
+        uint32 expiry,
+        uint8 royaltyFee
     ) internal {
         // Get our 721 listing ID
         bytes32 listingId = getListingId721(vault, nftId);
 
-        // Create our listing object
-        // Listing721 memory listing = Listing721(seller, price, expiry);
-
         // Add our listing
-        listings721[listingId] = Listing721(seller, price, expiry);
+        listings721[listingId] = Listing721(seller, price, expiry, royaltyFee);
 
         emit ListingCreated(seller, vault, nftId, 0, price, expiry);
     }
@@ -247,13 +258,10 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint24 amount
     ) internal {
         // Get our 1155 listing ID
-        bytes32 listingId = getListingId1155(vault, nftId, seller, price);
-
-        // Create our listing object
-        // Listing1155 memory listing = Listing1155(seller, amount, price, expiry);
+        bytes32 listingId = getListingId1155(vault, nftId, seller, price, expiry, royaltyFee);
 
         // Add our listing
-        listings1155[listingId] = Listing1155(seller, amount, price, expiry);
+        listings1155[listingId] = Listing1155(seller, amount, price, expiry, royaltyFee);
 
         emit ListingCreated(seller, vault, nftId, amount, price, expiry);
     }
@@ -527,14 +535,25 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         // Confirm the listing has not expired
         require(existingListing.expiryTime > block.timestamp, 'Listing has expired');
 
-        // Map our NFTX vault
-        INFTXVault nftxVault = INFTXVault(vault);
+        _processListingFees(
+            // The address of our NFTX vault
+            vault,
 
-        // Convert our 6 decimal listing price to 18 decimals for token transfer
-        uint256 transferTokenAmount = existingListing.price.mul(10e11);
+            // Buyer address
+            buyer,
 
-        // Send the seller tokens from the buyer
-        nftxVault.transferFrom(buyer, existingListing.seller, transferTokenAmount);
+            // Seller address
+            seller,
+
+            // Convert our 6 decimal listing price to 18 decimals for token transfer
+            existingListing.price.mul(10e11),
+
+            // Get the NFTX vault minting fee
+            getNFTXVaultMintFee(vault),
+
+            // Get the listing's royalty fee
+            existingListing.royaltyFee.mul(10e16)
+        );
 
         // Send NFT to buyer
         _transfer(existingListing.seller, buyer, vault, nftId, 0);
@@ -544,6 +563,62 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         delete listings721[listingId];
 
         emit ListingFilled(listingId, 0, existingListing.price);
+    }
+
+
+    /**
+     * 
+     */
+
+    function _processListingFees(
+        address vault,
+        address buyer,
+        address seller,
+        uint256 transferTokenAmount,
+        uint256 mintFee,
+        uint256 royaltyFee
+    ) {
+        // Get our combined fees for later calculations
+        uint256 combinedFees = mintFee.add(royaltyFee);
+
+        // If our fees are higher than the sale price, then level it out
+        if (combinedFees > transferTokenAmount) {
+            combinedFees = transferTokenAmount;
+        }
+
+        // Determine the amount our end seller will receive
+        uint256 sellerReceives = transferTokenAmount.sub(combinedFees);
+
+        // Map our NFTX vault
+        INFTXVault nftxVault = INFTXVault(vault);
+
+        // Send the seller tokens from the buyer, minus the mint fees that will be distributed
+        if (sellerReceives) {
+            nftxVault.transferFrom(buyer, seller, sellerReceives);
+        }
+
+        // Check if our user is excluded from paying NFTX fees
+        if (nftxVault.excludedFromFees(seller)) {
+            return;
+        }
+
+        // Send the mint fee to the fee distributooooor
+        if (mintFee) {
+            // Mint fees directly to the distributor and distribute.
+            address feeDistributor = nftxVault.feeDistributor();
+            nftxVault.transferFrom(buyer, feeDistributor, mintFee);
+            INFTXFeeDistributor(feeDistributor).distribute(vault);
+        }
+
+        // If we have a royalty fee to pay then dispatch the fee to the recipient
+        // address for the royalty.
+        if (royaltyFee) {
+            address royaltyFeeRecipient = getRoyaltyFeeRecipientAddress(vault);
+
+            if (royaltyFeeRecipient) {
+                nftxVault.transferFrom(buyer, royaltyFeeRecipient, royaltyFee);
+            }
+        }
     }
 
 
@@ -700,9 +775,11 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address vault,
         uint256 nftId,
         address seller,
-        uint32 price
+        uint32 price,
+        uint32 expiry,
+        uint8 royaltyFee
     ) public view returns (bytes32) {
-        return keccak256(abi.encode(vault, nftId, seller, price));
+        return keccak256(abi.encode(vault, nftId, seller, price, expiry, royaltyFee));
     }
 
 
@@ -748,6 +825,44 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
 
     /**
+     * @notice Caches an NFTX vault mint fee. This stores the uint256 to prevent
+     * having to load an external contract.
+     * 
+     * If this value needs to be updated (if the external vault is updated),
+     * then `purgeNFTXCache` should be called by the owner to flush this cache.
+     *
+     * @param vault The NFTX Vault asset address
+     */
+
+    function getNFTXVaultMintFee(address vault) internal returns (address) {
+        if (nftxVaultMintFee[vault] != 0) {
+            return nftxVaultMintFee[vault];
+        }
+
+        nftxVaultMintFee[vault] = INFTXVault(vault).mintFee();
+        return nftxVaultMintFee[vault];
+    }
+
+
+    /**
+     * 
+     */
+
+    function getRoyaltyFeeRecipientAddress(address vault) internal returns (address) {
+        address asset = getNFTXVaultAssetAddress(vault);
+
+        // Check if the asset contract supports the ERC2981
+        bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
+        if (IERC165(asset).supportsInterface(_INTERFACE_ID_ERC2981)) {
+            return address(0);
+        }
+
+        (address recipient, ) = IERC2981(asset).royaltyInfo();
+        return recipient;
+    }
+
+
+    /**
      * @notice Clears any cached external NFTX vault data,
      * 
      * @param vault The NFTX Vault asset address
@@ -756,6 +871,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
     function purgeNFTXCache(address vault) external onlyOwner {
         nftxVault1155[vault] = 0;
         nftxVaultAsset[vault] = address(0);
+        nftxVaultMintFee[vault] = 0;
     }
 
 }
