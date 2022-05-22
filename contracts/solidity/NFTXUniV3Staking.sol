@@ -19,7 +19,7 @@ import "./univ3/PoolAddress.sol";
 // Pausing codes for inventory staking are:
 // 10: Deposit
 
-contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
+contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Small locktime to prevent flash deposits.
@@ -29,7 +29,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
     int24 internal constant MIN_TICK = -887272;
     /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
     int24 internal constant MAX_TICK = -MIN_TICK;
-    uint24 internal constant DEFAULT_FEE = 200;
+    uint24 internal constant DEFAULT_FEE = 10000;
 
     uint256 public positionsCreated;
     address public v3Factory;
@@ -43,7 +43,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, DividendNFTUpgradeable {
     event Withdraw(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, address sender);
     event FeesReceived(uint256 vaultId, uint256 amount);
 
-    function __NFTXInventoryStaking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
+    function __NFTXUniV3Staking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
         __Ownable_init();
         // Amount 1 is for vault token
         // Amount 2 is for pairing token
