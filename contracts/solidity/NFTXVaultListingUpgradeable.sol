@@ -176,7 +176,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
 
     /**
-     * @notice Allows approved ERC721 NFTs to be listed against a vault. The NFT must
+     * @notice Allows approved NFTs to be listed against a vault. The NFT must
      * belong to the asset address stored against the NFTX vault and have an expiry
      * timestamp set in the future.
      *
