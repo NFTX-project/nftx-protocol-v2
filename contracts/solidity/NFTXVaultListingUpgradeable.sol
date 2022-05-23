@@ -549,12 +549,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         // Process our listing fees
         _processListingFees(
-            vault,                                 // The address of our NFTX vault
-            buyer,                                 // Buyer address
-            existingListing.seller,                // Seller address
-            existingListing.price.mul(10e11),      // Convert our 6 decimal listing price to 18 decimals for token transfer
-            getNFTXVaultMintFee(vault),            // Get the NFTX vault minting fee
-            existingListing.royaltyFee.mul(10e16)  // Get the listing's royalty fee
+            vault,                             // The address of our NFTX vault
+            buyer,                             // Buyer address
+            existingListing.seller,            // Seller address
+            existingListing.price.mul(10e11),  // Convert our 6 decimal listing price to 18 decimals for token transfer
+            getNFTXVaultMintFee(vault),        // Get the NFTX vault minting fee
+            existingListing.royaltyFee         // Get the listing's royalty fee
         );
 
         // Send NFT to buyer
@@ -601,12 +601,12 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
 
         // Process our listing fees
         _processListingFees(
-            vault,                                             // The address of our NFTX vault
-            buyer,                                             // Buyer address
-            existingListing.seller,                            // Seller address
-            existingListing.price.mul(10e11).mul(amount),      // Convert our 6 decimal listing price to 18 decimals for token transfer
-            getNFTXVaultMintFee(vault),                        // Get the NFTX vault minting fee
-            existingListing.royaltyFee.mul(10e16).mul(amount)  // Get the listing's royalty fee
+            vault,                                         // The address of our NFTX vault
+            buyer,                                         // Buyer address
+            existingListing.seller,                        // Seller address
+            existingListing.price.mul(10e11).mul(amount),  // Convert our 6 decimal listing price to 18 decimals for token transfer
+            getNFTXVaultMintFee(vault),                    // Get the NFTX vault minting fee
+            existingListing.royaltyFee                     // Get the listing's royalty fee
         );
 
         // Send NFT to buyer
@@ -646,6 +646,9 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         uint256 mintFee,
         uint256 royaltyFee
     ) internal {
+        // Calculate our royalty fee as a percentage
+        royaltyFee = transferTokenAmount.div(100).mul(royaltyFee);
+
         // Get our combined fees for later calculations
         uint256 combinedFees = mintFee.add(royaltyFee);
 
@@ -870,7 +873,7 @@ contract NFTXVaultListingUpgradeable is INFTXVaultListing, OwnableUpgradeable {
         address asset = getNFTXVaultAssetAddress(vault);
 
         // Check if the asset contract supports the ERC2981
-        if (IERC165(asset).supportsInterface(_INTERFACE_ID_ERC2981)) {
+        if (!IERC165(asset).supportsInterface(_INTERFACE_ID_ERC2981)) {
             return address(0);
         }
 

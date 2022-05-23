@@ -24,9 +24,10 @@ const aboveValidFloorPrice = "1300000"
 const futureTimestamp = "2000000000";  // Wed May 18 2033 03:33:20 GMT+0000
 const anotherFutureTimestamp = "2000000010";  // Wed May 18 2033 03:33:30 GMT+0000
 
-const BASE = BigNumber.from(10).pow(18);
+const noRoyaltyFee = 0;
+const tenPercentRoyaltyFee = 10;
+
 const zeroAddr = "0x0000000000000000000000000000000000000000";
-const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
 
 describe('NFTX Vault Listings', async () => {
@@ -57,7 +58,7 @@ describe('NFTX Vault Listings', async () => {
     );
     await staking.deployed();
 
-    // Create our fee distributor
+    // Create our fee distributoooor
     feeDistributor = await upgrades.deployProxy(
       feeDistributorFactory,
       [],
@@ -132,7 +133,7 @@ describe('NFTX Vault Listings', async () => {
     // Set up our NFTX vault listings contract
     nftxVaultListing = await upgrades.deployProxy(
       nftxVaultListingFactory,
-      [],
+      [nftx.address],
       {
         initializer: "__NFTXVaultListing_init",
         unsafeAllow: 'delegatecall'
@@ -178,7 +179,7 @@ describe('NFTX Vault Listings', async () => {
 
       // Create our listing
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get our listing ID from the vault address and NFT ID that was listed
@@ -203,11 +204,11 @@ describe('NFTX Vault Listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], ['0'], [0], [futureTimestamp]
+        [1], [punkVault.address], ['0'], [0], [futureTimestamp], [noRoyaltyFee]
       )).to.be.revertedWith('Listing below floor price')
 
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp]
+        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp], [noRoyaltyFee]
       )).to.be.revertedWith('Listing below floor price')
     })
 
@@ -215,13 +216,13 @@ describe('NFTX Vault Listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp]
+        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp], [noRoyaltyFee]
       )).to.be.revertedWith('Listing below floor price')
 
       await nftxVaultListing.setFloorPrice('1190000')
 
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp]
+        [1], [punkVault.address], ['1190000'], [0], [futureTimestamp], [noRoyaltyFee]
       )
     })
 
@@ -239,7 +240,7 @@ describe('NFTX Vault Listings', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
 
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [0], [0], [0]
+        [1], [punkVault.address], [0], [0], [0], [noRoyaltyFee]
       )).to.be.revertedWith('Listing already expired')
     })
 
@@ -254,7 +255,8 @@ describe('NFTX Vault Listings', async () => {
         [punkVault.address, punkVault.address, tubbyVault.address],
         [validFloorPrice, validFloorPrice, validFloorPrice],
         [0, 0, 0],
-        [futureTimestamp, futureTimestamp, futureTimestamp]
+        [futureTimestamp, futureTimestamp, futureTimestamp],
+        [noRoyaltyFee, noRoyaltyFee, noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -288,7 +290,8 @@ describe('NFTX Vault Listings', async () => {
           [punkVault.address, punkVault.address, tubbyVault.address, punkVault.address],
           [validFloorPrice, 0, validFloorPrice, validFloorPrice],
           [0, 0, 0, 0],
-          [0, futureTimestamp, futureTimestamp, futureTimestamp]
+          [0, futureTimestamp, futureTimestamp, futureTimestamp],
+          [noRoyaltyFee, noRoyaltyFee, noRoyaltyFee, noRoyaltyFee]
         )
       ).to.be.reverted
     })
@@ -303,7 +306,7 @@ describe('NFTX Vault Listings', async () => {
 
       // Attempt to create an ERC721 listing with an amount
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [2], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [2], [futureTimestamp], [noRoyaltyFee]
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
@@ -312,7 +315,7 @@ describe('NFTX Vault Listings', async () => {
 
       // Attempt to create an ERC1155 listing without an amount
       await expect(nftxVaultListing.connect(alice).createListings(
-        [1], [multiTokenVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [multiTokenVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )).to.be.revertedWith('Invalid token submitted to vault')
     })
 
@@ -336,12 +339,13 @@ describe('NFTX Vault Listings', async () => {
         [multiTokenVault.address, multiTokenVault.address, multiTokenVault.address, multiTokenVault.address],
         [validFloorPrice, validFloorPrice, validFloorPrice, aboveValidFloorPrice],
         [2, 1, 3, 2],
-        [futureTimestamp, futureTimestamp, futureTimestamp, futureTimestamp]
+        [futureTimestamp, futureTimestamp, futureTimestamp, futureTimestamp],
+        [noRoyaltyFee, noRoyaltyFee, noRoyaltyFee, noRoyaltyFee]
       )
 
-      listingId1 = await nftxVaultListing.getListingId1155(multiTokenVault.address, 1, alice.address, validFloorPrice);
-      listingId2 = await nftxVaultListing.getListingId1155(multiTokenVault.address, 2, alice.address, validFloorPrice);
-      listingId2Alt = await nftxVaultListing.getListingId1155(multiTokenVault.address, 2, alice.address, aboveValidFloorPrice);
+      listingId1 = await nftxVaultListing.getListingId1155(multiTokenVault.address, 1, alice.address, validFloorPrice, futureTimestamp, noRoyaltyFee);
+      listingId2 = await nftxVaultListing.getListingId1155(multiTokenVault.address, 2, alice.address, validFloorPrice, futureTimestamp, noRoyaltyFee);
+      listingId2Alt = await nftxVaultListing.getListingId1155(multiTokenVault.address, 2, alice.address, aboveValidFloorPrice, futureTimestamp, noRoyaltyFee);
 
       listing = await nftxVaultListing.listings1155(listingId1)
 
@@ -370,7 +374,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should be able to delete a listing by setting an expiry time of 0', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -400,7 +404,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should be able to update price', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -430,7 +434,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should not allow user to update price below floor', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -454,7 +458,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should not allow expiry update if price is below minimum', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -486,7 +490,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should be able to deactivate a listing by setting a past expiry time', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -516,7 +520,7 @@ describe('NFTX Vault Listings', async () => {
     it('Should prevent non-seller from updating listing', async () => {
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, 1);
       await nftxVaultListing.connect(alice).createListings(
-        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [1], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       listingId = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -546,7 +550,8 @@ describe('NFTX Vault Listings', async () => {
         [punkVault.address, punkVault.address, tubbyVault.address],
         [validFloorPrice, validFloorPrice, validFloorPrice],
         [0, 0, 0],
-        [futureTimestamp, futureTimestamp, futureTimestamp]
+        [futureTimestamp, futureTimestamp, futureTimestamp],
+        [noRoyaltyFee, noRoyaltyFee, noRoyaltyFee]
       )
 
       listingId1 = await nftxVaultListing.getListingId721(punkVault.address, 1)
@@ -648,7 +653,7 @@ describe('NFTX Vault Listings', async () => {
 
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get the listing ID that we created
@@ -679,14 +684,14 @@ describe('NFTX Vault Listings', async () => {
       // Confirm bob can now list the NFT after re-approving
       await cryptopunk.connect(bob).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(bob).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Confirm that bob's token balance has been reduced by the listing price
       expect(await punkVault.balanceOf(bob.address)).to.equal('3800000000000000000')
 
-      // Confirm alice holds the expected price of tokens
-      expect(await punkVault.balanceOf(alice.address)).to.equal('1200000000000000000')
+      // Confirm alice holds the expected price of tokens (minus 0.1 mint fees)
+      expect(await punkVault.balanceOf(alice.address)).to.equal('1100000000000000000')
     })
 
     it('Should prevent fill if sender has insuffient balance for a listing', async () => {
@@ -696,7 +701,7 @@ describe('NFTX Vault Listings', async () => {
 
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get the listing ID that we created
@@ -718,7 +723,7 @@ describe('NFTX Vault Listings', async () => {
 
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get the listing ID that we created
@@ -747,7 +752,7 @@ describe('NFTX Vault Listings', async () => {
 
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get the listing ID that we created
@@ -775,7 +780,7 @@ describe('NFTX Vault Listings', async () => {
 
       await cryptopunk.connect(alice).approve(nftxVaultListing.address, testNftId);
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp]
+        [testNftId], [punkVault.address], [validFloorPrice], [0], [futureTimestamp], [noRoyaltyFee]
       )
 
       // Get the listing ID that we created
@@ -802,10 +807,10 @@ describe('NFTX Vault Listings', async () => {
       await multiToken.connect(alice).setApprovalForAll(nftxVaultListing.address, true);
 
       await nftxVaultListing.connect(alice).createListings(
-        [testNftId], [multiTokenVault.address], [validFloorPrice], [3], [futureTimestamp]
+        [testNftId], [multiTokenVault.address], [validFloorPrice], [3], [futureTimestamp], [noRoyaltyFee]
       )
 
-      listingId = await nftxVaultListing.getListingId1155(multiTokenVault.address, testNftId, alice.address, validFloorPrice);
+      listingId = await nftxVaultListing.getListingId1155(multiTokenVault.address, testNftId, alice.address, validFloorPrice, futureTimestamp, noRoyaltyFee);
       listing = await nftxVaultListing.listings1155(listingId);
 
       expect(listing.seller).to.equal(alice.address);
@@ -819,7 +824,7 @@ describe('NFTX Vault Listings', async () => {
 
       await nftxVaultListing.connect(bob).fillListings([testNftId], [multiTokenVault.address], [listingId], [2]);
 
-      expect(await multiTokenVault.balanceOf(alice.address)).to.equal('2400000000000000000')
+      expect(await multiTokenVault.balanceOf(alice.address)).to.equal('2300000000000000000')
       expect(await multiTokenVault.balanceOf(bob.address)).to.equal('2600000000000000000')
 
       listing = await nftxVaultListing.listings1155(listingId);
@@ -835,7 +840,7 @@ describe('NFTX Vault Listings', async () => {
 
       await nftxVaultListing.connect(bob).fillListings([1], [multiTokenVault.address], [listingId], [1]);
 
-      expect(await multiTokenVault.balanceOf(alice.address)).to.equal('3600000000000000000')
+      expect(await multiTokenVault.balanceOf(alice.address)).to.equal('3400000000000000000')
       expect(await multiTokenVault.balanceOf(bob.address)).to.equal('1400000000000000000')
 
       listing = await nftxVaultListing.listings1155(listingId);
@@ -844,6 +849,42 @@ describe('NFTX Vault Listings', async () => {
       expect(listing.amount).to.equal(0);
       expect(listing.price).to.equal(0);
       expect(listing.expiryTime).to.equal(0);
+    })
+
+    it('Should allow a listing with royalties to be filled', async function () {
+      await generateWhaleTokens(10)
+
+      testNftId = 11
+
+      await multiToken.connect(bob).setApprovalForAll(nftxVaultListing.address, true);
+
+      await nftxVaultListing.connect(bob).createListings(
+        [testNftId], [multiTokenVault.address], [validFloorPrice], [3], [futureTimestamp], [tenPercentRoyaltyFee]
+      )
+
+      listingId = await nftxVaultListing.getListingId1155(multiTokenVault.address, testNftId, bob.address, validFloorPrice, futureTimestamp, tenPercentRoyaltyFee);
+      listing = await nftxVaultListing.listings1155(listingId);
+
+      expect(listing.seller).to.equal(bob.address);
+      expect(listing.amount).to.equal(3);
+      expect(listing.price).to.equal(1200000);
+      expect(listing.expiryTime).to.equal(2000000000);
+      expect(listing.royaltyFee).to.equal(10);
+
+      // Give carol sufficient tokens to fill the listing
+      await multiTokenVault.connect(whale).transfer(carol.address, '5000000000000000000')
+      await multiTokenVault.connect(carol).approve(nftxVaultListing.address, '5000000000000000000')
+
+      await nftxVaultListing.connect(carol).fillListings([testNftId], [multiTokenVault.address], [listingId], [2]);
+
+      // Alice should have received payment for 2 listings at 1.2, minus a 0.05 mint fee (times 2) and
+      // minus 10% for a royalty fee.
+      // 2.4 - 0.05 - 0.05 - 0.24 = 2.06
+      // TODO: Bob already has 1.4 from a previous test. This needs to be circumvented!!
+      expect(await multiTokenVault.balanceOf(bob.address)).to.equal('3460000000000000000')
+
+      // Bob will have sent 2.4 as the seller will have paid the fees
+      expect(await multiTokenVault.balanceOf(carol.address)).to.equal('2600000000000000000')
     })
 
   })

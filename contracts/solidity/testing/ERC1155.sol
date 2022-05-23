@@ -10,6 +10,7 @@ import "./Context.sol";
 import "./ERC165.sol";
 import "./Address.sol";
 
+
 /**
  * @dev Implementation of the basic standard multi-token.
  * See https://eips.ethereum.org/EIPS/eip-1155
@@ -40,8 +41,11 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
      * @dev See {IERC165-supportsInterface}.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        bytes4 _INTERFACE_ID_ERC2981 = 0x2a55205a;
+
         return interfaceId == type(IERC1155).interfaceId
             || interfaceId == type(IERC1155MetadataURI).interfaceId
+            || interfaceId == _INTERFACE_ID_ERC2981
             || super.supportsInterface(interfaceId);
     }
 
@@ -451,5 +455,12 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         array[0] = element;
 
         return array;
+    }
+
+
+    // ERC-2981 royalty information support
+    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) external view returns (address receiver, uint256 royaltyAmount) {
+        // Return a request for 5% royalty to this contract address
+        return (address(this), 5000000000000000000);
     }
 }
