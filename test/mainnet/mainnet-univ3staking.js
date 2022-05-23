@@ -33,7 +33,7 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
         {
           forking: {
             jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
-            blockNumber: 14807670,
+            blockNumber: 14827700,
           },
         },
       ],
@@ -98,7 +98,7 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
       UniV3Staking,
       [
         "0x1F98431c8aD98523631AE4a59f267346ea31F984", //univ3
-        "0x91ae842A5Ffd8d12023116943e72A606179294f3", // nft manager
+        "0xC36442b4a4522E871399CD717aBDD847Ab11FE88", // nft manager
         "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // weth
         "0xBE86f647b167567525cCAAfcd6f881F1Ee558216", // vaultFactory
       ],
@@ -112,29 +112,41 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     // await feeDistrib.connect(dev).addReceiver(BASE.div(5), inventoryStaking.address, true, {gasLimit: 100000})
   })
 
-  it("Should add liquidity with 721 on existing pool", async () => {
+
+  it("Should mint to get some $UWU", async () => {
     vault = await ethers.getContractAt(
       "NFTXVaultUpgradeable",
       "0x5ce188b44266c7b4bbc67afa3d16b2eb24ed1065"
     );
     vaults.push(vault);
+    await vaults[0].connect(kiwi).mint([303,525,827,904,1349], [1]);
+    // let newBal = await vaults[0].balanceOf(kiwi.getAddress());
+    // expect(oldBal).to.not.equal(newBal);
+  })
 
-    await uniStaking.initializeUniV3Position(await vault.vaultId(), 100)
+  it("Should initialize uni v3 position for vault 179", async () => {
+    const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+    await weth.connect(kiwi).deposit({value: BASE});
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+    await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
+    await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
+    await uniStaking.connect(kiwi).initializeUniV3Position(179, 4395128739, BASE.mul(2), BASE.div(10))
     const assetAddress = await vaults[0].assetAddress();
     const uwus = await ethers.getContractAt("ERC721", assetAddress);
     await uwus.connect(kiwi).setApprovalForAll(zap.address, true);
 
-    const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
-    const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
-    const {
-      reserve0,
-      reserve1,
-    } = await pair.getReserves();
-    const amountToLP = BASE.mul(2); //.sub(mintFee.mul(5)) no fee anymore
-    const amountETH = await router.quote(amountToLP, reserve0, reserve1)
-    await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
-    await zap.connect(kiwi).addLiquidity721ETH(179, [1746,7088], amountETH.sub(500), {value: amountETH});
-    const postDepositBal = await pair.balanceOf(staking.address);
+    // const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
+    // const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
+    // const {
+    //   reserve0,
+    //   reserve1,
+    // } = await pair.getReserves();
+    // const amountToLP = BASE.mul(2); //.sub(mintFee.mul(5)) no fee anymore
+    // const amountETH = await router.quote(amountToLP, reserve0, reserve1)
+    // await vaults[0].connect(kiwi).approve(zap.address, BASE.mul(1000))
+    // await zap.connect(kiwi).addLiquidity721ETH(179, [1746,7088], amountETH.sub(500), {value: amountETH});
+    // const postDepositBal = await pair.balanceOf(staking.address);
   });
 
   it("Should have locked balance", async () => {

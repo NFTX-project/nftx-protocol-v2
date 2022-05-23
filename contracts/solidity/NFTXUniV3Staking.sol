@@ -14,6 +14,9 @@ import "./token/DividendNFT.sol";
 import "./univ3/INonfungiblePositionManager.sol";
 import "./univ3/PoolAddress.sol";
 
+import "hardhat/console.sol";
+
+
 // Author: 0xKiwi.
 
 // Pausing codes for inventory staking are:
@@ -59,28 +62,43 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         _;
     }
 
-    function initializeUniV3Position(uint256 vaultId, uint160 sqrtPrice) public returns (uint256) {
+    function initializeUniV3Position(uint256 vaultId, uint160 sqrtPrice, uint256 amount0, uint256 amount1) public returns (uint256) {
       require(vaultV3PositionId[vaultId] == 0, "Vault V3 position exists");
       address vaultToken = nftxVaultFactory.vault(vaultId);
       PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(vaultToken, defaultPair, DEFAULT_FEE);
+      console.log(poolKey.token0);
+      console.log(poolKey.token1);
+      console.log(poolKey.fee);
       address pool = nftManager.createAndInitializePoolIfNecessary(poolKey.token0, poolKey.token1, poolKey.fee, sqrtPrice);
+
+      IERC20Upgradeable(poolKey.token0).transferFrom(msg.sender, address(this), amount0);
+      IERC20Upgradeable(poolKey.token1).transferFrom(msg.sender, address(this), amount1);
+      IERC20Upgradeable(poolKey.token0).approve(address(nftManager), amount0);
+      IERC20Upgradeable(poolKey.token1).approve(address(nftManager), amount1);
       INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
         token0: poolKey.token0,
         token1: poolKey.token1,
         fee: poolKey.fee,
         tickLower: MIN_TICK,
         tickUpper: MAX_TICK,
-        amount0Desired: 0,
-        amount1Desired: 0,
-        amount0Min: 0,
-        amount1Min: 0,
+        amount0Desired: amount0,
+        amount1Desired: amount1,
+        amount0Min: amount0,
+        amount1Min: amount1,
         recipient: address(this),
         deadline: block.timestamp
       });
-      (uint256 tokenId, , ,) = nftManager.mint(params);
-      vaultV3PositionId[vaultId] = tokenId;
-
-      return tokenId;
+        try nftManager.mint(params) returns (
+            uint256 tokenId,
+            uint128 liquidity,
+            uint256 amount0,
+            uint256 amount1
+        ) {
+          vaultV3PositionId[vaultId] = tokenId;
+          return tokenId;
+        } catch (bytes memory reason) {
+            revert(string(reason));
+        }
     }
 
     function createStakingPositionNFT(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256) {
