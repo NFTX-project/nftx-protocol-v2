@@ -11,7 +11,6 @@ interface INFTXVaultListing {
         uint32 price,
         uint24 amount,
         uint32 expiry,
-        uint8 royaltyFee,
         address paymentAsset
     ) external;
 
@@ -37,7 +36,6 @@ interface INFTXVaultListing {
         uint32[] calldata prices,
         uint24[] calldata amounts,
         uint32[] calldata expiries,
-        uint8[] calldata royaltyFees,
         address[] calldata paymentAssets
     ) external;
 
