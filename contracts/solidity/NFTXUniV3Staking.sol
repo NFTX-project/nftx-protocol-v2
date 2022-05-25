@@ -122,15 +122,13 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       return liquidityDelta;
     }
 
-    function removeLiquidityToVaultV3Position(uint256 tokenId, uint256 amount0, uint256 amount1) public returns (uint256) {
+    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint256 amount0, uint256 amount1) public {
       // TODO CHECK OWNERSHIP
       
       uint256 vaultId = _tokenToVaultMapping[tokenId];
 
-      (uint256 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, amount0, amount1);
-      _decreaseBalance(tokenId, liquidityDelta);
-
-      return liquidityDelta;
+      (uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, liquidityToRemove, amount0, amount1);
+      _decreaseBalance(tokenId, liquidityToRemove);
     }
 
     function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256, uint256, uint256) {
@@ -156,21 +154,26 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         deadline: block.timestamp
       });
       (uint256 newLiquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
+      console.log(oldLiquidity);
+      console.log(newLiquidity);
+
       uint256 liquidityDelta = newLiquidity - oldLiquidity;
       return (liquidityDelta, amount0, amount1);
     }
 
-    function _removeLiquidityfromVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256, uint256, uint256) {
+    function _removeLiquidityfromVaultV3Position(uint256 vaultId, uint128 liquidityToRemove, uint256 amount0, uint256 amount1) public returns (uint256, uint256) {
       uint256 tokenId = vaultV3PositionId[vaultId];
       require(tokenId != 0, "No Vault V3 position");
       address _vaultToken = nftxVaultFactory.vault(vaultId);
       address _defaultPair = defaultPair;
 
       (,,,,,,, uint128 oldLiquidity,,,,) = nftManager.positions(tokenId);
+      console.log(oldLiquidity);
+      console.log(liquidityToRemove);
 
       INonfungiblePositionManager.DecreaseLiquidityParams memory params = INonfungiblePositionManager.DecreaseLiquidityParams({
         tokenId: tokenId,
-        liquidity: 0,
+        liquidity: liquidityToRemove,
         amount0Min: amount0,
         amount1Min: amount1,
         deadline: block.timestamp
@@ -180,8 +183,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       IERC20Upgradeable(address0).safeTransfer(msg.sender, amount0);
       IERC20Upgradeable(address1).safeTransfer(msg.sender, amount1);
 
-      uint256 liquidityDelta = oldLiquidity - oldLiquidity;
-      return (liquidityDelta, amount0, amount1);
+      return (amount0, amount1);
     }
 
     function _distributeTradingFeeRewards(uint256 vaultId) internal {

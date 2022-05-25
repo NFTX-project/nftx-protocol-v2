@@ -136,8 +136,8 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     emit RewardsDistributed(vaultId, amount1, amount2);
   }
 
-  function balanceOf(uint256 tokenId) public view returns (uint256) {
-    return 0;
+  function balanceOfNFT(uint256 tokenId) public view virtual returns (uint256) {
+    return _tokenBalance[tokenId];
   }
 
   /// @notice Withdraws the target distributed to the sender.

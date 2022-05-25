@@ -146,6 +146,30 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     console.log(await uniStaking.ownerOf(0))
   });
 
+  it("Should let user increase position for vault 179", async () => {
+    const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+    await weth.connect(kiwi).deposit({value: BASE});
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+    await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
+    await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
+    await uniStaking.connect(kiwi).addLiquidityToStakingPositionNFT(0, BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
+    console.log(await uniStaking.ownerOf(0))
+  });
+
+  it("Should let user decrease position for vault 179", async () => {
+    const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+    await weth.connect(kiwi).deposit({value: BASE});
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+    await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
+    await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
+    let liq = await uniStaking.balanceOfNFT(0);
+    console.log(liq.toString())
+    await uniStaking.connect(kiwi).removeLiquidityFromVaultV3Position(0, liq.div(2), BigNumber.from("9999999999999999"), BigNumber.from("9999999999999999"))
+    console.log(await uniStaking.ownerOf(0))
+  });
+
   // it("Should have locked balance", async () => {
   //   let newDisttoken = await staking.newRewardDistributionToken(179);
   //   let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
