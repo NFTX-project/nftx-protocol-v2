@@ -114,7 +114,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
 
     function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) public returns (uint256) {
       // TODO CHECK OWNERSHIP
-      uint256 vaultId = _tokenToVaultMapping[tokenId];
+      uint256 vaultId = vaultForToken(tokenId);
 
       (uint256 liquidityDelta, uint256 amount0, uint256 amount1) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
       _increaseBalance(tokenId, liquidityDelta);
@@ -125,7 +125,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint256 amount0, uint256 amount1) public {
       // TODO CHECK OWNERSHIP
       
-      uint256 vaultId = _tokenToVaultMapping[tokenId];
+      uint256 vaultId = vaultForToken(tokenId);
 
       (uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, liquidityToRemove, amount0, amount1);
       _decreaseBalance(tokenId, liquidityToRemove);
@@ -199,7 +199,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
 
     function claimRewardsTo(uint256 tokenId, address receiver) public {
       require(msg.sender == ownerOf(tokenId), "Not owner");
-      uint256 vaultId = _tokenToVaultMapping[tokenId];
+      uint256 vaultId = vaultForToken(tokenId);
       _distributeTradingFeeRewards(vaultId);
       address _vaultToken = nftxVaultFactory.vault(vaultId);
       (address address0, address address1) = sortTokens(_vaultToken, defaultPair);
@@ -225,11 +225,6 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
     //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
     //     return xToken.timelockUntil(who);
-    // }
-
-    // function balanceOf(uint256 vaultId, address who) external view returns (uint256) {
-    //     XTokenUpgradeable xToken = XTokenUpgradeable(vaultXToken(vaultId));
-    //     return xToken.balanceOf(who);
     // }
 
     function isContract(address account) internal view returns (bool) {
