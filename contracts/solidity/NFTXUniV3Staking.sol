@@ -95,6 +95,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
             uint256 amount1
         ) {
           vaultV3PositionId[vaultId] = tokenId;
+          _mint(msg.sender, positionsCreated, vaultId, liquidity);
+          positionsCreated = positionsCreated + 1;
           return tokenId;
         } catch (bytes memory reason) {
             revert(string(reason));

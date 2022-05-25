@@ -208,11 +208,22 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
     let newWBal = await weth20.balanceOf(kiwi.getAddress())
     let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    console.log(oldWBal)
+    console.log(oldVBal)
     console.log(newWBal.sub(oldWBal).toString())
     console.log(newVBal.sub(oldVBal).toString())
     expect(newWBal).to.be.greaterThan(oldWBal);
     expect(newVBal).to.be.greaterThan(oldVBal);
   });
+
+  it("Should allow fees to come in from distributor", async () => {
+    let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    console.log(oldVBal.toString())
+    await vaults[0].connect(kiwi).approve(uniStaking.address, oldVBal.mul(2))
+    await uniStaking.receiveRewards(179, oldVBal.div(2))
+    let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    console.log(newVBal.toString())
+  })
   
   // it("Should have locked balance", async () => {
   //   let newDisttoken = await staking.newRewardDistributionToken(179);
