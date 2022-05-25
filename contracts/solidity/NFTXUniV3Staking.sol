@@ -29,7 +29,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     uint256 internal constant DEFAULT_LOCKTIME = 2;
     address public defaultPair;
         /// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**-128
-    int24 internal constant MIN_TICK = -887272;
+    int24 internal constant MIN_TICK = -887200;
     /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
     int24 internal constant MAX_TICK = -MIN_TICK;
     uint24 internal constant DEFAULT_FEE = 10000;
@@ -83,8 +83,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         tickUpper: MAX_TICK,
         amount0Desired: amount0,
         amount1Desired: amount1,
-        amount0Min: amount0,
-        amount1Min: amount1,
+        amount0Min: 0,
+        amount1Min: 0,
         recipient: address(this),
         deadline: block.timestamp
       });

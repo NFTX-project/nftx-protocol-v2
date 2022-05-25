@@ -131,10 +131,10 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
-    await uniStaking.connect(kiwi).initializeUniV3Position(179, 4395128739, BASE.mul(2), BASE.div(10))
-    const assetAddress = await vaults[0].assetAddress();
-    const uwus = await ethers.getContractAt("ERC721", assetAddress);
-    await uwus.connect(kiwi).setApprovalForAll(zap.address, true);
+    await uniStaking.connect(kiwi).initializeUniV3Position(179, BigNumber.from("79228162514264337593543950336"), BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
+    // const assetAddress = await vaults[0].assetAddress();
+    // const uwus = await ethers.getContractAt("ERC721", assetAddress);
+    // await uwus.connect(kiwi).setApprovalForAll(zap.address, true);
 
     // const router = await ethers.getContractAt("IUniswapV2Router01", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F");
     // const pair = await ethers.getContractAt("IUniswapV2Pair", "0xfd52305d58f612aad5f7e5e331c7a0d77e352ec3")
