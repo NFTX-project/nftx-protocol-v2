@@ -61,7 +61,6 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   function _mint(address to, uint256 tokenId, uint256 vaultID, uint256 valueBal) internal virtual {
     super._mint(to, tokenId);
     _tokenToVaultMapping[tokenId] = vaultID;
-    _tokenBalance[tokenId] = valueBal;
     _increaseBalance(tokenId, valueBal);
   }
 
@@ -70,6 +69,10 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     uint256 vaultId = _tokenToVaultMapping[tokenId];
     uint256 oldBal = _tokenBalance[tokenId];
     _tokenBalance[tokenId] = oldBal + valueBal;
+    totalStaked[vaultId] += valueBal;
+    console.log(vaultId);
+    console.log(valueBal);
+    console.log(totalStaked[vaultId]);
     magnifiedRewardCorrections1[vaultId] = magnifiedRewardCorrections1[vaultId]
       .sub( (magnifiedRewardPerShare1[vaultId].mul(valueBal)).toInt256() );
     magnifiedRewardCorrections2[vaultId] = magnifiedRewardCorrections2[vaultId]
@@ -81,6 +84,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     uint256 vaultId = _tokenToVaultMapping[tokenId];
     uint256 oldBal = _tokenBalance[tokenId];
     _tokenBalance[tokenId] = oldBal - valueSub;
+    totalStaked[vaultId] -= valueSub;
     magnifiedRewardCorrections1[vaultId] = magnifiedRewardCorrections1[vaultId]
       .add( (magnifiedRewardPerShare1[vaultId].mul(valueSub)).toInt256() );
     magnifiedRewardCorrections2[vaultId] = magnifiedRewardCorrections2[vaultId]
@@ -115,9 +119,11 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   ///     and try to distribute it in the next distribution,
   ///     but keeping track of such data on-chain costs much more than
   ///     the saved target, so we don't do that.
-  function _distributeRewards(uint256 vaultId, uint256 amount1, uint256 amount2) internal {
+  function _distributeRewards(uint256 vaultId, uint256 amount1, uint256 amount2) internal returns (bool) {
     require(amount1 > 0 || amount2 > 0, "RewardDist: 0 amount");
     uint256 total = totalStaked[vaultId];
+    console.log(vaultId);
+    console.log(total);
     require(total > 0, "No one is staked");
 
     // Because we receive the tokens from the staking contract, we assume the tokens have been received.
@@ -134,6 +140,7 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     }
 
     emit RewardsDistributed(vaultId, amount1, amount2);
+    return true;
   }
 
   function balanceOfNFT(uint256 tokenId) public view virtual returns (uint256) {

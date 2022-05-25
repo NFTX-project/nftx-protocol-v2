@@ -149,8 +149,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         tokenId: tokenId,
         amount0Desired: amount0,
         amount1Desired: amount1,
-        amount0Min: amount0,
-        amount1Min: amount1,
+        amount0Min: 0,
+        amount1Min: 0,
         deadline: block.timestamp
       });
       (uint256 newLiquidity, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);

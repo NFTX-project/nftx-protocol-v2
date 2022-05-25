@@ -19,7 +19,7 @@ let founder;
 let nftx;
 let zap, oldZap;
 let staking;
-let uniStaking;
+let uniStaking, uniSwapRouter;
 let erc721;
 let feeDistrib;
 let controller;
@@ -90,6 +90,11 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
       "NFTXSimpleFeeDistributor",
       "0xFD8a76dC204e461dB5da4f38687AdC9CC5ae4a86"
     );
+
+    uniSwapRouter = await ethers.getContractAt(
+      "ISwapRouter",
+      "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    );
   });
 
   it("Should deploy nft staking", async () => {
@@ -142,13 +147,14 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
+
     await uniStaking.connect(kiwi).createStakingPositionNFT(179, BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
     console.log(await uniStaking.ownerOf(0))
   });
+  
 
   it("Should let user increase position for vault 179", async () => {
     const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
-    await weth.connect(kiwi).deposit({value: BASE});
     const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
@@ -159,7 +165,6 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
 
   it("Should let user decrease position for vault 179", async () => {
     const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
-    await weth.connect(kiwi).deposit({value: BASE});
     const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
@@ -170,6 +175,45 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     console.log(await uniStaking.ownerOf(0))
   });
 
+  it("Should let user swap with vault tokens", async () => {
+    const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+    await weth.connect(kiwi).deposit({value: BASE});
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+    await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+    await weth20.connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+
+    let params = {
+      tokenIn: vaults[0].address,
+      tokenOut: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      fee: 10000,
+      recipient: kiwi.getAddress(),
+      deadline: 10000000000,
+      amountIn: BASE,
+      amountOutMinimum: 0,
+      sqrtPriceLimitX96: BigNumber.from("4295128800"),
+    }
+    await uniSwapRouter.connect(kiwi).exactInputSingle(params)
+    // console.log(await uniStaking.ownerOf(0))
+  });
+
+  it("Should let user claim rewards from trading", async () => {
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+    await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+    await weth20.connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+
+    let oldWBal = await weth20.balanceOf(kiwi.getAddress())
+    let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
+    let newWBal = await weth20.balanceOf(kiwi.getAddress())
+    let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    console.log(newWBal.sub(oldWBal).toString())
+    console.log(newVBal.sub(oldVBal).toString())
+    expect(newWBal).to.be.greaterThan(oldWBal);
+    expect(newVBal).to.be.greaterThan(oldVBal);
+  });
+  
   // it("Should have locked balance", async () => {
   //   let newDisttoken = await staking.newRewardDistributionToken(179);
   //   let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
