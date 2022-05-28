@@ -159,8 +159,10 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
+    console.log("old balance", (await uniStaking.balanceOfNFT(0)).toString())
     await uniStaking.connect(kiwi).addLiquidityToStakingPositionNFT(0, BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
     console.log(await uniStaking.ownerOf(0))
+    console.log("new balance", (await uniStaking.balanceOfNFT(0)).toString())
   });
 
   it("Should let user decrease position for vault 179", async () => {
