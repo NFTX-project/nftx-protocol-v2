@@ -1,6 +1,7 @@
 require("dotenv").config();
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
+require('solidity-docgen');
 // require("hardhat-gas-reporter");
 
 /**
@@ -52,5 +53,10 @@ module.exports = {
   },
   mocha: {
     timeout: 100000,
+  },
+  docgen: {
+    outputDir: 'docs',
+    sourcesDir: 'contracts/solidity',
+    pages: 'files',
   },
 };
