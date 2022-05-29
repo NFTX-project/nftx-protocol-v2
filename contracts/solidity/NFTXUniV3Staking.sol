@@ -124,13 +124,13 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       return liquidityDelta;
     }
 
-    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint256 amount0, uint256 amount1) public {
+    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 amount0Max, uint128 amount1Max) public {
       // TODO CHECK OWNERSHIP
       
       uint256 vaultId = vaultForToken(tokenId);
 
-      (uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, liquidityToRemove, amount0, amount1);
-      _decreaseBalance(tokenId, liquidityToRemove);
+      (uint128 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, amount0Max, amount1Max);
+      _decreaseBalance(tokenId, uint256(liquidityDelta));
     }
 
     function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256, uint256, uint256) {
@@ -161,29 +161,32 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       return (liquidityDelta, amount0, amount1);
     }
 
-    function _removeLiquidityfromVaultV3Position(uint256 vaultId, uint128 liquidityToRemove, uint256 amount0, uint256 amount1) public returns (uint256, uint256) {
+    function _removeLiquidityfromVaultV3Position(uint256 vaultId, address receiver, uint128 amount0Max, uint128 amount1Max) public returns (uint128, uint256, uint256) {
       uint256 tokenId = vaultV3PositionId[vaultId];
       require(tokenId != 0, "No Vault V3 position");
-      address _vaultToken = nftxVaultFactory.vault(vaultId);
-      address _defaultPair = defaultPair;
 
       (,,,,,,, uint128 oldLiquidity,,,,) = nftManager.positions(tokenId);
-      console.log(oldLiquidity);
-      console.log(liquidityToRemove);
 
-      INonfungiblePositionManager.DecreaseLiquidityParams memory params = INonfungiblePositionManager.DecreaseLiquidityParams({
-        tokenId: tokenId,
-        liquidity: liquidityToRemove,
-        amount0Min: amount0,
-        amount1Min: amount1,
-        deadline: block.timestamp
-      });
-      (address address0, address address1) = sortTokens(_vaultToken, _defaultPair);
-      (uint256 amount0, uint256 amount1) = nftManager.decreaseLiquidity(params);
-      IERC20Upgradeable(address0).safeTransfer(msg.sender, amount0);
-      IERC20Upgradeable(address1).safeTransfer(msg.sender, amount1);
+      uint256 amount0;
+      uint256 amount1;
+      {
+      (address address0, address address1) = sortTokens(nftxVaultFactory.vault(vaultId), defaultPair);
+        console.log(IERC20Upgradeable(address0).balanceOf(receiver));
+        console.log(IERC20Upgradeable(address1).balanceOf(receiver));
+          INonfungiblePositionManager.CollectParams memory params = INonfungiblePositionManager.CollectParams({
+            tokenId: tokenId,
+            recipient: receiver,
+            amount0Max: amount0Max,
+            amount1Max: amount1Max
+          });
+          (amount0, amount1) = nftManager.collect(params);
+        console.log(IERC20Upgradeable(address0).balanceOf(receiver));
+        console.log(IERC20Upgradeable(address1).balanceOf(receiver));
+      }
 
-      return (amount0, amount1);
+      (,,,,,,, uint128 newLiquidity,,,,) = nftManager.positions(tokenId);
+
+      return (oldLiquidity-newLiquidity, amount0, amount1);
     }
 
     function _distributeTradingFeeRewards(uint256 vaultId) internal {
