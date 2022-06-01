@@ -22,16 +22,25 @@ import "./util/SafeERC20Upgradeable.sol";
 contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardUpgradeable, PausableUpgradeable {
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
+  /// @notice Flags if distribution is currently paused
   bool public distributionPaused;
 
+  /// @notice Contract address of the NFTX Vault Factory contract.
   address public override nftxVaultFactory;
+
+  /// @notice Contract address of the LP Staking contract.
   address public override lpStaking;
+
+  /// @notice Contract address of the NFTX Treasury contract.
   address public override treasury;
 
-  // Total allocation points per vault. 
+  /// @notice Total allocation points per vault.
   uint256 public override allocTotal;
+
+  /// @notice Array storage of fee receivers, accessed by index.
   FeeReceiver[] public feeReceivers;
 
+  /// @notice Contract address of the NFTX Inventory Staking contract.
   address public override inventoryStaking;
 
 

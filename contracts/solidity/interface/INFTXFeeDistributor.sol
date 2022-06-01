@@ -4,6 +4,15 @@ pragma solidity ^0.8.0;
 
 interface INFTXFeeDistributor {
   
+  /**
+   * @notice Structure of a FeeReceiver that contains all information required
+   * to distribute fees.
+   * 
+   * @member allocPoint The point allocation applied to the receiver
+   * @member receiver The address of the receiver
+   * @member isContract Flag to determine if the receiver is a contract, rather than a wallet address
+   */
+
   struct FeeReceiver {
     uint256 allocPoint;
     address receiver;
