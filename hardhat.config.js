@@ -55,8 +55,10 @@ module.exports = {
     timeout: 100000,
   },
   docgen: {
-    outputDir: 'docs',
+    outputDir: 'docs/output',
     sourcesDir: 'contracts/solidity',
     pages: 'files',
+    // templates: 'docs/themes',
+    // theme: 'nftx',
   },
 };
