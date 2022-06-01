@@ -9,3 +9,6 @@ flattened
 #Hardhat files
 cache
 artifacts
+
+# Generated documentation
+docs/output/**
