@@ -124,12 +124,12 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       return liquidityDelta;
     }
 
-    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 amount0Max, uint128 amount1Max) public {
+    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public {
       // TODO CHECK OWNERSHIP
       
       uint256 vaultId = vaultForToken(tokenId);
 
-      (uint128 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, amount0Max, amount1Max);
+      (uint128 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, liquidityToRemove, amount0Max, amount1Max);
       _decreaseBalance(tokenId, uint256(liquidityDelta));
     }
 
@@ -161,7 +161,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       return (liquidityDelta, amount0, amount1);
     }
 
-    function _removeLiquidityfromVaultV3Position(uint256 vaultId, address receiver, uint128 amount0Max, uint128 amount1Max) public returns (uint128, uint256, uint256) {
+    function _removeLiquidityfromVaultV3Position(uint256 vaultId, address receiver, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public returns (uint128, uint256, uint256) {
       uint256 tokenId = vaultV3PositionId[vaultId];
       require(tokenId != 0, "No Vault V3 position");
 
@@ -170,23 +170,26 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       uint256 amount0;
       uint256 amount1;
       {
-      (address address0, address address1) = sortTokens(nftxVaultFactory.vault(vaultId), defaultPair);
-        console.log(IERC20Upgradeable(address0).balanceOf(receiver));
-        console.log(IERC20Upgradeable(address1).balanceOf(receiver));
-          INonfungiblePositionManager.CollectParams memory params = INonfungiblePositionManager.CollectParams({
-            tokenId: tokenId,
-            recipient: receiver,
-            amount0Max: amount0Max,
-            amount1Max: amount1Max
-          });
-          (amount0, amount1) = nftManager.collect(params);
-        console.log(IERC20Upgradeable(address0).balanceOf(receiver));
-        console.log(IERC20Upgradeable(address1).balanceOf(receiver));
-      }
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params = INonfungiblePositionManager.DecreaseLiquidityParams({
+          tokenId: tokenId,
+          liquidity: liquidityToRemove,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: block.timestamp
+        });
+        nftManager.decreaseLiquidity(params);
 
+        INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
+          tokenId: tokenId,
+          recipient: receiver,
+          amount0Max: amount0Max,
+          amount1Max: amount1Max
+        });
+        (amount0, amount1) = nftManager.collect(collectParams);
+      }
       (,,,,,,, uint128 newLiquidity,,,,) = nftManager.positions(tokenId);
 
-      return (oldLiquidity-newLiquidity, amount0, amount1);
+      return (oldLiquidity - newLiquidity, amount0, amount1);
     }
 
     function _distributeTradingFeeRewards(uint256 vaultId) internal {

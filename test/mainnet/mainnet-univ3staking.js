@@ -113,6 +113,7 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
       }
     );
     await uniStaking.deployed();
+    await uniStaking.transferOwnership(kiwi.getAddress())
     // await feeDistrib.connect(dev).setInventoryStakingAddress(inventoryStaking.address, {gasLimit: 100000})
     // await feeDistrib.connect(dev).addReceiver(BASE.div(5), inventoryStaking.address, true, {gasLimit: 100000})
   })
@@ -173,8 +174,10 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
     let liq = await uniStaking.balanceOfNFT(0);
     console.log(liq.toString())
-    await uniStaking.connect(kiwi).removeLiquidityFromVaultV3Position(0, BigNumber.from("6999999999999999"), BigNumber.from("6999999999999999"))
+    await uniStaking.connect(kiwi).removeLiquidityFromVaultV3Position(0, liq.div(2), BigNumber.from("6999999999999999"), BigNumber.from("6999999999999999"))
     console.log(await uniStaking.ownerOf(0))
+    let newLiq = await uniStaking.balanceOfNFT(0);
+    expect(newLiq.lt(liq)).to.eq(true)
   });
 
   it("Should let user swap with vault tokens", async () => {
@@ -220,7 +223,7 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
     console.log(oldVBal.toString())
     await vaults[0].connect(kiwi).approve(uniStaking.address, oldVBal.mul(2))
-    await uniStaking.receiveRewards(179, oldVBal.div(2))
+    await uniStaking.connect(kiwi).receiveRewards(179, oldVBal.div(2))
     let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
     console.log(newVBal.toString())
   })
