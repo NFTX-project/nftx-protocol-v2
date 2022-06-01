@@ -327,7 +327,7 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
    * @param _vault The address of the NFTX vault
    * @param amountToSend The amount of tokens distributed to the receiver
    * 
-   * @returns bool If the tokens were successfully transferred
+   * @return bool If the tokens were successfully transferred
    */
 
   function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual returns (bool) {
