@@ -66,9 +66,6 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       require(vaultV3PositionId[vaultId] == 0, "Vault V3 position exists");
       address vaultToken = nftxVaultFactory.vault(vaultId);
       PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(vaultToken, defaultPair, DEFAULT_FEE);
-      console.log(poolKey.token0);
-      console.log(poolKey.token1);
-      console.log(poolKey.fee);
       address pool = nftManager.createAndInitializePoolIfNecessary(poolKey.token0, poolKey.token1, poolKey.fee, sqrtPrice);
 
       IERC20Upgradeable(poolKey.token0).transferFrom(msg.sender, address(this), amount0);
@@ -145,8 +142,6 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       IERC20Upgradeable(address0).approve(address(nftManager), amount0);
       IERC20Upgradeable(address1).approve(address(nftManager), amount1);
 
-      (,,,,,,, uint128 oldLiquidity,,,,) = nftManager.positions(tokenId);
-
       INonfungiblePositionManager.IncreaseLiquidityParams memory params = INonfungiblePositionManager.IncreaseLiquidityParams({
         tokenId: tokenId,
         amount0Desired: amount0,
@@ -155,10 +150,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         amount1Min: 0,
         deadline: block.timestamp
       });
-      (uint256 liquidityDelta, uint256 amount0, uint256 amount1) = nftManager.increaseLiquidity(params);
-      console.log(oldLiquidity);
-      console.log(liquidityDelta);
-      return (liquidityDelta, amount0, amount1);
+      (uint256 liquidityDelta, uint256 amount0Increased, uint256 amount1Increased) = nftManager.increaseLiquidity(params);
+      return (liquidityDelta, amount0Increased, amount1Increased);
     }
 
     function _removeLiquidityfromVaultV3Position(uint256 vaultId, address receiver, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public returns (uint128, uint256, uint256) {
@@ -203,6 +196,9 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       _distributeRewards(vaultId, amount0, amount1);
     }
 
+    // TEST THIS MORE
+    // TEST THIS MORE
+    // TEST THIS MORE
     function claimRewardsTo(uint256 tokenId, address receiver) public {
       require(msg.sender == ownerOf(tokenId), "Not owner");
       uint256 vaultId = vaultForToken(tokenId);
@@ -214,6 +210,9 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       IERC20Upgradeable(address1).transfer(receiver, amount1);
     }
 
+    // TEST THIS MORE
+    // TEST THIS MORE
+    // TEST THIS MORE
     // NFTX fee rewards are distributed through this function.
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual onlyAdmin returns (bool) {
       address _vaultToken = nftxVaultFactory.vault(vaultId);

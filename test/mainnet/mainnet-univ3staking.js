@@ -150,20 +150,21 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
 
     await uniStaking.connect(kiwi).createStakingPositionNFT(179, BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
-    console.log(await uniStaking.ownerOf(0))
+    let newBal = await uniStaking.balanceOfNFT(0)
+    expect(await uniStaking.ownerOf(0)).to.equal(await kiwi.getAddress())
+    expect(newBal.gt(0)).to.equal(true)
   });
   
 
   it("Should let user increase position for vault 179", async () => {
-    const weth = await ethers.getContractAt("contracts/solidity/NFTXStakingZap.sol:IWETH", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
     const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
-    console.log("old balance", (await uniStaking.balanceOfNFT(0)).toString())
+    let oldBal = await uniStaking.balanceOfNFT(0)
     await uniStaking.connect(kiwi).addLiquidityToStakingPositionNFT(0, BigNumber.from("99999999999999999"), BigNumber.from("99999999999999999"))
-    console.log(await uniStaking.ownerOf(0))
-    console.log("new balance", (await uniStaking.balanceOfNFT(0)).toString())
+    let newBal = await uniStaking.balanceOfNFT(0)
+    expect(newBal.gt(oldBal)).to.equal(true);
   });
 
   it("Should let user decrease position for vault 179", async () => {
@@ -173,9 +174,7 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await vaults[0].connect(kiwi).approve(uniStaking.address, BASE.mul(2))
     await weth20.connect(kiwi).approve(uniStaking.address, BASE.div(2))
     let liq = await uniStaking.balanceOfNFT(0);
-    console.log(liq.toString())
     await uniStaking.connect(kiwi).removeLiquidityFromVaultV3Position(0, liq.div(2), BigNumber.from("6999999999999999"), BigNumber.from("6999999999999999"))
-    console.log(await uniStaking.ownerOf(0))
     let newLiq = await uniStaking.balanceOfNFT(0);
     expect(newLiq.lt(liq)).to.eq(true)
   });
@@ -213,19 +212,19 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
     let newWBal = await weth20.balanceOf(kiwi.getAddress())
     let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
-    console.log(oldWBal.toString())
-    console.log(oldVBal.toString())
-    console.log(newWBal.sub(oldWBal).toString())
-    console.log(newVBal.sub(oldVBal).toString())
+    expect(newWBal.gt(oldWBal)).to.equal(true)
+    expect(newVBal.gt(oldVBal)).to.equal(true)
   });
 
   it("Should allow fees to come in from distributor", async () => {
     let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
-    console.log(oldVBal.toString())
+    let oldVBalUni = await vaults[0].balanceOf(uniStaking.address)
     await vaults[0].connect(kiwi).approve(uniStaking.address, oldVBal.mul(2))
     await uniStaking.connect(kiwi).receiveRewards(179, oldVBal.div(2))
     let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
-    console.log(newVBal.toString())
+    let newVBalUni = await vaults[0].balanceOf(uniStaking.address)
+    expect(newVBal.lt(oldVBal)).to.equal(true)
+    expect(newVBalUni.gt(oldVBalUni)).to.equal(true)
   })
   
   // it("Should have locked balance", async () => {
