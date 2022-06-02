@@ -31,6 +31,9 @@ module.exports = {
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
       timeout: 600000,
     },
+    frame: {
+      url: "http://127.0.0.1:1248",
+    },
     hardhat: {
       mining: {
         auto: true,
