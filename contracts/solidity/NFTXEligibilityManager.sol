@@ -14,6 +14,8 @@ import "./proxy/ClonesUpgradeable.sol";
  * @author The NFTX Team
  * 
  * @notice Handles our mappings and information for our `NFTXEligibility` contracts.
+ * 
+ * @dev Our eligibility contracts are stored under `./eligibility`.
  */
 
 contract NFTXEligibilityManager is OwnableUpgradeable {
