@@ -126,11 +126,10 @@ async function main() {
   await feeDistrib.setInventoryStakingAddress(inventoryStaking.address);
   console.log("-- updated inventory staking address");
 
-  await feeDistrib.addReceiver("800000000000000000", lpStaking.address, true);
-  console.log("-- added fee receiver 0 address");
-
   await feeDistrib.addReceiver("200000000000000000", inventoryStaking.address, true);
   console.log("-- added fee receiver 1 address");
+
+  // feeDistrib.addReceiver(<lpStaking>) occurs automatically as part of setup
 
   const StakingZap = await ethers.getContractFactory("NFTXStakingZap");
   const stakingZap = await StakingZap.deploy(vaultFactory.address, sushiRouterAddr);

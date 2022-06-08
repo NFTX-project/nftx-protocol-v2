@@ -20,7 +20,7 @@ module.exports = {
     mainnet: {
       url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
-      gasPrice: 200000000000,
+      // gasPrice: 75000000000,
     },
     palm: {
       url: `https://palm-mainnet.infura.io/v3/${process.env.PALM_API_KEY}`,
