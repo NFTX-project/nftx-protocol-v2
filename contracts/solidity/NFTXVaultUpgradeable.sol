@@ -54,6 +54,7 @@ contract NFTXVaultUpgradeable is
     bool public override enableTargetSwap;
 
     event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
+    event MetaDataChange(string oldName, string oldSymbol, string newName, string newSymbol);
 
     function __NFTXVault_init(
         string memory _name,
@@ -84,6 +85,7 @@ contract NFTXVaultUpgradeable is
         string calldata symbol_
     ) external override virtual {
         onlyPrivileged();
+        emit MetaDataChange(name(), symbol(), name_, symbol_);
         _setMetadata(name_, symbol_);
     }
 
