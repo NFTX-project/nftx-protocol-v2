@@ -8,7 +8,7 @@ const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
 let sushiRouterAddr = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
 let sushiFactoryAddr = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4";
-let wethAddress = "0xc778417E063141139Fce010982780140Aa0cD5Ab";
+let wethAddress = "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6";
 
 const daoAddress = devAddress;
 
@@ -30,31 +30,47 @@ async function main() {
 
   // const provider = await ethers.getContractAt(
   //   "StakingTokenProvider",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0xe5AB394e284d095aDacff8A0fb486cb5a24b0b7a"
   // );
   // const lpStaking = await ethers.getContractAt(
   //   "NFTXLPStaking",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0x33b381E2e0c4adC1dbd388888e9A29079e5b6702"
   // );
   // const vaultTemplate = await ethers.getContractAt(
   //   "NFTXVaultUpgradeable",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0xB14B8F97ba435c72C9814e05F946a00593559D2E"
   // );
   // const feeDistrib = await ethers.getContractAt(
   //   "NFTXSimpleFeeDistributor",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0x4939F5e390d20b7aC0Bd6913A353dfF753DD2765"
   // );
   // const vaultFactory = await ethers.getContractAt(
   //   "NFTXVaultFactoryUpgradeable",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0xe01Cf5099e700c282A56E815ABd0C4948298Afae"
   // );
   // const eligManager = await ethers.getContractAt(
   //   "NFTXEligibilityManager",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0x0B8Ee2Ee7d6f3bFB73C9aE2127558D1172B65fb1"
   // );
   // const inventoryStaking = await ethers.getContractAt(
   //   "NFTXInventoryStaking",
-  //   "0x000000000000000000000000000000000000dead"
+  //   "0xDde5A3175F5C9755480E4CB3cCA5F1865C1976D6"
+  // );
+  // const stakingZap = await ethers.getContractAt(
+  //   "NFTXStakingZap",
+  //   "0xd9A60945DD4b3a5Ea91480e82dA20D3AceC5D857"
+  // );
+  // const timelockExcludeList = await ethers.getContractAt(
+  //   "TimelockExcludeList",
+  //   "0xFf40913CA69912212e00e93Ad4DD1480A7aeF13A"
+  // );
+  // const proxyController = await ethers.getContractAt(
+  //   "MultiProxyController",
+  //   "0xbde65406B20ADb4ba9D88908187Bc9460fF24da9"
+  // );
+  // const unstakingZap = await ethers.getContractAt(
+  //   "NFTXUnstakingInventoryZap",
+  //   "0x7c656F0691Db983ee78f68189c55C36d1862c901"
   // );
 
   const StakingProvider = await ethers.getContractFactory("StakingTokenProvider");
@@ -136,7 +152,7 @@ async function main() {
   await feeDistrib.addReceiver("200000000000000000", inventoryStaking.address, true);
   console.log("-- added fee receiver 1 address");
 
-  // feeDistrib.addReceiver("800000000000000000", <lpStaking>, true) is part of setup
+  /* feeDistrib.addReceiver("800000000000000000", <lpStaking>, true) is part of setup */
 
   const StakingZap = await ethers.getContractFactory("NFTXStakingZap");
   const stakingZap = await StakingZap.deploy(vaultFactory.address, sushiRouterAddr);
@@ -210,6 +226,17 @@ async function main() {
   console.log("-- updated proxy admin on eligmanager");
   await upgrades.admin.changeProxyAdmin(inventoryStaking.address, proxyController.address);
   console.log("-- updated proxy admin on inventorystaking");
+
+  const UnstakingZap = await ethers.getContractFactory("NFTXUnstakingInventoryZap");
+  const unstakingZap = await UnstakingZap.deploy();
+  await unstakingZap.deployed();
+
+  console.log("UnstakingInventoryZap:", unstakingZap.address);
+
+  await unstakingZap.setVaultFactory(vaultFactory.address);
+  console.log("-- set vault factory on unstakingzap");
+  await unstakingZap.setInventoryStaking(inventoryStaking.address);
+  console.log("-- set inventory staking on unstakingzap");
 
   // console.log("Adding guardians...");
   // for (let i = 0; i < teamAddresses.length; i++) {
