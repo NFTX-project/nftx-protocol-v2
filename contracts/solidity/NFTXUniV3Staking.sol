@@ -193,7 +193,11 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
           amount1Max: type(uint128).max
         });
       (uint256 amount0, uint256 amount1) = nftManager.collect(params);
-      _distributeRewards(vaultId, amount0, amount1);
+      address _vaultToken = nftxVaultFactory.vault(vaultId);
+      (address address0, address address1) = sortTokens(_vaultToken, defaultPair);
+      // Send all vault tokens to treasury.
+      IERC20Upgradeable(address1 == _vaultToken ? address0 : address1).transfer(owner(), address1 == _vaultToken ? amount0 : amount1);
+      _distributeRewards(vaultId, address0 == _vaultToken ? amount0 : amount1);
     }
 
     // TEST THIS MORE
@@ -204,10 +208,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       uint256 vaultId = vaultForToken(tokenId);
       _distributeTradingFeeRewards(vaultId);
       address _vaultToken = nftxVaultFactory.vault(vaultId);
-      (address address0, address address1) = sortTokens(_vaultToken, defaultPair);
-      (uint256 amount0, uint256 amount1) = _deductWithdrawableRewards(tokenId);
-      IERC20Upgradeable(address0).transfer(receiver, amount0);
-      IERC20Upgradeable(address1).transfer(receiver, amount1);
+      (uint256 amount) = _deductWithdrawableRewards(tokenId);
+      IERC20Upgradeable(_vaultToken).transfer(receiver, amount);
     }
 
     // TEST THIS MORE
@@ -216,10 +218,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     // NFTX fee rewards are distributed through this function.
     function receiveRewards(uint256 vaultId, uint256 amount) external virtual onlyAdmin returns (bool) {
       address _vaultToken = nftxVaultFactory.vault(vaultId);
-      (address address0, address address1) = sortTokens(_vaultToken, defaultPair);
-      uint256 amount0 = _vaultToken == address0 ? amount : 0;
-      uint256 amount1  = _vaultToken == address1 ? amount : 0;
-      _distributeRewards(vaultId, amount0, amount1);
+      _distributeRewards(vaultId, amount);
       // We "pull" so the fee distributer only has to approved this contract once.
       // Only vault tokens wil come from this, never anything else.
       IERC20Upgradeable(_vaultToken).safeTransferFrom(msg.sender, address(this), amount);
