@@ -237,13 +237,30 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
   //   expect(locked).to.be.gt(1625729248);
   // });
 
-  // it("Should mint to generate some rewards", async () => {
-  //   let newDisttoken = await staking.newRewardDistributionToken(179);
-  //   let oldBal = await vaults[0].balanceOf(newDisttoken);
-  //   await vaults[0].connect(kiwi).mint([1750], [1]);
-  //   let newBal = await vaults[0].balanceOf(newDisttoken);
-  //   expect(oldBal).to.not.equal(newBal);
-  // })
+  it("Should mint to generate some rewards", async () => {
+    let newDisttoken = await staking.newRewardDistributionToken(179);
+    let oldBal = await vaults[0].balanceOf(newDisttoken);
+    await vaults[0].connect(kiwi).mint([3586,3906,3958], [1]);
+    let newBal = await vaults[0].balanceOf(newDisttoken);
+    expect(oldBal).to.not.equal(newBal);
+  })
+
+
+  // it("Should let user claim rewards from minting", async () => {
+  //   const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+
+  //   await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+  //   await weth20.connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+
+  //   let oldWBal = await weth20.balanceOf(kiwi.getAddress())
+  //   let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
+  //   await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
+  //   let newWBal = await weth20.balanceOf(kiwi.getAddress())
+  //   let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
+  //   expect(newWBal.gt(oldWBal)).to.equal(true)
+  //   expect(newVBal.gt(oldVBal)).to.equal(true)
+  // });
+
 
   // it("Should not allow to withdraw locked tokens before lock", async () => {
   //   await expectException(staking.connect(kiwi).exit(179), "User locked");

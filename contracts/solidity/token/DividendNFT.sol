@@ -26,6 +26,8 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   //  see https://github.com/ethereum/EIPs/issues/1726#issuecomment-472352728
   uint256 constant internal magnitude = 2**128;
 
+  mapping(uint256 => uint256) private _timelockedUntil;
+
   mapping(uint256 => uint256) private _tokenToVaultMapping;
   mapping(uint256 => uint256) private _tokenBalance;
   mapping(uint256 => uint256) private _totalStaked;
@@ -51,7 +53,15 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     __Ownable_init();
     __ERC721_init(_name, _symbol);
   }
+
+  function timelockLength() public virtual returns (uint256) {
+    return 0;
+  }
   
+  function timelockExcluded(address who) public virtual returns (bool) {
+    return false;
+  }
+
   function vaultForToken(uint256 tokenId) public view returns (uint256) {
     return _tokenToVaultMapping[tokenId];
   } 
@@ -64,25 +74,27 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     _increaseBalance(tokenId, valueBal);
   }
 
+  // ADD BURN 
+
   // does no transferring
   function _increaseBalance(uint256 tokenId, uint256 valueBal) internal virtual {
     uint256 vaultId = _tokenToVaultMapping[tokenId];
     uint256 oldBal = _tokenBalance[tokenId];
     _tokenBalance[tokenId] = oldBal + valueBal;
     _totalStaked[vaultId] += valueBal;
-    console.log(vaultId);
-    console.log(valueBal);
-    console.log(_totalStaked[vaultId]);
+    
+    _timelockedUntil[tokenId] = block.timestamp + timelockLength();
     _magnifiedRewardCorrections[vaultId] = _magnifiedRewardCorrections[vaultId]
       .sub( (_magnifiedRewardPerShare[vaultId].mul(valueBal)).toInt256() );
   }
 
   // does no transferring
   function _decreaseBalance(uint256 tokenId, uint256 valueSub) internal virtual {
+    require(block.timestamp > _timelockedUntil[tokenId], "in timelock");
     uint256 vaultId = _tokenToVaultMapping[tokenId];
-    uint256 oldBal = _tokenBalance[tokenId];
-    _tokenBalance[tokenId] = oldBal - valueSub;
+    _tokenBalance[tokenId] -= valueSub;
     _totalStaked[vaultId] -= valueSub;
+    
     _magnifiedRewardCorrections[vaultId] = _magnifiedRewardCorrections[vaultId]
       .add( (_magnifiedRewardPerShare[vaultId].mul(valueSub)).toInt256() );
   }
@@ -118,8 +130,6 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
   function _distributeRewards(uint256 vaultId, uint256 amount) internal returns (bool) {
     require(amount > 0, "RewardDist: 0 amount");
     uint256 total = _totalStaked[vaultId];
-    console.log(vaultId);
-    console.log(total);
     require(total > 0, "No one is staked");
 
     // Because we receive the tokens from the staking contract, we assume the tokens have been received.
@@ -135,6 +145,10 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
 
   function balanceOfNFT(uint256 tokenId) public view virtual returns (uint256) {
     return _tokenBalance[tokenId];
+  }
+
+  function vaultIdForToken(uint256 tokenId) public view virtual returns (uint256) {
+    return _tokenToVaultMapping[tokenId];
   }
 
   /// @notice Withdraws the target distributed to the sender.

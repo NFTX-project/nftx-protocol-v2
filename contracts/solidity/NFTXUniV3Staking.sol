@@ -35,6 +35,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     uint24 internal constant DEFAULT_FEE = 10000;
 
     uint256 public positionsCreated;
+    uint256 internal _timelockLength;
     address public v3Factory;
     INonfungiblePositionManager public nftManager;
     INFTXVaultFactory public nftxVaultFactory;
@@ -63,6 +64,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     }
 
     function initializeUniV3Position(uint256 vaultId, uint160 sqrtPrice, uint256 amount0, uint256 amount1) public returns (uint256) {
+      onlyOwnerIfPaused(0);
       require(vaultV3PositionId[vaultId] == 0, "Vault V3 position exists");
       address vaultToken = nftxVaultFactory.vault(vaultId);
       PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(vaultToken, defaultPair, DEFAULT_FEE);
@@ -101,9 +103,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     }
 
     function createStakingPositionNFT(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256) {
-      // TODO CHECK OWNERSHIP
-
-      (uint256 liquidityDelta, uint256 amount0, uint256 amount1) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
+      onlyOwnerIfPaused(0);
+      (uint256 liquidityDelta, ,) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
 
       uint256 curIndex = positionsCreated;
       _mint(msg.sender, curIndex, vaultId, liquidityDelta);
@@ -112,17 +113,19 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     }
 
     function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) public returns (uint256) {
-      // TODO CHECK OWNERSHIP
+      onlyOwnerIfPaused(0);
+      require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+
       uint256 vaultId = vaultForToken(tokenId);
 
-      (uint256 liquidityDelta, uint256 amount0, uint256 amount1) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
+      (uint256 liquidityDelta, ,) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
       _increaseBalance(tokenId, liquidityDelta);
       
       return liquidityDelta;
     }
 
     function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public {
-      // TODO CHECK OWNERSHIP
+      require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
       
       uint256 vaultId = vaultForToken(tokenId);
 
@@ -224,6 +227,16 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       IERC20Upgradeable(_vaultToken).safeTransferFrom(msg.sender, address(this), amount);
       emit FeesReceived(vaultId, amount);
       return true;
+    }
+
+    function timelockLength() public view virtual override returns (uint256) {
+      return _timelockLength;
+    }
+
+    function setTimelockLength(uint256 newLength) public {
+      require(msg.sender == owner());
+      require(newLength < 2 weeks, "too long");
+      _timelockLength = newLength;
     }
 
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {
