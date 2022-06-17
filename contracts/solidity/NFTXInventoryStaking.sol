@@ -20,8 +20,6 @@ import "./interface/ITimelockExcludeList.sol";
 /**
  * @title NFTX Inventory Staking
  * @author 0xKiwi
- * 
- * @notice TODO
  */
 
 contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXInventoryStaking {
@@ -43,30 +41,30 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     /// @notice TODO
     ITimelockExcludeList public timelockExcludeList;
 
-    /// @notice Emitted when 
-    /// @param 
-    /// @param 
-    /// @param 
+    /// @notice Emitted when an xToken is created.
+    /// @param vaultId NFTX Vault ID
+    /// @param baseToken Address of the base token
+    /// @param xToken Address of the created xToken
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
 
-    /// @notice Emitted when 
-    /// @param 
-    /// @param 
-    /// @param 
-    /// @param 
-    /// @param 
+    /// @notice Emitted when tokens are deposited into the vault.
+    /// @param vaultId NFTX Vault ID
+    /// @param baseTokenAmount Amount of base token deposited
+    /// @param xTokenAmount Amount of xToken deposited
+    /// @param timelockUntil The duration of the timelock
+    /// @param sender The address of the depositor
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
 
-    /// @notice Emitted when 
-    /// @param 
-    /// @param 
-    /// @param 
-    /// @param 
+    /// @notice Emitted when tokens are withdrawn from the vault.
+    /// @param vaultId NFTX Vault ID
+    /// @param baseTokenAmount Amount of base token deposited withdrawn
+    /// @param xTokenAmount Amount of xToken deposited withdrawn
+    /// @param sender The address of the withdrawer
     event Withdraw(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, address sender);
 
     /// @notice Emitted when fees are received by the contract.
-    /// @param 
-    /// @param 
+    /// @param vaultId NFTX Vault ID
+    /// @param amount The amount of tokens received
     event FeesReceived(uint256 vaultId, uint256 amount);
 
 
@@ -149,7 +147,6 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
      * @dev If the xToken address already exists for the vault, then a duplicate token will not
      * be deployed, but there will still be a gas cost incurred.
      * 
-     * @param addr Address of the token
      * @param vaultId ID of the NFTX vault
      */
 

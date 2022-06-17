@@ -185,7 +185,7 @@ contract NFTXEligibilityManager is OwnableUpgradeable {
     /**
      * @notice Returns a list of all module names from our stored array.
      *
-     * @param string[] Array of module names
+     * @return Array of module names
      */
 
     function allModuleNames() external view returns (string[] memory) {

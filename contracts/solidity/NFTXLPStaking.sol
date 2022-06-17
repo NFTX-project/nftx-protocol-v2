@@ -28,26 +28,27 @@ contract NFTXLPStaking is PausableUpgradeable {
     /// @notice The contract that will handle token distribution for rewards
     IRewardDistributionToken public rewardDistTokenImpl;
 
-    /// @notice 
+    /// @notice The address of the staking token provider
     StakingTokenProvider public stakingTokenProvider;
 
-    /// @notice Emitted when 
-    /// @param vaultId 
-    /// @param pool 
+    /// @notice Emitted when a Liquidity Pool is created
+    /// @param vaultId NFTX Vault ID
+    /// @param pool The address of the Liquidity Pool
     event PoolCreated(uint256 vaultId, address pool);
 
-    /// @notice Emitted when 
-    /// @param vaultId 
-    /// @param pool 
+    /// @notice Emitted when a Liquidity Pool is updated
+    /// @param vaultId NFTX Vault ID
+    /// @param pool The address of the Liquidity Pool
     event PoolUpdated(uint256 vaultId, address pool);
 
-    /// @notice Emitted when 
-    /// @param vaultId
-    /// @param amount 
+    /// @notice Emitted when fees are received by a Liquidity Pool
+    /// @param vaultId NFTX Vault ID
+    /// @param amount The amount of fees received
     event FeesReceived(uint256 vaultId, uint256 amount);
 
     /**
-     * @notice 
+     * @notice Information for the StakingPool that will be mapped against
+     * an NFTX vault ID.
      * 
      * @member stakingToken 
      * @member rewardToken 
@@ -109,7 +110,7 @@ contract NFTXLPStaking is PausableUpgradeable {
     /**
      * @notice Allows our internal staking token provider contract address to be updated.
      * 
-     * @param newFactory Address of a `StakingTokenProvider` implementation
+     * @param newProvider Address of a `StakingTokenProvider` implementation
      */
 
     function setStakingTokenProvider(address newProvider) external onlyOwner {
@@ -142,7 +143,7 @@ contract NFTXLPStaking is PausableUpgradeable {
      * either recently or previously been created through the `addPoolForVault` call. This will allow
      * for provider changes to allow pools to subsequently be updated against vaults.
      * 
-     * @param vaultId Array of NFTX Vault IDs
+     * @param vaultIds Array of NFTX Vault IDs
      */
 
     function updatePoolForVaults(uint256[] calldata vaultIds) external {
@@ -210,12 +211,12 @@ contract NFTXLPStaking is PausableUpgradeable {
 
 
     /**
-     * @notice More information coming soon
+     * @notice More information coming soon.
      *
      * @dev Pause code for inventory staking is `10`.
      * 
      * @param vaultId ID of the NFTX vault that owns the tokens
-     * @param _amount The number of tokens that should be distributed
+     * @param amount The number of tokens that should be distributed
      */
 
     function deposit(uint256 vaultId, uint256 amount) external {

@@ -147,9 +147,9 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   /**
    * @notice Called before tokenIds are minted into the NFTX vault.
    * 
-   * @param tokenIds An array of tokenIds
+   * @dev This function is not currently implemented in the NFTX Vault.
    * 
-   * @deprecated This function is not currently implemented in the NFTX Vault.
+   * @param tokenIds An array of tokenIds
    */
 
   function beforeMintHook(uint256[] calldata tokenIds) external override virtual {}
@@ -158,9 +158,9 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   /**
    * @notice Called after tokenIds have been minted into the NFTX vault.
    * 
-   * @param tokenIds An array of tokenIds
+   * @dev This function is not currently implemented in the NFTX Vault.
    * 
-   * @deprecated This function is not currently implemented in the NFTX Vault.
+   * @param tokenIds An array of tokenIds
    */
 
   function afterMintHook(uint256[] calldata tokenIds) external override virtual {}
@@ -169,9 +169,9 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
   /**
    * @notice Called before tokenIds are redeemed from the NFTX vault.
    * 
-   * @param tokenIds An array of tokenIds
+   * @dev This function is not currently implemented in the NFTX Vault.
    * 
-   * @deprecated This function is not currently implemented in the NFTX Vault.
+   * @param tokenIds An array of tokenIds
    */
 
   function beforeRedeemHook(uint256[] calldata tokenIds) external override virtual {}
@@ -193,11 +193,10 @@ abstract contract NFTXEligibility is INFTXEligibility, Initializable {
    * @dev This is the minimum required logic to be processed in order to create a
    * functioning eligibility module.
    * 
-   * @param tokenId A tokenId to check the eligibility of
+   * @param _tokenId A tokenId to check the eligibility of
    * 
    * @return A boolean representation of the eligibility of the tokenId
    */
 
-  // 
   function _checkIfEligible(uint256 _tokenId) internal view virtual returns (bool);
 }

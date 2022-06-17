@@ -22,8 +22,6 @@ interface IV1Token is IERC20Upgradeable {
 /**
  * @title NFTX Buyout
  * @author The NFTX Team.
- * 
- * @notice TODO
  */
 
 contract NFTXV1Buyout is PausableUpgradeable, ReentrancyGuardUpgradeable {
@@ -34,13 +32,13 @@ contract NFTXV1Buyout is PausableUpgradeable, ReentrancyGuardUpgradeable {
   /// @notice TODO
   mapping(address => uint256) public ethAvailiable;
 
-  /// @notice TODO
-  /// @param tokenAddress 
-  /// @param totalEth 
+  /// @notice Emitted when a token buyout is actioned
+  /// @param tokenAddress Address of the token
+  /// @param totalEth The total amount of ETH spent in the buyout
   event TokenBuyout(address tokenAddress, uint256 totalEth);
 
-  /// @notice TODO
-  /// @param tokenAddress
+  /// @notice Emitted when a token buyout is complete
+  /// @param tokenAddress Address of the token
   event BuyoutComplete(address tokenAddress);
 
 
