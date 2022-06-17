@@ -104,8 +104,22 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
 
   /**
-   * @notice Distributes fees to receivers.
-   * @dev This needs expanding on.
+   * @notice Distributes fees to receivers. All receivers will be iterated over
+   * to distribute their relative allocation of the total number of tokens.
+   * 
+   * The total balance of the token on the contract will be distributed.
+   * 
+   * Any dust balance remaining on the contract is transferred to the treasury.
+   *
+   * @dev If distribution is paused or we have no receivers added (defined by
+   * allocTotal) then the entire token balance will be sent to the treasury.
+   * 
+   * When our receivers are set up by the contract owner they are assigned an
+   * `allocPoint` value that indicates the relative size of the allocation they
+   * will be eligible to receive. This is explained in greater depth on the
+   * `addReceiver` method.
+   * 
+   * The vault ID will determine the ERC20 token that will be transferred.
    *
    * @param vaultId The vault ID that is to have its fees distributed
    */
@@ -147,7 +161,14 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   /**
    * @notice Adds a receiver to the fee distributor. If a contract receiver is added, then they must
-   * a call to `receiveRewards` as outlined in the `_sendForReceiver` function.
+   * a call to `receiveRewards` as outlined in the `_sendForReceiver` function. The receiver is given
+   * an `allocPoint` value that defines their relative stake of the rewards.
+   * 
+   * @dev For the point allocation, if receiver A has 1 `allocPoint` and receiver B has 3 `allocPoint`
+   * then when rewards are distributed they will each receive a percentage based on the relative value.
+   *
+   * For example, in this case receiver B would receive 75% of the rewards and receiver A would receive
+   * the remaining 25%.
    *
    * @param _allocPoint The point allocation applied to the receiver
    * @param _receiver The address of the receiver
@@ -336,7 +357,8 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
    * @param _vault The address of the NFTX vault
    * @param amountToSend The amount of tokens distributed to the receiver
    * 
-   * @return bool If the tokens were successfully transferred
+   * @return bool If the tokens were successfully transferred and there are no more tokens
+   * left to transfer
    */
 
   function _sendForReceiver(FeeReceiver memory _receiver, uint256 _vaultId, address _vault, uint256 amountToSend) internal virtual returns (bool) {
