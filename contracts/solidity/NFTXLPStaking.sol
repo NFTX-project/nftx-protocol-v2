@@ -12,29 +12,66 @@ import "./proxy/ClonesUpgradeable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
 
-// Author: 0xKiwi.
 
-// Pausing codes for LP staking are:
-// 10: Deposit
+/**
+ * @title NFTX Liquidity Pool Staking
+ * @author 0xKiwi
+ */
 
 contract NFTXLPStaking is PausableUpgradeable {
+
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    /// @notice Contract address of the NFTX Vault Factory contract
     INFTXVaultFactory public nftxVaultFactory;
+
+    /// @notice The contract that will handle token distribution for rewards
     IRewardDistributionToken public rewardDistTokenImpl;
+
+    /// @notice 
     StakingTokenProvider public stakingTokenProvider;
 
+    /// @notice Emitted when 
+    /// @param vaultId 
+    /// @param pool 
     event PoolCreated(uint256 vaultId, address pool);
+
+    /// @notice Emitted when 
+    /// @param vaultId 
+    /// @param pool 
     event PoolUpdated(uint256 vaultId, address pool);
+
+    /// @notice Emitted when 
+    /// @param vaultId
+    /// @param amount 
     event FeesReceived(uint256 vaultId, uint256 amount);
 
+    /**
+     * @notice 
+     * 
+     * @member stakingToken 
+     * @member rewardToken 
+     */
     struct StakingPool {
         address stakingToken;
         address rewardToken;
     }
+
+    /// @notice Mapping of vault ID to staking pool information
     mapping(uint256 => StakingPool) public vaultStakingInfo;
 
+    /// @notice Reward distribution token timelock implementation
     TimelockRewardDistributionTokenImpl public newTimelockRewardDistTokenImpl;
+
+
+    /**
+     * @notice Sets up the NFTX Liquidity Pool Staking contract, applying our NFTX staking token
+     * provider and implementing a token reward distribution implementation.
+     * 
+     * @dev Allows for upgradable deployment
+     *
+     * @param _stakingTokenProvider Address of our Staking Token Provider contract
+     */
 
     function __NFTXLPStaking__init(address _stakingTokenProvider) external initializer {
         __Ownable_init();
@@ -45,20 +82,48 @@ contract NFTXLPStaking is PausableUpgradeable {
         newTimelockRewardDistTokenImpl.__TimelockRewardDistributionToken_init(IERC20Upgradeable(address(0)), "", "");
     }
 
+
+    /**
+     * @notice Adds a function modifier to allow an external function to be called by either the
+     * fee distributor or the contract deployer.
+     */
+
     modifier onlyAdmin() {
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
     }
+
+
+    /**
+     * @notice Allows our internal NFTX Vault Factory contract address to be updated.
+     * 
+     * @param newFactory Address of a `INFTXVaultFactory` implementation
+     */
 
     function setNFTXVaultFactory(address newFactory) external onlyOwner {
         require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
         nftxVaultFactory = INFTXVaultFactory(newFactory);
     }
 
+
+    /**
+     * @notice Allows our internal staking token provider contract address to be updated.
+     * 
+     * @param newFactory Address of a `StakingTokenProvider` implementation
+     */
+
     function setStakingTokenProvider(address newProvider) external onlyOwner {
         require(newProvider != address(0));
         stakingTokenProvider = StakingTokenProvider(newProvider);
     }
+
+
+    /**
+     * @notice Allows a liquidity pool to be added to an NFTX vault. This will deploy a dividend token
+     * that will be used for reward distribution.
+     * 
+     * @param vaultId NFTX Vault ID
+     */
 
     function addPoolForVault(uint256 vaultId) external onlyAdmin {
         require(address(nftxVaultFactory) != address(0), "LPStaking: Factory not set");
@@ -71,6 +136,15 @@ contract NFTXLPStaking is PausableUpgradeable {
         emit PoolCreated(vaultId, newRewardDistToken);
     }
 
+
+    /**
+     * @notice Allows an array of vault IDs to have their liquidity pool updated. This pool should have
+     * either recently or previously been created through the `addPoolForVault` call. This will allow
+     * for provider changes to allow pools to subsequently be updated against vaults.
+     * 
+     * @param vaultId Array of NFTX Vault IDs
+     */
+
     function updatePoolForVaults(uint256[] calldata vaultIds) external {
         uint256 length = vaultIds.length;
         for (uint256 i; i < length; ++i) {
@@ -78,7 +152,14 @@ contract NFTXLPStaking is PausableUpgradeable {
         }
     }
 
-    // In case the provider changes, this lets the pool be updated. Anyone can call it.
+
+    /**
+     * @notice Allows a vault ID to have their liquidity pool updated. This will allow
+     * for provider changes to allow pools to subsequently be updated against vaults.
+     * 
+     * @param vaultId NFTX Vault ID
+     */
+
     function updatePoolForVault(uint256 vaultId) public {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         // Not letting people use this function to create new pools.
@@ -95,6 +176,17 @@ contract NFTXLPStaking is PausableUpgradeable {
         address newRewardDistToken = _deployDividendToken(newPool);
         emit PoolUpdated(vaultId, newRewardDistToken);
     }
+
+
+    /**
+     * @notice Distributes reward tokens against staking token by vault ID. Rewards are distributed
+     * based on the logic outlined in the `RewardDistributionToken`.
+     * 
+     * @dev If the distribution token is not deployed, just forfeit rewards for now.
+     * 
+     * @param vaultId NFTX Vault ID
+     * @param amount The amount of reward tokens to be distributed to the pool
+     */
 
     function receiveRewards(uint256 vaultId, uint256 amount) external onlyAdmin returns (bool) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
@@ -115,6 +207,16 @@ contract NFTXLPStaking is PausableUpgradeable {
         emit FeesReceived(vaultId, amount);
         return true;
     }
+
+
+    /**
+     * @notice More information coming soon
+     *
+     * @dev Pause code for inventory staking is `10`.
+     * 
+     * @param vaultId ID of the NFTX vault that owns the tokens
+     * @param _amount The number of tokens that should be distributed
+     */
 
     function deposit(uint256 vaultId, uint256 amount) external {
         onlyOwnerIfPaused(10);
