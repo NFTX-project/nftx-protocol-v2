@@ -14,17 +14,24 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
+import "hardhat/console.sol";
 
-// Authors: @tomwade
 
-// A partial ERC20 interface.
+/**
+ * @notice A partial ERC20 interface.
+ */
+
 interface IERC20 {
-    function balanceOf(address owner) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transfer(address to, uint256 amount) external returns (bool);
+  function balanceOf(address owner) external view returns (uint256);
+  function approve(address spender, uint256 amount) external returns (bool);
+  function transfer(address to, uint256 amount) external returns (bool);
 }
 
-// A partial WETH interface.
+
+/**
+ * @notice A partial WETH interface.
+ */
+
 interface IWETH {
   function deposit() external payable;
   function transfer(address to, uint value) external returns (bool);
@@ -33,45 +40,100 @@ interface IWETH {
 }
 
 
-contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+/**
+ * @notice Sets up a marketplace zap to interact with the 0x protocol. The 0x contract that
+ * is hit later on handles the token conversion based on parameters that are sent from the
+ * frontend.
+ * 
+ * @author Twade
+ */
+
+contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+
   using SafeERC20Upgradeable for IERC20Upgradeable;
   
+  /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
+
+  /// @notice An interface for the Liquidity Pool staking contract
   INFTXLPStaking public immutable lpStaking;
+
+  /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable nftxFactory;
 
+  /// @notice A mapping of NFTX Vault IDs to their address corresponding vault contract address
   mapping(uint256 => address) public nftxVaultAddresses;
 
+  /// @notice The decimal accuracy
   uint256 constant BASE = 1e18;
 
+  // Set a constant address for specific contracts that need special logic
+  address constant CRYPTO_PUNKS = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+  address constant CRYPTO_KITTIES = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
+
+  /// @notice Emitted when ..
+  /// @param count The number of tokens affected by the event
+  /// @param ethSpent The amount of ETH spent in the buy
+  /// @param to The user affected by the event
   event Buy(uint256 count, uint256 ethSpent, address to);
+
+  /// @notice Emitted when ..
+  /// @param count The number of tokens affected by the event
+  /// @param ethReceived The amount of ETH received in the sell
+  /// @param to The user affected by the event
   event Sell(uint256 count, uint256 ethReceived, address to);
+
+  /// @notice Emitted when ..
+  /// @param count The number of tokens affected by the event
+  /// @param ethSpent The amount of ETH spent in the swap
+  /// @param to The user affected by the event
   event Swap(uint256 count, uint256 ethSpent, address to);
 
-  constructor(address _nftxFactory, address _WETH) {
+
+  /**
+   * @notice Initialises our zap by setting contract addresses onto their
+   * respective interfaces.
+   * 
+   * @param _nftxFactory NFTX Vault Factory contract address
+   * @param _lpStaking Liquidity Pool Staking contract address
+   * @param _WETH WETH contract address
+   */
+
+  constructor(address _nftxFactory, address _lpStaking, address _WETH) {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
-    lpStaking = INFTXLPStaking(INFTXFeeDistributor(INFTXVaultFactory(_nftxFactory).feeDistributor()).lpStaking());
+    lpStaking = INFTXLPStaking(_lpStaking);
 
     WETH = IWETH(_WETH);
   }
 
+
+  /**
+   * @notice Mints tokens from our NFTX vault and sells them on 0x.
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param ids An array of token IDs to be minted
+   * @param spender The `allowanceTarget` field from the API response
+   * @param swapTarget The `to` field from the API response
+   * @param swapCallData The `data` field from the API response
+   * @param to The recipient of the WETH from the tx
+   */
+
   function mintAndSell721(
-    uint256 vaultId, 
-    uint256[] calldata ids, 
+    uint256 vaultId,
+    uint256[] calldata ids,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData,
-    address payable to,
-    bool weth
+    address payable to
   ) external nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
-    require(to != address(0) && to != address(this));
+    require(to != address(0) && to != address(this), 'Invalid recipient');
 
     // Check that we have been provided IDs
-    require(ids.length != 0);
+    require(ids.length != 0, 'Must send IDs');
 
     // Mint our 721s against the vault
-    (address vault, uint256 vaultBalance) = _mint721(vaultId, ids);
+    (address vault, ) = _mint721(vaultId, ids);
 
     // Sell our vault token for WETH
     uint256 amount = _fillQuote(to, vault, WETH, spender, swapTarget, swapCallData);
@@ -79,6 +141,22 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     // Emit our sale event
     emit Sell(ids.length, amount, to);
   }
+
+
+  /**
+   * @notice Purchases vault tokens from 0x with WETH and then swaps the tokens for
+   * either random or specific token IDs from the vault. The specified recipient will
+   * receive the ERC721 tokens, as well as any WETH dust that is left over from the tx.
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param idsIn An array of random token IDs to be minted
+   * @param specificIds An array of any specific token IDs to be minted
+   * @param spender The `allowanceTarget` field from the API response
+   * @param swapTarget The `to` field from the API response
+   * @param swapCallData The `data` field from the API response
+   * @param to The recipient of the WETH from the tx
+   * @param weth A boolean representation for if we are dealing with WETH, or ETH
+   */
 
   function buyAndSwap721(
     uint256 vaultId, 
@@ -91,10 +169,10 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     bool weth
   ) external payable nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
-    require(to != address(0) && to != address(this));
+    require(to != address(0) && to != address(this), 'Invalid recipient');
 
     // Check that we have been provided IDs
-    require(idsIn.length != 0);
+    require(idsIn.length != 0, 'Must send IDs');
 
     // Convert our ETH to WETH
     if (!weth) {
@@ -121,15 +199,34 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
       return;
     }
 
+    // If we are running a WETH transaction then we can just transfer this
+    // back to our recipient.
     if (weth) {
-      WETH.transfer(to, remaining);
+      WETH.transfer(spender, remaining);
     }
+
+    // Otherwise, we will want to convert this WETH to ETH and send to our
+    // recipient address.
     else {
       WETH.withdraw(remaining);
       (bool success, ) = payable(to).call{value: remaining}("");
       require(success, "Address: unable to send value, recipient may have reverted");
     }
   }
+
+
+  /**
+   * @notice TODO
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param amount The number of tokens to buy
+   * @param specificIds An array of any specific token IDs to be minted
+   * @param spender The `allowanceTarget` field from the API response
+   * @param swapTarget The `to` field from the API response
+   * @param swapCallData The `data` field from the API response
+   * @param to The recipient of the WETH from the tx
+   * @param weth A boolean representation for if we are dealing with WETH, or ETH
+   */
 
   function buyAndRedeem(
     uint256 vaultId,
@@ -142,10 +239,10 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     bool weth
   ) external payable nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
-    require(to != address(0) && to != address(this));
+    require(to != address(0) && to != address(this), 'Invalid recipient');
 
     // Check that we have an amount specified
-    require(amount != 0);
+    require(amount > 0, 'Must send amount');
 
     if (!weth) {
       WETH.deposit{value: msg.value}();
@@ -181,6 +278,14 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     }
   }
 
+
+  /**
+   * @notice TODO
+   * 
+   * @param vaultId TODO
+   * @param ids TODO
+   */
+
   function _mint721(
     uint256 vaultId, 
     uint256[] memory ids
@@ -194,7 +299,10 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
 
     for (uint256 i; i < length;) {
       transferFromERC721(assetAddress, ids[i], vault);
-      approveERC721(assetAddress, ids[i], vault);
+
+      if (assetAddress == CRYPTO_PUNKS) {
+        approveERC721(assetAddress, ids[i], vault);
+      }
 
       unchecked { ++i; }
     }
@@ -204,10 +312,20 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     INFTXVault(vault).mint(ids, emptyIds);
 
     // Calculate our balance
-    uint256 balance = (length * BASE) - (length * INFTXVault(vault).mintFee()); 
-    
+    uint256 balance = length * (BASE - INFTXVault(vault).mintFee());
+
     return (vault, balance);
   }
+
+
+  /**
+   * @notice TODO
+   * 
+   * @param vaultId TODO
+   * @param idsIn TODO
+   * @param idsOut TODO
+   * @param to TODO
+   */
 
   function _swap721(
     uint256 vaultId, 
@@ -224,7 +342,10 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
 
     for (uint256 i; i < length;) {
       transferFromERC721(assetAddress, idsIn[i], vault);
-      approveERC721(assetAddress, idsIn[i], vault);
+
+      if (assetAddress == CRYPTO_PUNKS) {
+        approveERC721(assetAddress, idsIn[i], vault);
+      }
 
       unchecked { ++i; }
     }
@@ -236,20 +357,23 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
     return vault;
   }
 
-  function _redeem(
-    uint256 vaultId, 
-    uint256 amount,
-    uint256[] memory specificIds,
-    address to
-  ) internal {
+
+  /**
+   * @notice TODO
+   * 
+   * @param vaultId TODO
+   * @param amount TODO
+   * @param specificIds TODO
+   * @param to TODO
+   */
+
+  function _redeem(uint256 vaultId, uint256 amount, uint256[] memory specificIds, address to) internal {
     INFTXVault(_vaultAddress(vaultId)).redeemTo(amount, specificIds, to);
   }
 
 
   /**
-   * @notice ..
-   * 
-   * @dev ..
+   * @notice TODO
    * 
    * @param assetAddr Address of the asset being transferred
    * @param tokenId The ID of the token being transferred
@@ -257,34 +381,31 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
    */
 
   function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
-    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
-    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     bytes memory data;
-    if (assetAddr == kitties) {
-        // Cryptokitties.
-        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
-    } else if (assetAddr == punks) {
-        // CryptoPunks.
-        // Fix here for frontrun attack. Added in v1.0.2.
-        bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
-        (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-        (address nftOwner) = abi.decode(result, (address));
-        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
-        data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
+
+    if (assetAddr == CRYPTO_KITTIES) {
+      data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
+    } else if (assetAddr == CRYPTO_PUNKS) {
+      // Fix here for frontrun attack.
+      bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
+      (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
+      (address nftOwner) = abi.decode(result, (address));
+      require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
+      data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
     } else {
-        // Default.
-        // We push to the vault to avoid an unneeded transfer.
-        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
+      // We push to the vault to avoid an unneeded transfer.
+      data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
     }
+
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
   }
 
 
   /**
-   * @notice ..
+   * @notice TODO
    * 
-   * @dev ..
+   * @dev This is only required to provide special logic for Cryptopunks.
    * 
    * @param assetAddr Address of the asset being transferred
    * @param tokenId The ID of the token being transferred
@@ -292,7 +413,7 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
    */
 
   function approveERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
-    if (assetAddr != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+    if (assetAddr != CRYPTO_PUNKS) {
       return;
     }
 
@@ -328,7 +449,7 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
       // Give `spender` an infinite allowance to spend this contract's `sellToken`.
       // Note that for some tokens (e.g., USDT, KNC), you must first reset any existing
       // allowance to 0 before being able to update it.
-      require(IERC20(vault).approve(spender, type(uint256).max));
+      require(IERC20(vault).approve(spender, type(uint256).max), 'Unable to approve spender');
 
       // Call the encoded swap function call on the contract at `swapTarget`,
       // passing along any ETH attached to this function call to cover protocol fees.
@@ -367,7 +488,7 @@ contract NFTXMarketplaceZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, E
   function rescue(address token) external onlyOwner {
     if (token == address(0)) {
       (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
-      require(success, "Address: unable to send value, recipient may have reverted");
+      require(success, "Address: unable to send value");
     } else {
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }
