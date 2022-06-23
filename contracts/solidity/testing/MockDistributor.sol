@@ -9,6 +9,9 @@ import "../util/OwnableUpgradeable.sol";
 
 contract MockDistributor is OwnableUpgradeable {
 
+  address public nftxVaultFactory;
+  address public inventoryStaking;
+
   function __MockDistributor_init() external {
     __Ownable_init();
   }
@@ -18,6 +21,15 @@ contract MockDistributor is OwnableUpgradeable {
 
   function initializeVaultReceivers(uint256 vaultId) external {
     
+  }
+
+  function setNFTXVaultFactory(address _factory) external onlyOwner {
+    require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
+    nftxVaultFactory = _factory;
+  }
+
+  function setInventoryStakingAddress(address _inventoryStaking) public onlyOwner {
+    inventoryStaking = _inventoryStaking;
   }
 
   function withdrawTokens(address token) external onlyOwner {
