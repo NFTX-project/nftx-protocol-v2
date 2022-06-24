@@ -2,10 +2,12 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-const WETH_ADDRESS = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+const BASE = 1e18;
+
 
 // Store our internal contract references
-let nftx, vault, staking;
+let payoutToken, erc721;
+let nftx, vault, staking, vaultId;
 let marketplaceZap, mock0xProvider;
 
 // Store any user addresses we want to interact with
@@ -26,6 +28,16 @@ describe('0x Marketplace Zap', function () {
     // Set up our deployer / owner address
     [deployer, alice, bob, ...users] = await ethers.getSigners()
 
+    // Set up a test ERC20 token to simulate WETH
+    const Erc20 = await ethers.getContractFactory("MockERC20");
+    payoutToken = await Erc20.deploy();
+    await payoutToken.deployed();
+
+    // Set up a test ERC721 token
+    const Erc721 = await ethers.getContractFactory("ERC721");
+    erc721 = await Erc721.deploy('SpacePoggers', 'POGGERS');
+    await erc721.deployed();
+
     // Set up our NFTX contracts
     await _initialise_nftx_contracts()
 
@@ -38,8 +50,32 @@ describe('0x Marketplace Zap', function () {
 
     // Set up our NFTX Marketplace 0x Zap
     const MarketplaceZap = await ethers.getContractFactory('NFTXMarketplace0xZap')
-    marketplaceZap = await MarketplaceZap.deploy(nftx.address, staking.address, WETH_ADDRESS)
+    marketplaceZap = await MarketplaceZap.deploy(nftx.address, staking.address, payoutToken.address)
     await marketplaceZap.deployed()
+
+    // Mint the vault asset address to Alice (10 tokens)
+    for (let i = 0; i < 10; ++i) {
+      await erc721.publicMint(alice.address, i);
+    }
+
+    // Mint the vault asset address to Bob (5 unapproved tokens)
+    for (let i = 10; i < 15; ++i) {
+      await erc721.publicMint(bob.address, i);
+    }
+
+    expect(await erc721.balanceOf(alice.address)).to.equal(10);
+    expect(await erc721.balanceOf(bob.address)).to.equal(5);
+
+    // Approve the Marketplace Zap to use Alice's ERC721s
+    await erc721.connect(alice).setApprovalForAll(marketplaceZap.address, true);
+
+    // Set the 0x payout token and amount
+    await mock0xProvider.setPayInAmount(String(BASE * 0.9));  // 1 - 10% fees
+    await mock0xProvider.setPayOutAmount(String(BASE * 1));   // 1
+
+    // Add payout token liquidity to the 0x pool
+    await payoutToken.mint(mock0xProvider.address, String(BASE * 100))
+    expect(await payoutToken.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 100))
   });
 
 
@@ -69,8 +105,13 @@ describe('0x Marketplace Zap', function () {
           [1, 2, 3],                // ids
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
-          0,                        // swapCallData
-          NULL_ADDRESS              // to
+          _create_call_data(        // swapCallData
+            alice.address,
+            vault.address,
+            payoutToken.address
+          ),
+          NULL_ADDRESS,             // to
+          false                     // weth
         )
       ).to.be.revertedWith('Invalid recipient');
 
@@ -80,8 +121,13 @@ describe('0x Marketplace Zap', function () {
           [1, 2, 3],                // ids
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
-          0,                        // swapCallData
-          marketplaceZap.address    // to
+          _create_call_data(        // swapCallData
+            alice.address,
+            vault.address,
+            payoutToken.address
+          ),
+          marketplaceZap.address,   // to
+          false                     // weth
         )
       ).to.be.revertedWith('Invalid recipient');
     });
@@ -98,54 +144,96 @@ describe('0x Marketplace Zap', function () {
           [],                       // ids
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
-          0,                        // swapCallData
-          alice.address             // to
+          _create_call_data(        // swapCallData
+            alice.address,
+            vault.address,
+            payoutToken.address
+          ),
+          alice.address,            // to
+          false                     // weth
         )
       ).to.be.revertedWith('Must send IDs');
     });
 
 
     /**
-     * Confirm that invalid funds result in tx rejection.
+     * Confirm that invalid tokens result in tx rejection.
      */
 
-    it("Should require user to hold adequate funds", async function () {
+    it("Should not allow unowned or unapproved ERC721s to be sent", async function () {
+      // Unowned token
       await expect(
         marketplaceZap.connect(alice).mintAndSell721(
           await vault.vaultId(),    // vaultId
-          [1],                      // ids
+          [11],                     // ids
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
-          0,                        // swapCallData
-          alice.address             // to
+          _create_call_data(        // swapCallData
+            alice.address,
+            vault.address,
+            payoutToken.address
+          ),
+          alice.address,            // to
+          false                     // weth
         )
-      ).to.be.revertedWith('Insufficient funds');
+      ).to.be.reverted;
+
+      // Unapproved token
+      await expect(
+        marketplaceZap.connect(bob).mintAndSell721(
+          await vault.vaultId(),    // vaultId
+          [11],                     // ids
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            alice.address,
+            vault.address,
+            payoutToken.address
+          ),
+          bob.address,              // to
+          false                     // weth
+        )
+      ).to.be.reverted;
     });
 
 
     /**
      * Confirm that our vault balance is calculated correctly based on the number of IDs provided
-     * and the mint fee set on the NFTX vault. This calculation should, at time of writing, be
-     * equivalent to:
-     * 
-     * (length * BASE) - (length * INFTXVault(vault).mintFee())
+     * and the mint fee set on the NFTX vault.
      */
 
     it("Should correctly return the vault and vault balance", async function () {
-      expect(await vault.balanceOf(alice.address)).to.equal(0)
-      expect(await vault.balanceOf(mock0xProvider.address)).to.equal(0)
+      // Currently Alice should be the only owner of the ERC721 tokens
+      expect(await erc721.balanceOf(alice.address)).to.equal(10)
+      expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
+      expect(await erc721.balanceOf(vault.address)).to.equal(0)
 
-      marketplaceZap.connect(alice).mintAndSell721(
+      // Successfully mint and sell 1 token against our zap into the vault
+      await marketplaceZap.connect(alice).mintAndSell721(
         await vault.vaultId(),    // vaultId
         [1],                      // ids
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
-        0,                        // swapCallData
-        alice.address             // to
+        _create_call_data(        // swapCallData
+          alice.address,
+          vault.address,
+          payoutToken.address
+        ),
+        alice.address,            // to
+        false                     // weth
       )
 
-      expect(await vault.balanceOf(alice.address)).to.equal(5)
-      expect(await vault.balanceOf(mock0xProvider.address)).to.equal(5)
+      // Alice should have 1 less token than she did before as it has been sold
+      // into the vault.
+      expect(await erc721.balanceOf(alice.address)).to.equal(9)
+      expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
+      expect(await erc721.balanceOf(vault.address)).to.equal(1)
+
+      // Alice should have received ETH from 0x via the zap, but the marketplace
+      // zap will not have any as it will have all been sent to Alice.
+      expect(await payoutToken.balanceOf(alice.address)).to.equal(String(BASE * 1))
+      expect(await payoutToken.balanceOf(marketplaceZap.address)).to.equal(0)
+      expect(await payoutToken.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 99))
     });
 
 
@@ -154,40 +242,35 @@ describe('0x Marketplace Zap', function () {
      */
 
     it("Should allow sender to purchase on behalf of another wallet", async function () {
-      expect(await vault.balanceOf(alice.address)).to.equal(0)
-      expect(await vault.balanceOf(bob.address)).to.equal(0)
-      expect(await vault.balanceOf(mock0xProvider.address)).to.equal(0)
+      expect(await erc721.balanceOf(alice.address)).to.equal(9)
+      expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
+      expect(await erc721.balanceOf(vault.address)).to.equal(1)
 
       marketplaceZap.connect(alice).mintAndSell721(
         await vault.vaultId(),    // vaultId
-        [1],                      // ids
+        [2],                      // ids
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
-        0,                        // swapCallData
-        bob.address               // to
+        _create_call_data(        // swapCallData
+          bob.address,
+          vault.address,
+          payoutToken.address
+        ),
+        bob.address,              // to
+        false                     // weth
       )
 
-      expect(await vault.balanceOf(alice.address)).to.equal(5)
-      expect(await vault.balanceOf(bob.address)).to.equal(5)
-      expect(await vault.balanceOf(mock0xProvider.address)).to.equal(5)
-    });
+      // Alice should have 1 less token than she did before as it has been sold
+      // into the vault. This is in addition to the 1 already sent from a previous
+      // test.
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
+      expect(await erc721.balanceOf(vault.address)).to.equal(2)
 
-
-    /**
-     * Confirm that our Sell event is emitted correctly after a successful tx.
-     */
-
-    it("Should emit Sell event after success", async function () {
-      expect(
-        await marketplaceZap.connect(alice).mintAndSell721(
-          await vault.vaultId(),    // vaultId
-          [1, 2, 3],                // ids
-          alice.address,            // spender
-          mock0xProvider.address,   // swapTarget
-          0,                        // swapCallData
-          alice.address             // to
-        )
-      ).to.emit(marketplaceZap, "Sell").withArgs(3, 0, alice.address);
+      // Alice with have 1 from previous test and bob will now have 1 from this test
+      expect(await payoutToken.balanceOf(alice.address)).to.equal(String(BASE * 1))
+      expect(await payoutToken.balanceOf(bob.address)).to.equal(String(BASE * 1))
+      expect(await payoutToken.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 98))
     });
 
   })
@@ -233,16 +316,16 @@ async function _initialise_nftx_contracts() {
   });
   await staking.deployed();
 
-  const Vault = await ethers.getContractFactory("NFTXVaultUpgradeable");
-  vault = await Vault.deploy();
-  await vault.deployed();
+  const NFTXVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
+  const nftxVault = await NFTXVault.deploy();
+  await nftxVault.deployed();
 
   const FeeDistributor = await ethers.getContractFactory(
     "NFTXSimpleFeeDistributor"
   );
   const feeDistrib = await upgrades.deployProxy(
     FeeDistributor,
-    [staking.address, WETH_ADDRESS],
+    [staking.address, payoutToken.address],
     {
       initializer: "__SimpleFeeDistributor__init__",
       unsafeAllow: 'delegatecall'
@@ -253,7 +336,7 @@ async function _initialise_nftx_contracts() {
   const Nftx = await ethers.getContractFactory("NFTXVaultFactoryUpgradeable");
   nftx = await upgrades.deployProxy(
     Nftx,
-    [vault.address, feeDistrib.address],
+    [nftxVault.address, feeDistrib.address],
     {
       initializer: "__NFTXVaultFactory_init",
       unsafeAllow: 'delegatecall'
@@ -266,11 +349,26 @@ async function _initialise_nftx_contracts() {
   await staking.connect(deployer).setNFTXVaultFactory(nftx.address);
 
   // Register our NFTX vault that we will use for testing
-  await nftx.createVault(
-    'Test Vault',   // name
-    'TEST',         // symbol
-    WETH_ADDRESS,   // _assetAddress
-    false,          // is1155
-    true            // allowAllItems
+  let response = await nftx.createVault(
+    'Space Poggers',  // name
+    'POGGERS',        // symbol
+    erc721.address,   // _assetAddress
+    false,            // is1155
+    true              // allowAllItems
   );
+
+  const receipt = await response.wait(0);
+  const vaultId = receipt.events.find((elem) => elem.event === "NewVault").args[0].toString();
+  const vaultAddr = await nftx.vault(vaultId)
+  const vaultArtifact = await artifacts.readArtifact("NFTXVaultUpgradeable");
+  vault = new ethers.Contract(
+    vaultAddr,
+    vaultArtifact.abi,
+    ethers.provider
+  );
+}
+
+function _create_call_data(spender, tokenIn, tokenOut) {
+  let parsedABI = new ethers.utils.Interface(["function transfer(address spender, address tokenIn, address tokenOut)"]);
+  return parsedABI.encodeFunctionData('transfer', [spender, tokenIn, tokenOut])
 }

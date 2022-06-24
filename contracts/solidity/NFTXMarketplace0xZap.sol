@@ -124,7 +124,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData,
-    address payable to
+    address payable to,
+    bool weth
   ) external nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
@@ -132,8 +133,13 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have been provided IDs
     require(ids.length != 0, 'Must send IDs');
 
+    // Convert our ETH to WETH
+    if (!weth) {
+      WETH.deposit{value: msg.value}();
+    }
+
     // Mint our 721s against the vault
-    (address vault, ) = _mint721(vaultId, ids);
+    address vault = _mint721(vaultId, ids);
 
     // Sell our vault token for WETH
     uint256 amount = _fillQuote(to, vault, WETH, spender, swapTarget, swapCallData);
@@ -286,14 +292,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param ids TODO
    */
 
-  function _mint721(
-    uint256 vaultId, 
-    uint256[] memory ids
-  ) internal returns (address, uint256) {
+  function _mint721(uint256 vaultId, uint256[] memory ids) internal returns (address) {
     // Get our vault address information
     address vault = _vaultAddress(vaultId);
 
-    // Transfer tokens to zap
+    // Transfer tokens from the message sender to the vault
     address assetAddress = INFTXVault(vault).assetAddress();
     uint256 length = ids.length;
 
@@ -307,14 +310,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
       unchecked { ++i; }
     }
 
-    // Mint our tokens
+    // Mint our tokens from the vault to this contract
     uint256[] memory emptyIds;
     INFTXVault(vault).mint(ids, emptyIds);
 
-    // Calculate our balance
-    uint256 balance = length * (BASE - INFTXVault(vault).mintFee());
-
-    return (vault, balance);
+    return vault;
   }
 
 
@@ -446,10 +446,10 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
       // Track our balance of the buyToken to determine how much we've bought.
       uint256 boughtAmount = buyToken.balanceOf(address(this));
 
-      // Give `spender` an infinite allowance to spend this contract's `sellToken`.
+      // Give `swapTarget` an infinite allowance to spend this contract's `sellToken`.
       // Note that for some tokens (e.g., USDT, KNC), you must first reset any existing
       // allowance to 0 before being able to update it.
-      require(IERC20(vault).approve(spender, type(uint256).max), 'Unable to approve spender');
+      require(IERC20(vault).approve(swapTarget, type(uint256).max), 'Unable to approve contract');
 
       // Call the encoded swap function call on the contract at `swapTarget`,
       // passing along any ETH attached to this function call to cover protocol fees.
@@ -500,6 +500,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    */
 
   receive() external payable {
-    require(msg.sender == address(WETH), "Only WETH");
+    //
   }
 }
