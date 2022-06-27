@@ -124,8 +124,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData,
-    address payable to,
-    bool weth
+    address payable to
   ) external nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
@@ -133,16 +132,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have been provided IDs
     require(ids.length != 0, 'Must send IDs');
 
-    // Convert our ETH to WETH
-    if (!weth) {
-      WETH.deposit{value: msg.value}();
-    }
-
     // Mint our 721s against the vault
     address vault = _mint721(vaultId, ids);
 
     // Sell our vault token for WETH
-    uint256 amount = _fillQuote(to, vault, WETH, spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(vault, address(WETH), spender, swapTarget, swapCallData);
 
     // Emit our sale event
     emit Sell(ids.length, amount, to);
@@ -161,7 +155,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param swapTarget The `to` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
-   * @param weth A boolean representation for if we are dealing with WETH, or ETH
    */
 
   function buyAndSwap721(
@@ -171,8 +164,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData,
-    address payable to,
-    bool weth
+    address payable to
   ) external payable nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
@@ -180,20 +172,14 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have been provided IDs
     require(idsIn.length != 0, 'Must send IDs');
 
-    // Convert our ETH to WETH
-    if (!weth) {
-      WETH.deposit{value: msg.value}();
-    }
+    // Wrap ETH into WETH for our contract from the sender
+    WETH.deposit{value: msg.value}();
 
     // Get our NFTX vault
     address vault = _vaultAddress(vaultId);
 
-    // Get the redeem fee required for the length of specified IDs. This is provided
-    // by the frontend in the swap call data.
-    // uint256 redeemFees = (vault.targetSwapFee() * specificIds.length) + (vault.randomSwapFee() * (idsIn.length - specificIds.length));
-
     // Buy enough vault tokens to fuel our buy
-    uint256 amount = _fillQuote(to, vault, WETH, spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
 
     // Swap our tokens for the IDs requested
     _swap721(vaultId, idsIn, specificIds, to);
@@ -201,22 +187,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
     // Return any remaining WETH from the transaction
     uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining == 0) {
-      return;
-    }
-
-    // If we are running a WETH transaction then we can just transfer this
-    // back to our recipient.
-    if (weth) {
+    if (remaining > 0) {
       WETH.transfer(spender, remaining);
-    }
-
-    // Otherwise, we will want to convert this WETH to ETH and send to our
-    // recipient address.
-    else {
-      WETH.withdraw(remaining);
-      (bool success, ) = payable(to).call{value: remaining}("");
-      require(success, "Address: unable to send value, recipient may have reverted");
     }
   }
 
@@ -257,13 +229,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Get our vault address information
     address vault = _vaultAddress(vaultId);
 
-    // Get the redeem fee required for the length of specified IDs. This is provided
-    // by the frontend in the swap call data.
-    // (, uint256 randomRedeemFee, uint256 targetRedeemFee, ,) = nftxFactory.vaultFees(vaultId);
-    // uint256 totalFee = (targetRedeemFee * specificIds.length) + (randomRedeemFee * (amount - specificIds.length));
-
     // Buy vault tokens that will cover our transaction
-    uint256 quoteAmount = _fillQuote(to, vault, WETH, spender, swapTarget, swapCallData);
+    uint256 quoteAmount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
 
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, quoteAmount, to);
@@ -428,7 +395,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * 
    * @dev Must attach ETH equal to the `value` field from the API response.
    * 
-   * @param vault The address of the vault that will be the `sellTokenAddress` field from the API response
+   * @param sellToken The `sellTokenAddress` field from the API response
    * @param buyToken The `buyTokenAddress` field from the API response
    * @param spender The `allowanceTarget` field from the API response
    * @param swapTarget The `to` field from the API response
@@ -436,31 +403,26 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    */
 
   function _fillQuote(
-    address payable to,
-    address vault,
-    IWETH buyToken,
+    address sellToken,
+    address buyToken,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData
   ) internal returns (uint256) {
       // Track our balance of the buyToken to determine how much we've bought.
-      uint256 boughtAmount = buyToken.balanceOf(address(this));
+      uint256 boughtAmount = IERC20(buyToken).balanceOf(address(this));
 
       // Give `swapTarget` an infinite allowance to spend this contract's `sellToken`.
       // Note that for some tokens (e.g., USDT, KNC), you must first reset any existing
       // allowance to 0 before being able to update it.
-      require(IERC20(vault).approve(swapTarget, type(uint256).max), 'Unable to approve contract');
+      require(IERC20(sellToken).approve(swapTarget, type(uint256).max), 'Unable to approve contract');
 
-      // Call the encoded swap function call on the contract at `swapTarget`,
-      // passing along any ETH attached to this function call to cover protocol fees.
-      (bool success,) = swapTarget.call{value: msg.value}(swapCallData);
+      // Call the encoded swap function call on the contract at `swapTarget`
+      (bool success,) = swapTarget.call(swapCallData);
       require(success, 'SWAP_CALL_FAILED');
 
-      // Refund any unspent protocol fees to the sender.
-      to.transfer(address(this).balance);
-
       // Use our current buyToken balance to determine how much we've bought.
-      return buyToken.balanceOf(address(this)) - boughtAmount;
+      return IERC20(buyToken).balanceOf(address(this)) - boughtAmount;
   }
 
 
