@@ -23,12 +23,15 @@ contract Mock0xProvider {
   }
 
   function transfer(address spender, address tokenIn, address tokenOut) external payable returns (bool, bytes memory) {
+    console.log('AAA');
     // Transfer the input token in
     IERC20Upgradeable(tokenIn).transferFrom(msg.sender, address(this), payInAmount);
-
+    console.log('BBB');
+    console.log('the balance', IERC20Upgradeable(tokenOut).balanceOf(address(this)));
+    console.log('paying out', payOutAmount);
     // Transfer the payment token out
     IERC20Upgradeable(tokenOut).transfer(spender, payOutAmount);
-
+    console.log('CCC');
     // Return success and empty bytes data
     return (true, hex'');
   }
