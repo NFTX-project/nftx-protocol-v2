@@ -203,7 +203,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param swapTarget The `to` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
-   * @param weth A boolean representation for if we are dealing with WETH, or ETH
    */
 
   function buyAndRedeem(
@@ -213,8 +212,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address spender,
     address payable swapTarget,
     bytes calldata swapCallData,
-    address payable to,
-    bool weth
+    address payable to
   ) external payable nonReentrant {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
@@ -222,9 +220,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have an amount specified
     require(amount > 0, 'Must send amount');
 
-    if (!weth) {
-      WETH.deposit{value: msg.value}();
-    }
+    WETH.deposit{value: msg.value}();
 
     // Get our vault address information
     address vault = _vaultAddress(vaultId);
@@ -237,17 +233,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
     // Refund any remaining WETH
     uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining == 0) {
-      return;
-    }
-
-    if (weth) {
-      WETH.transfer(to, remaining);
-    }
-    else {
-      WETH.withdraw(remaining);
-      (bool success, ) = payable(to).call{value: remaining}("");
-      require(success, "Address: unable to send value, recipient may have reverted");
+    if (remaining > 0) {
+      WETH.transfer(spender, remaining);
     }
   }
 

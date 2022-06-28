@@ -99,7 +99,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             vault.address,
             weth.address
           ),
@@ -114,7 +113,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             vault.address,
             weth.address
           ),
@@ -136,7 +134,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             vault.address,
             weth.address
           ),
@@ -159,7 +156,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             vault.address,
             weth.address
           ),
@@ -175,7 +171,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             vault.address,
             weth.address
           ),
@@ -203,7 +198,6 @@ describe('0x Marketplace Zap', function () {
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
-          alice.address,
           vault.address,
           weth.address
         ),
@@ -215,12 +209,6 @@ describe('0x Marketplace Zap', function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(9)
       expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
       expect(await erc721.balanceOf(vault.address)).to.equal(1)
-
-      // Alice should have received ETH from 0x via the zap, but the marketplace
-      // zap will not have any as it will have all been sent to Alice.
-      expect(await weth.balanceOf(alice.address)).to.equal(String(BASE * 1))
-      expect(await weth.balanceOf(marketplaceZap.address)).to.equal(0)
-      expect(await weth.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 99))
     });
 
 
@@ -239,7 +227,6 @@ describe('0x Marketplace Zap', function () {
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
-          bob.address,
           vault.address,
           weth.address
         ),
@@ -252,11 +239,6 @@ describe('0x Marketplace Zap', function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(8)
       expect(await erc721.balanceOf(marketplaceZap.address)).to.equal(0)
       expect(await erc721.balanceOf(vault.address)).to.equal(2)
-
-      // Alice with have 1 from previous test and bob will now have 1 from this test
-      expect(await weth.balanceOf(alice.address)).to.equal(String(BASE * 1))
-      expect(await weth.balanceOf(bob.address)).to.equal(String(BASE * 1))
-      expect(await weth.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 98))
     });
 
   })
@@ -297,7 +279,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             weth.address,
             vault.address
           ),
@@ -313,7 +294,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             weth.address,
             vault.address
           ),
@@ -336,7 +316,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             weth.address,
             vault.address
           ),
@@ -354,7 +333,6 @@ describe('0x Marketplace Zap', function () {
           alice.address,            // spender
           mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
-            alice.address,
             weth.address,
             vault.address
           ),
@@ -375,7 +353,6 @@ describe('0x Marketplace Zap', function () {
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
-          marketplaceZap.address,  // recipient
           weth.address,            // payInToken
           vault.address            // payOutToken
         ),
@@ -391,7 +368,7 @@ describe('0x Marketplace Zap', function () {
       expect(await erc721.ownerOf(4)).to.equal(vault.address)
     });
 
-    it('Should be able to fill quote to another recipient', async function () {
+    it('Should be able to fill quote for specific IDs', async function () {
       // From previous tests we already have 2 IDs in the vault and bob
       // should still have all of his original 5.
       expect(await erc721.balanceOf(vault.address)).to.equal(2)
@@ -401,11 +378,41 @@ describe('0x Marketplace Zap', function () {
       await marketplaceZap.connect(alice).buyAndSwap721(
         await vault.vaultId(),    // vaultId
         [5],                      // idsIn
+        [4],                      // specificIds
+        alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
+        _create_call_data(        // swapCallData
+          weth.address,            // payInToken
+          vault.address            // payOutToken
+        ),
+        alice.address,            // to
+        {
+          value: ethers.utils.parseEther('1')  // redeemFees
+        }
+      )
+
+      // Bob should now have one of the ERC721 tokens that were in the vault, token 5
+      // should be in the vault, and Alice will have one less than when she started.
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(vault.address)).to.equal(2)
+      expect(await erc721.ownerOf(4)).to.equal(alice.address)
+      expect(await erc721.ownerOf(5)).to.equal(vault.address)
+    });
+
+    it('Should be able to fill quote to another recipient', async function () {
+      // From previous tests we already have 2 IDs in the vault and bob
+      // should still have all of his original 5.
+      expect(await erc721.balanceOf(vault.address)).to.equal(2)
+      expect(await erc721.balanceOf(bob.address)).to.equal(5)
+
+      // Process a buy of 1 WETH -> 0.1 tokens + token -> 1 different ERC721
+      await marketplaceZap.connect(alice).buyAndSwap721(
+        await vault.vaultId(),    // vaultId
+        [6],                      // idsIn
         [],                       // specificIds
         alice.address,            // spender
         mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
-          marketplaceZap.address,  // recipient
           weth.address,            // payInToken
           vault.address            // payOutToken
         ),
@@ -415,18 +422,244 @@ describe('0x Marketplace Zap', function () {
         }
       )
 
-      // Bob should now have one of the ERC721 tokens that were in the vault, token 5
+      // Bob should now have one of the ERC721 tokens that were in the vault, token 6
       // should be in the vault, and Alice will have one less than when she started.
       expect(await erc721.balanceOf(alice.address)).to.equal(7)
       expect(await erc721.balanceOf(bob.address)).to.equal(6)
       expect(await erc721.balanceOf(vault.address)).to.equal(2)
-      expect(await erc721.ownerOf(5)).to.equal(vault.address)
+      expect(await erc721.ownerOf(6)).to.equal(vault.address)
+    });
+
+    it('Should be able to fill quote with muiltiple IDs', async function () {
+      // From previous tests we already have 2 IDs in the vault
+      expect(await erc721.balanceOf(vault.address)).to.equal(2)
+
+      // Process a buy of 1 WETH -> 0.1 tokens + token -> 1 different ERC721
+      await marketplaceZap.connect(alice).buyAndSwap721(
+        await vault.vaultId(),    // vaultId
+        [7, 8],                   // idsIn
+        [],                       // specificIds
+        alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
+        _create_call_data(        // swapCallData
+          weth.address,            // payInToken
+          vault.address            // payOutToken
+        ),
+        alice.address,            // to
+        {
+          value: ethers.utils.parseEther('2')  // redeemFees
+        }
+      )
+
+      // The vault should now have ERC 7 and 8 inside and Alice should still retain
+      // 7 tokens (as Bob has 1 from a previous test).
+      expect(await erc721.balanceOf(alice.address)).to.equal(7)
+      expect(await erc721.balanceOf(vault.address)).to.equal(2)
+      expect(await erc721.ownerOf(7)).to.equal(vault.address)
+      expect(await erc721.ownerOf(8)).to.equal(vault.address)
     });
 
   })
 
   describe('buyAndRedeem', async function () {
-    //
+
+    /**
+     *
+     */
+
+    before(async function () {
+      // Set our payIn amount to be 1 WETH
+      await mock0xProvider.setPayInAmount(String(BASE * 0.1));
+
+      // Set our payOut token amount to 1.1. This will provide enough vault tokens
+      // to mint an ERC721 after calculating the mint fee also.
+      await mock0xProvider.setPayOutAmount(String(BASE * 1.1));
+
+      // Screw Bob, lets send all his NFTs to the vault
+      await erc721.connect(bob).setApprovalForAll(marketplaceZap.address, true);
+      await erc721.connect(bob).transferFrom(bob.address, vault.address, 10);
+      await erc721.connect(bob).transferFrom(bob.address, vault.address, 11);
+      await erc721.connect(bob).transferFrom(bob.address, vault.address, 12);
+      await erc721.connect(bob).transferFrom(bob.address, vault.address, 13);
+      await erc721.connect(bob).transferFrom(bob.address, vault.address, 14);
+    });
+
+
+    /**
+     * Confirm that tokens cannot be sent to invalid recipient.
+     */
+
+    it("Should not allow recipient to be NULL address or contract", async function () {
+      await expect(
+        marketplaceZap.connect(alice).buyAndRedeem(
+          await vault.vaultId(),    // vaultId
+          3,                        // amount
+          [],                       // specificIds
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            weth.address,
+            vault.address
+          ),
+          NULL_ADDRESS              // to
+        )
+      ).to.be.revertedWith('Invalid recipient');
+
+      await expect(
+        marketplaceZap.connect(alice).buyAndRedeem(
+          await vault.vaultId(),    // vaultId
+          1,                        // amount
+          [],                       // specificIds
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            weth.address,
+            vault.address
+          ),
+          marketplaceZap.address    // to
+        )
+      ).to.be.revertedWith('Invalid recipient');
+    });
+
+
+    /**
+     * Confirm that >= 1 ID must be requested.
+     */
+
+    it("Should require >= 1 amount", async function () {
+      await expect(
+        marketplaceZap.connect(alice).buyAndRedeem(
+          await vault.vaultId(),    // vaultId
+          0,                        // amount
+          [],                       // specificIds
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            weth.address,
+            vault.address
+          ),
+          alice.address             // to
+        )
+      ).to.be.revertedWith('Must send amount');
+    });
+
+    it('Should prevent insufficient balance from buying', async function () {
+      await expect(
+        marketplaceZap.connect(alice).buyAndRedeem(
+          await vault.vaultId(),    // vaultId
+          1,                        // amount
+          [],                       // specificIds
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            weth.address,
+            vault.address
+          ),
+          alice.address             // to
+        )
+      ).to.be.reverted
+
+      await expect(
+        marketplaceZap.connect(alice).buyAndRedeem(
+          await vault.vaultId(),    // vaultId
+          2,                        // amount
+          [],                       // specificIds
+          alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
+          _create_call_data(        // swapCallData
+            weth.address,
+            vault.address
+          ),
+          alice.address,             // to
+          {
+            value: ethers.utils.parseEther('0.01')  // redeemFees
+          }
+        )
+      ).to.be.reverted
+    });
+
+    it('Should be able to fill quote', async function () {
+      expect(await erc721.balanceOf(alice.address)).to.equal(7)
+      expect(await erc721.balanceOf(vault.address)).to.equal(7)
+
+      // Process a buy of 1 ERC721 -> 1.1 tokens -> 1 ERC721
+      await marketplaceZap.connect(alice).buyAndRedeem(
+        await vault.vaultId(),    // vaultId
+        1,                        // amount
+        [],                       // specificIds
+        alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
+        _create_call_data(        // swapCallData
+          weth.address,            // payInToken
+          vault.address            // payOutToken
+        ),
+        alice.address,            // to
+        {
+          value: ethers.utils.parseEther('1')  // redeemFees
+        }
+      )
+
+      // Alice should have purchased 1 ERC721 from the vault, meaning that the vault
+      // has been reduced to 1 token. As this was a random buy, we don't know exactly
+      // which token was purchased.
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(vault.address)).to.equal(6)
+    });
+
+    it('Should be able to fill quote to another recipient', async function () {
+      // ...
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(vault.address)).to.equal(6)
+      expect(await erc721.balanceOf(bob.address)).to.equal(1)
+
+      // Process a buy of 1 WETH -> 0.1 tokens + token -> 1 different ERC721
+      await marketplaceZap.connect(alice).buyAndRedeem(
+        await vault.vaultId(),    // vaultId
+        2,                        // amount
+        [],                       // specificIds
+        alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
+        _create_call_data(        // swapCallData
+          weth.address,            // payInToken
+          vault.address            // payOutToken
+        ),
+        bob.address,            // to
+        {
+          value: ethers.utils.parseEther('2')  // redeemFees
+        }
+      )
+
+      // ...
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(vault.address)).to.equal(4)
+      expect(await erc721.balanceOf(bob.address)).to.equal(3)
+    });
+
+    it('Should be able to fill quote for multiple tokens', async function () {
+      expect(await erc721.balanceOf(alice.address)).to.equal(8)
+      expect(await erc721.balanceOf(vault.address)).to.equal(4)
+
+      // Process a buy of 3 ERC721 -> 3.3 tokens -> 3 ERC721
+      await marketplaceZap.connect(alice).buyAndRedeem(
+        await vault.vaultId(),    // vaultId
+        3,                        // amount
+        [],                       // specificIds
+        alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
+        _create_call_data(        // swapCallData
+          weth.address,            // payInToken
+          vault.address            // payOutToken
+        ),
+        alice.address,            // to
+        {
+          value: ethers.utils.parseEther('3')  // redeemFees
+        }
+      )
+
+      expect(await erc721.balanceOf(alice.address)).to.equal(11)
+      expect(await erc721.balanceOf(vault.address)).to.equal(1)
+    });
+
   })
 
 });
@@ -496,7 +729,7 @@ async function _initialise_nftx_contracts() {
   );
 }
 
-function _create_call_data(spender, tokenIn, tokenOut) {
+function _create_call_data(tokenIn, tokenOut) {
   let parsedABI = new ethers.utils.Interface(["function transfer(address spender, address tokenIn, address tokenOut) payable"]);
-  return parsedABI.encodeFunctionData('transfer', [spender, tokenIn, tokenOut])
+  return parsedABI.encodeFunctionData('transfer', [marketplaceZap.address, tokenIn, tokenOut])
 }
