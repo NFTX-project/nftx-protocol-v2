@@ -54,8 +54,8 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     // Eligibility storage
     uint moduleIndex,
     bytes calldata initData
-  ) external nonReentrant
-  returns (address) {
+
+  ) external nonReentrant returns (address vaultAddress) {
     uint vaultId = vaultFactory.createVault(name, symbol, assetAddress, is1155, allowAllItems);
 
     if (vaultFeatures > 0) {
@@ -66,7 +66,8 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
       setVaultFees(vaultId, vaultFees);
     }
 
-    INFTXVault vault = INFTXVault(_getVaultAddress(vaultId));
+    vaultAddress = _getVaultAddress(vaultId);
+    INFTXVault vault = INFTXVault(vaultAddress);
 
     if (moduleIndex > 0) {
       vault.deployEligibilityStorage(moduleIndex, initData);
