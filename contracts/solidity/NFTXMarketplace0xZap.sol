@@ -69,7 +69,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
   // Set a constant address for specific contracts that need special logic
   address constant CRYPTO_PUNKS = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-  address constant CRYPTO_KITTIES = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
 
   /// @notice Emitted when ..
   /// @param count The number of tokens affected by the event
@@ -437,7 +436,16 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * ..
+   * @notice Swaps 1155 tokens, transferring them from the recipient to this contract, and
+   * then sending them to the NFTX vault, that sends them to the recipient.
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param idsIn The IDs owned by the sender to be swapped
+   * @param amounts The number of each corresponding ID being swapped
+   * @param idsOut The requested IDs to be swapped for
+   * @param to The recipient of the swapped tokens
+   * 
+   * @return address The address of the NFTX vault
    */
 
   function _swap1155(
@@ -461,12 +469,12 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice TODO
+   * @notice Redeems tokens from a vault to a recipient.
    * 
-   * @param vaultId TODO
-   * @param amount TODO
-   * @param specificIds TODO
-   * @param to TODO
+   * @param vaultId The ID of the NFTX vault
+   * @param amount The number of tokens to be redeemed
+   * @param specificIds Specified token IDs if desired, otherwise will be _random_
+   * @param to The recipient of the token
    */
 
   function _redeem(uint256 vaultId, uint256 amount, uint256[] memory specificIds, address to) internal {
@@ -475,7 +483,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice TODO
+   * @notice Transfers our ERC721 tokens to a specified recipient.
    * 
    * @param assetAddr Address of the asset being transferred
    * @param tokenId The ID of the token being transferred
@@ -485,9 +493,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     bytes memory data;
 
-    if (assetAddr == CRYPTO_KITTIES) {
-      data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
-    } else if (assetAddr == CRYPTO_PUNKS) {
+    if (assetAddr == CRYPTO_PUNKS) {
       // Fix here for frontrun attack.
       bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
       (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
@@ -505,7 +511,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice TODO
+   * @notice Approves our ERC721 tokens to be transferred.
    * 
    * @dev This is only required to provide special logic for Cryptopunks.
    * 
@@ -571,19 +577,25 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
   function _transferEthOrWeth(address to, uint amount, bool isWeth) internal {
     if (isWeth) {
-      // Return extras in WETH
+      // Transfer the WETH to the recipient
       WETH.transfer(to, amount);
     } else {
-      // Return extras in ETH
+      // Unwrap our WETH into ETH and transfer it to the recipient
       WETH.withdraw(amount);
       (bool success, ) = payable(to).call{value: amount}("");
-      require(success, "Address: unable to send value, recipient may have reverted");
+      require(success, "Unable to send unwrapped WETH");
     }
   }
 
 
   /**
-   * ..
+   * @notice Allows 1155 IDs and amounts to be validated.
+   * 
+   * @param ids The IDs of the 1155 tokens.
+   * @param amounts The number of each corresponding token to process.
+   * 
+   * @return totalIds The number of different IDs being sent.
+   * @return totalAmount The total number of IDs being processed.
    */
 
   function _validate1155Ids(
@@ -601,7 +613,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
     // Sum the amounts for our emitted events
     for (uint i; i < totalIds;) {
-      require(amounts[i] > 0, "Transferring < 1");
+      require(amounts[i] > 0, 'Invalid 1155 amount');
 
       unchecked {
         totalAmount += amounts[i];
@@ -645,7 +657,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice Limits our contract to only receive WETH.
+   * @notice Allows our contract to receive any assets.
    */
 
   receive() external payable {
