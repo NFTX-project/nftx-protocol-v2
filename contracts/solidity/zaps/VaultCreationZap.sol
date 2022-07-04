@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
+import "../token/IERC1155Upgradeable.sol";
 import "../util/ReentrancyGuardUpgradeable.sol";
 
 
@@ -120,17 +121,31 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
     // Mint and stake liquidity into the vault
     uint length = assetTokens.assetTokenIds.length;
-    for (uint i; i < length;) {
-      _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
-      unchecked { ++i; }
-    }
+    if (length > 0) {
+      if (!vaultData.is1155) {
+        for (uint i; i < length;) {
+          _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
+          unchecked { ++i; }
+        }
+      } else {
+        // This is technically a check, so placing it before the effect.
+        IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
+          msg.sender,
+          address(this),
+          assetTokens.assetTokenIds,
+          assetTokens.assetTokenAmounts,
+          ""
+        );
+      }
 
-    // We can now mint our asset tokens, giving the vault our tokens
-    vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
+      // We can now mint our asset tokens, giving the vault our tokens
+      vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
+    }
 
     // Finalise our vault, preventing further edits
     vault.finalizeVault();
   }
+
 
   /**
    * @notice Transfers our ERC721 tokens to a specified recipient.
@@ -158,6 +173,16 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
   }
+
+
+  /**
+   * @notice ..
+   * 
+   * @param _packedBools ..
+   * @param _boolNumber ..
+   *
+   * @return ..
+   */
 
   function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal pure returns(bool) {
     uint256 flag = (_packedBools >> _boolNumber) & uint256(1);
