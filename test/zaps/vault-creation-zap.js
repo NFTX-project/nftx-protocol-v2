@@ -151,15 +151,6 @@ describe('Vault Creation Zap', function () {
       // Approve the Vault Creation Zap to use Alice's ERC1155s
       await erc1155.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
 
-      // Confirm that Alice has all the ERC1155's
-      expect(await erc1155.balanceOf(alice.address, 1)).to.equal(10);
-      expect(await erc1155.balanceOf(alice.address, 2)).to.equal(10);
-      expect(await erc1155.balanceOf(alice.address, 3)).to.equal(10);
-      expect(await erc1155.balanceOf(alice.address, 4)).to.equal(10);
-
-      // Confirm that the creation zap has approval access
-      expect(await erc1155.isApprovedForAll(alice.address, vaultCreationZap.address)).to.equal(true)
-
       // Use call static to get the actual return vault from the call
       const vaultId = await vaultCreationZap.connect(alice).createVault(
         // Vault creation
@@ -172,7 +163,7 @@ describe('Vault Creation Zap', function () {
         },
 
         // Vault features
-        01010,
+        11010,
     
         // Fee assignment
         {
@@ -209,7 +200,7 @@ describe('Vault Creation Zap', function () {
       expect(await newVault.assetAddress()).to.equal(erc1155.address);
 
       // Confirm our features
-      expect(await newVault.enableMint()).to.equal(false);
+      expect(await newVault.enableMint()).to.equal(true);
       expect(await newVault.enableRandomRedeem()).to.equal(true);
       expect(await newVault.enableTargetRedeem()).to.equal(false);
       expect(await newVault.enableRandomSwap()).to.equal(true);
