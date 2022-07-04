@@ -7,8 +7,6 @@ import "../interface/INFTXVaultFactory.sol";
 import "../token/IERC1155Upgradeable.sol";
 import "../util/ReentrancyGuardUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 
 /**
  * @notice An amalgomation of vault creation steps, merged and optimised in
