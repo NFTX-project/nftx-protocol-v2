@@ -76,7 +76,7 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
    * @param eligibilityStorage Eligibility implementation, stored in a `vaultEligibilityStorage` struct
    * @param assetTokens Tokens to be transferred to the vault in exchange for vault tokens
    * 
-   * @return uint vaultId_ The numeric ID of the NFTX vault
+   * @return vaultId_ The numeric ID of the NFTX vault
    */
 
   function createVault(
