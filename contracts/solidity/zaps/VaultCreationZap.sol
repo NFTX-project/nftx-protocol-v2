@@ -102,23 +102,6 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
       );
     }
 
-    // Set our vault fees
-    vault.setFees(
-      vaultFees.mintFee,
-      vaultFees.randomRedeemFee,
-      vaultFees.targetRedeemFee,
-      vaultFees.randomSwapFee,
-      vaultFees.targetSwapFee
-    );
-
-    // If we have a specified eligibility storage, add that on
-    if (eligibilityStorage.moduleIndex > 0) {
-      vault.deployEligibilityStorage(
-        eligibilityStorage.moduleIndex,
-        eligibilityStorage.initData
-      );
-    }
-
     // Mint and stake liquidity into the vault
     uint length = assetTokens.assetTokenIds.length;
     if (length > 0) {
@@ -140,6 +123,23 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
       // We can now mint our asset tokens, giving the vault our tokens
       vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
+    }
+
+    // Set our vault fees
+    vault.setFees(
+      vaultFees.mintFee,
+      vaultFees.randomRedeemFee,
+      vaultFees.targetRedeemFee,
+      vaultFees.randomSwapFee,
+      vaultFees.targetSwapFee
+    );
+
+    // If we have a specified eligibility storage, add that on
+    if (eligibilityStorage.moduleIndex > 0) {
+      vault.deployEligibilityStorage(
+        eligibilityStorage.moduleIndex,
+        eligibilityStorage.initData
+      );
     }
 
     // Finalise our vault, preventing further edits
