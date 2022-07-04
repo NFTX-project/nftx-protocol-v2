@@ -123,7 +123,7 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
         // Transfer all of our 1155 tokens to the vault
         IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
           msg.sender,
-          address(this),
+          address(vault),
           assetTokens.assetTokenIds,
           assetTokens.assetTokenAmounts,
           ""
