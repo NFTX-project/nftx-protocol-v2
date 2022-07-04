@@ -96,8 +96,9 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     // Build our vault interface
     INFTXVault vault = INFTXVault(vaultFactory.vault(vaultId_));
 
-    // If we have specified vault features then update them
-    if (vaultFeatures > 0) {
+    // If we have specified vault features that aren't the default (all enabled)
+    // then update them
+    if (vaultFeatures != 11111) {
       vault.setVaultFeatures(
         _getBoolean(vaultFeatures, 0),
         _getBoolean(vaultFeatures, 1),
