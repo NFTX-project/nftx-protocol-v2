@@ -109,13 +109,18 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
     // Mint and stake liquidity into the vault
     uint length = assetTokens.assetTokenIds.length;
+
+    // If we don't have any tokens to send, we can skip our transfers
     if (length > 0) {
+      // Determine the token type to alternate our transfer logic
       if (!vaultData.is1155) {
+        // Iterate over our 721 tokens to transfer them all to our vault
         for (uint i; i < length;) {
           _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
           unchecked { ++i; }
         }
       } else {
+        // Transfer all of our 1155 tokens to the vault
         IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
           msg.sender,
           address(this),
