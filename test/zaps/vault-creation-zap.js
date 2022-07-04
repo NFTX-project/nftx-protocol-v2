@@ -53,7 +53,7 @@ describe('Vault Creation Zap', function () {
      * Confirm that a vault can be created when providing all possible options.
      */
 
-    it("Should allow vault to be created in a single call", async function () {
+    it("Should allow 721 vault to be created in a single call", async function () {
 
       // Mint the vault asset address to Alice (10 tokens)
       for (let i = 0; i < 10; ++i) {
@@ -78,10 +78,19 @@ describe('Vault Creation Zap', function () {
         10101,
     
         // Fee assignment
-        {mintFee: 1, randomRedeemFee: 2, targetRedeemFee: 3, randomSwapFee: 4, targetSwapFee: 5},
+        {
+          mintFee: 10000000,           // 0.1
+          randomRedeemFee: 5000000,    // 0.05
+          targetRedeemFee: 10000000,   // 0.1
+          randomSwapFee: 5000000,      // 0.05
+          targetSwapFee: 10000000      // 0.1
+        },
     
         // Eligibility storage
-        {moduleIndex: 0, initData: 0},
+        {
+          moduleIndex: 0,
+          initData: 0
+        },
 
         // Mint and stake
         {
@@ -91,13 +100,121 @@ describe('Vault Creation Zap', function () {
       );
 
       // Build our NFTXVaultUpgradeable against the newly created vault
-      // const newVault = await nftx.vault(String(vaultId));
-      // console.log(await newVault.vaultId());
-      // console.log(await newVault.vaultFees());
-      // console.log(await newVault.version());
+      const newVault = await ethers.getContractAt(
+        "NFTXVaultUpgradeable",
+        await nftx.vault(0)
+      );
+
+      // Confirm our general information
+      expect(await newVault.vaultId()).to.equal(0);
+      expect(await newVault.name()).to.equal('Space Poggers');
+      expect(await newVault.symbol()).to.equal('POGGERS');
+      expect(await newVault.assetAddress()).to.equal(erc721.address);
+
+      // Confirm our features
+      expect(await newVault.enableMint()).to.equal(true);
+      expect(await newVault.enableRandomRedeem()).to.equal(false);
+      expect(await newVault.enableTargetRedeem()).to.equal(true);
+      expect(await newVault.enableRandomSwap()).to.equal(false);
+      expect(await newVault.enableTargetSwap()).to.equal(true);
+
+      // Confirm our fees
+      let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
+
+      expect(mintFee).to.equal("100000000000000000");
+      expect(randomRedeemFee).to.equal("50000000000000000");
+      expect(targetRedeemFee).to.equal("100000000000000000");
+      expect(randomSwapFee).to.equal("50000000000000000");
+      expect(targetSwapFee).to.equal("100000000000000000");
+
+      // Confirm our vault's token holdings
+      expect(await erc721.balanceOf(newVault.address)).to.equal(4);
     });
 
-  })
+
+    /**
+     * Confirm that a vault can be created when providing all possible options.
+     */
+
+    xit("Should allow 1155 vault to be created in a single call", async function () {
+
+      // Mint the vault asset address to Alice (10 tokens)
+      for (let i = 0; i < 10; ++i) {
+        await erc721.publicMint(alice.address, i);
+      }
+
+      // Approve the Vault Creation Zap to use Alice's ERC721s
+      await erc721.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
+
+      // Use call static to get the actual return vault from the call
+      const vaultId = await vaultCreationZap.connect(alice).createVault(
+        // Vault creation
+        {
+          name: 'Space Poggers',
+          symbol: 'POGGERS',
+          assetAddress: erc721.address,
+          is1155: false,
+          allowAllItems: true
+        },
+
+        // Vault features
+        10101,
+    
+        // Fee assignment
+        {
+          mintFee: 10000000,           // 0.1
+          randomRedeemFee: 5000000,    // 0.05
+          targetRedeemFee: 10000000,   // 0.1
+          randomSwapFee: 5000000,      // 0.05
+          targetSwapFee: 10000000      // 0.1
+        },
+    
+        // Eligibility storage
+        {
+          moduleIndex: 0,
+          initData: 0
+        },
+
+        // Mint and stake
+        {
+          assetTokenIds: [1, 2, 3, 4],
+          assetTokenAmounts: [1, 1, 1, 1]
+        }
+      );
+
+      // Build our NFTXVaultUpgradeable against the newly created vault
+      const newVault = await ethers.getContractAt(
+        "NFTXVaultUpgradeable",
+        await nftx.vault(0)
+      );
+
+      // Confirm our general information
+      expect(await newVault.vaultId()).to.equal(0);
+      expect(await newVault.name()).to.equal('Space Poggers');
+      expect(await newVault.symbol()).to.equal('POGGERS');
+      expect(await newVault.assetAddress()).to.equal(erc721.address);
+
+      // Confirm our features
+      expect(await newVault.enableMint()).to.equal(true);
+      expect(await newVault.enableRandomRedeem()).to.equal(false);
+      expect(await newVault.enableTargetRedeem()).to.equal(true);
+      expect(await newVault.enableRandomSwap()).to.equal(false);
+      expect(await newVault.enableTargetSwap()).to.equal(true);
+
+      // Confirm our fees
+      let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
+
+      expect(mintFee).to.equal("100000000000000000");
+      expect(randomRedeemFee).to.equal("50000000000000000");
+      expect(targetRedeemFee).to.equal("100000000000000000");
+      expect(randomSwapFee).to.equal("50000000000000000");
+      expect(targetSwapFee).to.equal("100000000000000000");
+
+      // Confirm our vault's token holdings
+      expect(await erc721.balanceOf(newVault.address)).to.equal(4);
+    });
+
+  });
 
 });
 

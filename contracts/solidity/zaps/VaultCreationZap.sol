@@ -7,9 +7,12 @@ import "../interface/INFTXVaultFactory.sol";
 import "../token/IERC1155Upgradeable.sol";
 import "../util/ReentrancyGuardUpgradeable.sol";
 
+import "hardhat/console.sol";
+
 
 /**
- * @notice ..
+ * @notice An amalgomation of vault creation steps, merged and optimised in
+ * a single contract call in an attempt reduce gas costs to the end-user.
  * 
  * @author Twade
  */
@@ -19,14 +22,16 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable vaultFactory;
 
+  /// @notice Basic information pertaining to the vault
   struct vaultInfo {
-    string name;               // ??/32
-    string symbol;             // ??/32
     address assetAddress;      // 20/32
     bool is1155;               // 21/32
     bool allowAllItems;        // 22/32
+    string name;               // ??/32
+    string symbol;             // ??/32
   }
 
+  /// @notice Fee information in 9-decimal format
   struct vaultFeesConfig {
     uint32 mintFee;
     uint32 randomRedeemFee;
@@ -35,11 +40,13 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     uint32 targetSwapFee;
   }
 
+  /// @notice Reference to the vault's eligibility implementation
   struct vaultEligibilityStorage {
     uint moduleIndex;
     bytes initData;
   }
 
+  /// @notice Valid tokens to be transferred to the vault on creation
   struct vaultTokens {
     uint[] assetTokenIds;
     uint[] assetTokenAmounts;
@@ -59,25 +66,25 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
 
   /**
-   * @notice ..
+   * @notice Creates an NFTX vault, handling any desired settings and tokens.
+   * 
+   * @dev Tokens are deposited into the vault prior to fees being sent.
+   * 
+   * @param vaultData Basic information about the vault stored in `vaultInfo` struct
+   * @param vaultFeatures A numeric representation of boolean values for features on the vault
+   * @param vaultFees Fee definitions stored in a `vaultFeesConfig` struct
+   * @param eligibilityStorage Eligibility implementation, stored in a `vaultEligibilityStorage` struct
+   * @param assetTokens Tokens to be transferred to the vault in exchange for vault tokens
+   * 
+   * @return uint vaultId_ The numeric ID of the NFTX vault
    */
 
   function createVault(
-    // Vault creation
     vaultInfo calldata vaultData,
-
-    // Vault features
     uint vaultFeatures,
-
-    // Fee assignment
     vaultFeesConfig calldata vaultFees,
-
-    // Eligibility storage
     vaultEligibilityStorage calldata eligibilityStorage,
-
-    // Staking
     vaultTokens calldata assetTokens
-
   ) external nonReentrant returns (uint vaultId_) {
     // Create our vault skeleton
     vaultId_ = vaultFactory.createVault(
@@ -111,7 +118,6 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
           unchecked { ++i; }
         }
       } else {
-        // This is technically a check, so placing it before the effect.
         IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
           msg.sender,
           address(this),
@@ -125,13 +131,13 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
       vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
     }
 
-    // Set our vault fees
+    // Set our vault fees, converting our 9-decimal to 18-decimal
     vault.setFees(
-      vaultFees.mintFee,
-      vaultFees.randomRedeemFee,
-      vaultFees.targetRedeemFee,
-      vaultFees.randomSwapFee,
-      vaultFees.targetSwapFee
+      uint256(vaultFees.mintFee) * 10e9,
+      uint256(vaultFees.randomRedeemFee) * 10e9,
+      uint256(vaultFees.targetRedeemFee) * 10e9,
+      uint256(vaultFees.randomSwapFee) * 10e9,
+      uint256(vaultFees.targetSwapFee) * 10e9
     );
 
     // If we have a specified eligibility storage, add that on
@@ -176,12 +182,14 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
 
   /**
-   * @notice ..
+   * @notice Reads a boolean at a set character index of a uint.
    * 
-   * @param _packedBools ..
-   * @param _boolNumber ..
+   * @dev 0 and 1 define false and true respectively.
+   * 
+   * @param _packedBools A numeric representation of a series of boolean values
+   * @param _boolNumber The character index of the boolean we are looking up
    *
-   * @return ..
+   * @return bool The representation of the boolean value
    */
 
   function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal pure returns(bool) {
