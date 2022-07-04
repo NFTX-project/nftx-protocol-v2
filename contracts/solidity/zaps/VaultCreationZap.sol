@@ -6,8 +6,6 @@ import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
 import "../util/ReentrancyGuardUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 
 /**
  * @notice ..
@@ -19,6 +17,32 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable vaultFactory;
+
+  struct vaultInfo {
+    string name;               // ??/32
+    string symbol;             // ??/32
+    address assetAddress;      // 20/32
+    bool is1155;               // 21/32
+    bool allowAllItems;        // 22/32
+  }
+
+  struct vaultFeesConfig {
+    uint32 mintFee;
+    uint32 randomRedeemFee;
+    uint32 targetRedeemFee;
+    uint32 randomSwapFee;
+    uint32 targetSwapFee;
+  }
+
+  struct vaultEligibilityStorage {
+    uint moduleIndex;
+    bytes initData;
+  }
+
+  struct vaultTokens {
+    uint[] assetTokenIds;
+    uint[] assetTokenAmounts;
+  }
 
 
   /**
@@ -39,74 +63,74 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
 
   function createVault(
     // Vault creation
-    string memory name,
-    string memory symbol,
-    address assetAddress,
-    bool is1155,
-    bool allowAllItems,
+    vaultInfo calldata vaultData,
 
     // Vault features
-    bytes32 vaultFeatures,
+    uint vaultFeatures,
 
     // Fee assignment
-    bytes32 vaultFees,
+    vaultFeesConfig calldata vaultFees,
 
     // Eligibility storage
-    uint moduleIndex,
-    bytes calldata initData
+    vaultEligibilityStorage calldata eligibilityStorage,
 
-  ) external nonReentrant returns (address vaultAddress) {
-    uint vaultId = vaultFactory.createVault(name, symbol, assetAddress, is1155, allowAllItems);
+    // Staking
+    vaultTokens calldata assetTokens
 
+  ) external nonReentrant returns (uint vaultId_) {
+    // Create our vault skeleton
+    vaultId_ = vaultFactory.createVault(
+      vaultData.name,
+      vaultData.symbol,
+      vaultData.assetAddress,
+      vaultData.is1155,
+      vaultData.allowAllItems
+    );
+
+    // Build our vault interface
+    INFTXVault vault = INFTXVault(vaultFactory.vault(vaultId_));
+
+    // If we have specified vault features then update them
     if (vaultFeatures > 0) {
-      setVaultFeatures(vaultId, vaultFeatures);
+      vault.setVaultFeatures(
+        _getBoolean(vaultFeatures, 0),
+        _getBoolean(vaultFeatures, 1),
+        _getBoolean(vaultFeatures, 2),
+        _getBoolean(vaultFeatures, 3),
+        _getBoolean(vaultFeatures, 4)
+      );
     }
 
-    if (vaultFees > 0) {
-      setVaultFees(vaultId, vaultFees);
+    // Set our vault fees
+    vault.setFees(
+      vaultFees.mintFee,
+      vaultFees.randomRedeemFee,
+      vaultFees.targetRedeemFee,
+      vaultFees.randomSwapFee,
+      vaultFees.targetSwapFee
+    );
+
+    // If we have a specified eligibility storage, add that on
+    if (eligibilityStorage.moduleIndex > 0) {
+      vault.deployEligibilityStorage(
+        eligibilityStorage.moduleIndex,
+        eligibilityStorage.initData
+      );
     }
 
-    vaultAddress = _getVaultAddress(vaultId);
-    INFTXVault vault = INFTXVault(vaultAddress);
+    // Mint and stake liquidity into the vault
+    vault.mint(
+      assetTokens.assetTokenIds,
+      assetTokens.assetTokenAmounts
+    );
 
-    if (moduleIndex > 0) {
-      vault.deployEligibilityStorage(moduleIndex, initData);
-    }
-
-    // or 1155 (zap will have timelock exclusion)
-    // mintAndStakeLiquidity721();
-
+    // Finalise our vault, preventing further edits
     vault.finalizeVault();
   }
 
-  function setVaultFeatures(uint vaultId, bytes32 vaultFeatures) internal {
-    bool _enableMint = bool(bytes1(vaultFeatures) == 0x01);
-    bool _enableRandomRedeem = bool(bytes1(vaultFeatures << 8) == 0x01);
-    bool _enableTargetRedeem = bool(bytes1(vaultFeatures << 16) == 0x01);
-    bool _enableRandomSwap = bool(bytes1(vaultFeatures << 24) == 0x01);
-    bool _enableTargetSwap = bool(bytes1(vaultFeatures << 32) == 0x01);
-
-    INFTXVault(_getVaultAddress(vaultId)).setVaultFeatures(
-      _enableMint,
-      _enableRandomRedeem,
-      _enableTargetRedeem,
-      _enableRandomSwap,
-      _enableTargetSwap
-    );
-  }
-
-  function setVaultFees(uint vaultId, bytes32 data) internal {
-    // (mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee) = _unpack();
-
-    // vaultFactory.setVaultFees(vaultId, mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee);
-  }
-
-  function mintAndStakeLiquidity721() internal {
-    //
-  }
-
-  function _getVaultAddress(uint vaultId) internal returns (address) {
-    return vaultFactory.vault(vaultId);
+  function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal returns(bool) {
+    uint256 flag = (_packedBools >> _boolNumber) & uint256(1);
+    return (flag == 1 ? true : false);
   }
 
 }

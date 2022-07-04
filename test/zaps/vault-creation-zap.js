@@ -55,27 +55,46 @@ describe('Vault Creation Zap', function () {
 
     it("Should allow vault to be created in a single call", async function () {
 
-      await vaultCreationZap.createVault(
+      // Mint the vault asset address to Alice (10 tokens)
+      for (let i = 0; i < 10; ++i) {
+        await erc721.publicMint(alice.address, i);
+      }
+
+      // Approve the Vault Creation Zap to use Alice's ERC721s
+      await erc721.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
+
+      // Use call static to get the actual return vault from the call
+      const vaultId = await vaultCreationZap.connect(alice).createVault(
         // Vault creation
-        'Space Poggers',
-        'POGGERS',
-        '0x4a8B01E437C65FA8612e8b699266c0e0a98FF65c',
-        false,
-        true,
+        {
+          name: 'Space Poggers',
+          symbol: 'POGGERS',
+          assetAddress: erc721.address,
+          is1155: false,
+          allowAllItems: true
+        },
 
         // Vault features
-        ethers.utils.hexZeroPad(ethers.utils.hexlify([1, 0, 1, 0, 1]), 32),
+        10101,
     
         // Fee assignment
-        ethers.utils.hexZeroPad(ethers.utils.hexlify([1, 1, 1, 1, 1]), 32),
+        {mintFee: 1, randomRedeemFee: 2, targetRedeemFee: 3, randomSwapFee: 4, targetSwapFee: 5},
     
         // Eligibility storage
-        0,
-        0,
+        {moduleIndex: 0, initData: 0},
 
         // Mint and stake
+        {
+          assetTokenIds: [1, 2, 3, 4],
+          assetTokenAmounts: [1, 1, 1, 1]
+        }
       );
 
+      // Build our NFTXVaultUpgradeable against the newly created vault
+      // const newVault = await nftx.vault(String(vaultId));
+      // console.log(await newVault.vaultId());
+      // console.log(await newVault.vaultFees());
+      // console.log(await newVault.version());
     });
 
   })
