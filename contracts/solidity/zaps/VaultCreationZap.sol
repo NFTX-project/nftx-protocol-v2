@@ -159,7 +159,7 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     require(success, string(resultData));
   }
 
-  function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal returns(bool) {
+  function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal pure returns(bool) {
     uint256 flag = (_packedBools >> _boolNumber) & uint256(1);
     return (flag == 1 ? true : false);
   }
