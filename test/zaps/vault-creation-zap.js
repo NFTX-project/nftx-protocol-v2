@@ -6,7 +6,7 @@ const BASE = 1e18;
 
 
 // Store our internal contract references
-let weth, erc721;
+let weth, erc721, erc1155;
 let nftx, vault, staking, vaultId;
 let marketplaceZap, mock0xProvider;
 
@@ -28,6 +28,11 @@ describe('Vault Creation Zap', function () {
     const Erc721 = await ethers.getContractFactory("ERC721");
     erc721 = await Erc721.deploy('SpacePoggers', 'POGGERS');
     await erc721.deployed();
+
+    // Set up a test ERC1155 token
+    const Erc1155 = await ethers.getContractFactory("ERC1155");
+    erc1155 = await Erc1155.deploy('https://space.poggers/');
+    await erc1155.deployed();
 
     // Set up our NFTX contracts
     await _initialise_nftx_contracts()
@@ -136,37 +141,46 @@ describe('Vault Creation Zap', function () {
      * Confirm that a vault can be created when providing all possible options.
      */
 
-    xit("Should allow 1155 vault to be created in a single call", async function () {
+    it("Should allow 1155 vault to be created in a single call", async function () {
 
-      // Mint the vault asset address to Alice (10 tokens)
+      // Mint 10x the vault asset address to Alice (10 tokens)
       for (let i = 0; i < 10; ++i) {
-        await erc721.publicMint(alice.address, i);
+        await erc1155.publicMint(alice.address, i, 10);
       }
 
-      // Approve the Vault Creation Zap to use Alice's ERC721s
-      await erc721.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
+      // Approve the Vault Creation Zap to use Alice's ERC1155s
+      await erc1155.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
+
+      // Confirm that Alice has all the ERC1155's
+      expect(await erc1155.balanceOf(alice.address, 1)).to.equal(10);
+      expect(await erc1155.balanceOf(alice.address, 2)).to.equal(10);
+      expect(await erc1155.balanceOf(alice.address, 3)).to.equal(10);
+      expect(await erc1155.balanceOf(alice.address, 4)).to.equal(10);
+
+      // Confirm that the creation zap has approval access
+      expect(await erc1155.isApprovedForAll(alice.address, vaultCreationZap.address)).to.equal(true)
 
       // Use call static to get the actual return vault from the call
       const vaultId = await vaultCreationZap.connect(alice).createVault(
         // Vault creation
         {
-          name: 'Space Poggers',
-          symbol: 'POGGERS',
-          assetAddress: erc721.address,
-          is1155: false,
+          name: 'Pace Spoggers',
+          symbol: 'SPOGGERS',
+          assetAddress: erc1155.address,
+          is1155: true,
           allowAllItems: true
         },
 
         // Vault features
-        10101,
+        01010,
     
         // Fee assignment
         {
-          mintFee: 10000000,           // 0.1
-          randomRedeemFee: 5000000,    // 0.05
-          targetRedeemFee: 10000000,   // 0.1
-          randomSwapFee: 5000000,      // 0.05
-          targetSwapFee: 10000000      // 0.1
+          mintFee: 20000000,           // 0.2
+          randomRedeemFee: 12500000,    // 0.125
+          targetRedeemFee: 20000000,   // 0.2
+          randomSwapFee: 15000000,      // 0.15
+          targetSwapFee: 20000000      // 0.2
         },
     
         // Eligibility storage
@@ -177,41 +191,44 @@ describe('Vault Creation Zap', function () {
 
         // Mint and stake
         {
-          assetTokenIds: [1, 2, 3, 4],
-          assetTokenAmounts: [1, 1, 1, 1]
+          assetTokenIds: [1, 2, 3],
+          assetTokenAmounts: [2, 5, 3]
         }
       );
 
       // Build our NFTXVaultUpgradeable against the newly created vault
       const newVault = await ethers.getContractAt(
         "NFTXVaultUpgradeable",
-        await nftx.vault(0)
+        await nftx.vault(1)
       );
 
       // Confirm our general information
-      expect(await newVault.vaultId()).to.equal(0);
-      expect(await newVault.name()).to.equal('Space Poggers');
-      expect(await newVault.symbol()).to.equal('POGGERS');
-      expect(await newVault.assetAddress()).to.equal(erc721.address);
+      expect(await newVault.vaultId()).to.equal(1);
+      expect(await newVault.name()).to.equal('Pace Spoggers');
+      expect(await newVault.symbol()).to.equal('SPOGGERS');
+      expect(await newVault.assetAddress()).to.equal(erc1155.address);
 
       // Confirm our features
-      expect(await newVault.enableMint()).to.equal(true);
-      expect(await newVault.enableRandomRedeem()).to.equal(false);
-      expect(await newVault.enableTargetRedeem()).to.equal(true);
-      expect(await newVault.enableRandomSwap()).to.equal(false);
-      expect(await newVault.enableTargetSwap()).to.equal(true);
+      expect(await newVault.enableMint()).to.equal(false);
+      expect(await newVault.enableRandomRedeem()).to.equal(true);
+      expect(await newVault.enableTargetRedeem()).to.equal(false);
+      expect(await newVault.enableRandomSwap()).to.equal(true);
+      expect(await newVault.enableTargetSwap()).to.equal(false);
 
       // Confirm our fees
       let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
 
-      expect(mintFee).to.equal("100000000000000000");
-      expect(randomRedeemFee).to.equal("50000000000000000");
-      expect(targetRedeemFee).to.equal("100000000000000000");
-      expect(randomSwapFee).to.equal("50000000000000000");
-      expect(targetSwapFee).to.equal("100000000000000000");
+      expect(mintFee).to.equal("200000000000000000");
+      expect(randomRedeemFee).to.equal("125000000000000000");
+      expect(targetRedeemFee).to.equal("200000000000000000");
+      expect(randomSwapFee).to.equal("150000000000000000");
+      expect(targetSwapFee).to.equal("200000000000000000");
 
       // Confirm our vault's token holdings
-      expect(await erc721.balanceOf(newVault.address)).to.equal(4);
+      expect(await erc1155.balanceOf(newVault.address, 1)).to.equal(2);
+      expect(await erc1155.balanceOf(newVault.address, 2)).to.equal(5);
+      expect(await erc1155.balanceOf(newVault.address, 3)).to.equal(3);
+      expect(await erc1155.balanceOf(newVault.address, 4)).to.equal(0);
     });
 
   });
