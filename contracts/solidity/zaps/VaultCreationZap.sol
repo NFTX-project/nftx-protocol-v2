@@ -119,13 +119,44 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     }
 
     // Mint and stake liquidity into the vault
-    vault.mint(
-      assetTokens.assetTokenIds,
-      assetTokens.assetTokenAmounts
-    );
+    uint length = assetTokens.assetTokenIds.length;
+    for (uint i; i < length;) {
+      _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
+      unchecked { ++i; }
+    }
+
+    // We can now mint our asset tokens, giving the vault our tokens
+    vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
 
     // Finalise our vault, preventing further edits
     vault.finalizeVault();
+  }
+
+  /**
+   * @notice Transfers our ERC721 tokens to a specified recipient.
+   * 
+   * @param assetAddr Address of the asset being transferred
+   * @param tokenId The ID of the token being transferred
+   * @param to The address the token is being transferred to
+   */
+
+  function _transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
+    bytes memory data;
+
+    if (assetAddr == 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+      // Fix here for frontrun attack.
+      bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
+      (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
+      (address nftOwner) = abi.decode(result, (address));
+      require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
+      data = abi.encodeWithSignature("buyPunk(uint256)", tokenId);
+    } else {
+      // We push to the vault to avoid an unneeded transfer.
+      data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
+    }
+
+    (bool success, bytes memory resultData) = address(assetAddr).call(data);
+    require(success, string(resultData));
   }
 
   function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal returns(bool) {
