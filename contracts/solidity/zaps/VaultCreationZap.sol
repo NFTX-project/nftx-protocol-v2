@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
+import "../token/ERC1155SafeHolderUpgradeable.sol";
 import "../token/IERC1155Upgradeable.sol";
 import "../util/ReentrancyGuardUpgradeable.sol";
 
@@ -15,7 +16,7 @@ import "../util/ReentrancyGuardUpgradeable.sol";
  * @author Twade
  */
 
-contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
+contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUpgradeable {
 
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable vaultFactory;
@@ -96,15 +97,11 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
     // Build our vault interface
     INFTXVault vault = INFTXVault(vaultFactory.vault(vaultId_));
 
-    // If we have specified vault features that aren't the default (all enabled)
-    // then update them
-    if (vaultFeatures != 11111) {
-      vault.setVaultFeatures(
-        _getBoolean(vaultFeatures, 0),
-        _getBoolean(vaultFeatures, 1),
-        _getBoolean(vaultFeatures, 2),
-        _getBoolean(vaultFeatures, 3),
-        _getBoolean(vaultFeatures, 4)
+    // If we have a specified eligibility storage, add that on
+    if (eligibilityStorage.moduleIndex > 0) {
+      vault.deployEligibilityStorage(
+        eligibilityStorage.moduleIndex,
+        eligibilityStorage.initData
       );
     }
 
@@ -121,18 +118,34 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
           unchecked { ++i; }
         }
       } else {
-        // Transfer all of our 1155 tokens to the vault
+        // Transfer all of our 1155 tokens to our zap, as the `mintTo` call on our
+        // vault requires the call sender to hold the ERC1155 token.
         IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
           msg.sender,
-          address(vault),
+          address(this),
           assetTokens.assetTokenIds,
           assetTokens.assetTokenAmounts,
           ""
         );
+
+        // Approve our vault to play with our 1155 tokens
+        IERC1155Upgradeable(vaultData.assetAddress).setApprovalForAll(address(vault), true);
       }
 
       // We can now mint our asset tokens, giving the vault our tokens
       vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
+    }
+
+    // If we have specified vault features that aren't the default (all enabled)
+    // then update them
+    if (vaultFeatures < 31) {
+      vault.setVaultFeatures(
+        _getBoolean(vaultFeatures, 4),
+        _getBoolean(vaultFeatures, 3),
+        _getBoolean(vaultFeatures, 2),
+        _getBoolean(vaultFeatures, 1),
+        _getBoolean(vaultFeatures, 0)
+      );
     }
 
     // Set our vault fees, converting our 9-decimal to 18-decimal
@@ -143,14 +156,6 @@ contract NFTXVaultCreationZap is ReentrancyGuardUpgradeable {
       uint256(vaultFees.randomSwapFee) * 10e9,
       uint256(vaultFees.targetSwapFee) * 10e9
     );
-
-    // If we have a specified eligibility storage, add that on
-    if (eligibilityStorage.moduleIndex > 0) {
-      vault.deployEligibilityStorage(
-        eligibilityStorage.moduleIndex,
-        eligibilityStorage.initData
-      );
-    }
 
     // Finalise our vault, preventing further edits
     vault.finalizeVault();
