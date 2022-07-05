@@ -28,11 +28,17 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   address public override inventoryStaking;
 
+  address public override v3Staking;
+  uint256 public v3VaultIdSwitch;
+  mapping(uint256 => bool) public v3Toggle;
+
   event UpdateTreasuryAddress(address newTreasury);
   event UpdateLPStakingAddress(address newLPStaking);
   event UpdateInventoryStakingAddress(address newInventoryStaking);
   event UpdateNFTXVaultFactory(address factory);
   event PauseDistribution(bool paused); 
+  event ActivateV3Toggle(uint256 vaultId);
+  event SwitchToV3(uint256 vaultId);
 
   event AddFeeReceiver(address receiver, uint256 allocPoint);
   event UpdateFeeReceiverAlloc(address receiver, uint256 allocPoint);
@@ -62,6 +68,12 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     uint256 leftover;
     for (uint256 i; i < length; ++i) {
       FeeReceiver memory _feeReceiver = feeReceivers[i];
+      if (_feeReceiver.receiver == lpStaking) {
+        if (vaultId > v3VaultIdSwitch || v3Toggle[vaultId]) {
+          _feeReceiver.receiver = v3Staking;
+        }
+      }
+      
       uint256 amountToSend = leftover + ((tokenBalance * _feeReceiver.allocPoint) / allocTotal);
       uint256 currentTokenBalance = IERC20Upgradeable(_vault).balanceOf(address(this));
       amountToSend = amountToSend > currentTokenBalance ? currentTokenBalance : amountToSend;
@@ -136,6 +148,12 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
     emit UpdateInventoryStakingAddress(_inventoryStaking);
   }
 
+  function setV3StakingAddress(address _v3Staking) public override onlyOwner {
+    require(_v3Staking != address(0), "V3Staking != address(0)");
+    v3Staking = _v3Staking;
+    emit UpdateV3StakingAddress(_v3Staking);
+  }
+
   function setNFTXVaultFactory(address _factory) external override onlyOwner {
     require(address(nftxVaultFactory) == address(0), "nftxVaultFactory is immutable");
     nftxVaultFactory = _factory;
@@ -145,6 +163,15 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   function pauseFeeDistribution(bool _pause) external onlyOwner {
     distributionPaused = _pause;
     emit PauseDistribution(_pause);
+  }
+
+  function activateV3Switch() external override onlyOwner {
+    v3VaultIdSwitch = INFTXVaultFactory(nftxVaultFactory).numVaults();
+    // event V3SwitchActive(v3VaultIdSwitch)
+  }
+
+  function toggleVaultsToV3(uint256[] memory vaultIds) external override onlyOwner {
+    v3Toggle[vaultIds[0]] = true;
   }
 
   function rescueTokens(address _address) external override onlyOwner {
