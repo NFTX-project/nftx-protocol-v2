@@ -93,7 +93,7 @@ describe('Vault Creation Zap', function () {
     
         // Eligibility storage
         {
-          moduleIndex: 0,
+          moduleIndex: -1,
           initData: 0
         },
 
@@ -176,7 +176,7 @@ describe('Vault Creation Zap', function () {
     
         // Eligibility storage
         {
-          moduleIndex: 0,
+          moduleIndex: -1,
           initData: 0
         },
 

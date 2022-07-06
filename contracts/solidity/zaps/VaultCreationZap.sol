@@ -41,7 +41,7 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
 
   /// @notice Reference to the vault's eligibility implementation
   struct vaultEligibilityStorage {
-    uint moduleIndex;
+    int moduleIndex;
     bytes initData;
   }
 
@@ -98,9 +98,9 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
     INFTXVault vault = INFTXVault(vaultFactory.vault(vaultId_));
 
     // If we have a specified eligibility storage, add that on
-    if (eligibilityStorage.moduleIndex > 0) {
+    if (eligibilityStorage.moduleIndex >= 0) {
       vault.deployEligibilityStorage(
-        eligibilityStorage.moduleIndex,
+        uint256(eligibilityStorage.moduleIndex),
         eligibilityStorage.initData
       );
     }
