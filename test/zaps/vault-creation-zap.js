@@ -80,7 +80,7 @@ describe('Vault Creation Zap', function () {
         },
 
         // Vault features
-        10101,
+        21,  // 10101
     
         // Fee assignment
         {
@@ -163,7 +163,7 @@ describe('Vault Creation Zap', function () {
         },
 
         // Vault features
-        11010,
+        26,  // 11010
     
         // Fee assignment
         {
