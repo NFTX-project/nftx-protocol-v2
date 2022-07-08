@@ -111,17 +111,83 @@ describe("Mainnet unstaking test ERC721", function () {
     await paycVault.connect(zetsu).mint([paycNftIds[0]], [1]);
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
-    console.log("FeeDistrib PAYC balance after buy:", formatEther(feeDistribPaycBalB));
+    console.log("FeeDistrib PAYC balance after mint:", formatEther(feeDistribPaycBalB));
 
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
-    console.log("Zetsu PAYC balance before mint:", formatEther(zetsuPaycBalB));
+    console.log("Zetsu PAYC balance after mint:", formatEther(zetsuPaycBalB));
 
     let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
-    console.log("LPStaking PAYC balance before mint:", formatEther(lpStakingPaycValB));
+    console.log("LPStaking PAYC balance after mint:", formatEther(lpStakingPaycValB));
 
-    expect(feeDistribPaycBalB.sub(feeDistribPaycBalA)).to.equal(BASE.div(10));
-    expect(zetsuPaycBalB).to.equal(zetsuPaycBalA.add(BASE.div(10).mul(9)));
+    expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(10).div(100)));
+    expect(zetsuPaycBalB).to.equal(zetsuPaycBalA.add(BASE.mul(90).div(100)));
     expect(lpStakingPaycValB).to.equal(lpStakingPaycValA);
   });
+
+  //TODO: should distribute fees on inventory stake
+
+  it("Should not distribute fees on redeem", async () => {
+    let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
+    console.log("FeeDistrib PAYC balance before mint:", formatEther(feeDistribPaycBalA));
+
+    let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
+    console.log("Zetsu PAYC balance before mint:", formatEther(zetsuPaycBalA));
+
+    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    console.log("LPStaking PAYC balance before mint:", formatEther(lpStakingPaycValA));
+
+    await paycVault.connect(zetsu).redeem(1, []);
+
+    let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
+    console.log("FeeDistrib PAYC balance after redeem:", formatEther(feeDistribPaycBalB));
+
+    let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
+    console.log("Zetsu PAYC balance after redeem:", formatEther(zetsuPaycBalB));
+
+    let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
+    console.log("LPStaking PAYC balance after redeem:", formatEther(lpStakingPaycValB));
+
+    expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
+    expect(zetsuPaycBalB).to.equal(zetsuPaycBalA.sub(BASE.mul(104).div(100)));
+    expect(lpStakingPaycValB).to.equal(lpStakingPaycValA);
+  });
+
+  //TODO: should distribute fees on liquidity stake
+
+  it("Should not distribute fees on swap", async () => {
+    let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
+    console.log("FeeDistrib PAYC balance before mint:", formatEther(feeDistribPaycBalA));
+
+    let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
+    console.log("Zetsu PAYC balance before mint:", formatEther(zetsuPaycBalA));
+
+    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    console.log("LPStaking PAYC balance before mint:", formatEther(lpStakingPaycValA));
+
+    await paycVault.connect(zetsu).swap([paycNftIds[1]], [1], []);
+
+    let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
+    console.log("FeeDistrib PAYC balance after redeem:", formatEther(feeDistribPaycBalB));
+
+    let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
+    console.log("Zetsu PAYC balance after redeem:", formatEther(zetsuPaycBalB));
+
+    let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
+    console.log("LPStaking PAYC balance after redeem:", formatEther(lpStakingPaycValB));
+
+    expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
+    expect(zetsuPaycBalB).to.equal(zetsuPaycBalA.sub(BASE.mul(4).div(100)));
+    expect(lpStakingPaycValB).to.equal(lpStakingPaycValA);
+  });
+
+  //TODO: should distribute fees on inventory unstake
+
+  //TODO: redeem
+
+  //TODO: should distribute fees on liquidity unstake
+
+  //TODO: redeem
+
+  //TODO: should distribute fees on liquidity fee claim
 
 });
