@@ -11,9 +11,9 @@ async function main() {
     "\n"
   );
 
-  const vault = await ethers.getContractAt("NFTXVaultUpgradeable", "0x0c7f8Cd8262Ecb088B0FB39F4189A07BeCAeacB5");
+  const vault = await ethers.getContractAt("NFTXVaultUpgradeable", "0x13edcC775f8895961B81Db5C0205889B3Afb3A16");
 
-  await vault.setVaultMetadata("rektguy (VOID)", "REKT-VOID");
+  await vault.setVaultMetadata("Ringers (VOID)", "RINGER-VOID");
 
 }
 
