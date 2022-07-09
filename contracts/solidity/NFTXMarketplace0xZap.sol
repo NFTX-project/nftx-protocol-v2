@@ -14,8 +14,6 @@ import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
-import "hardhat/console.sol";
-
 
 /**
  * @notice A partial ERC20 interface.
@@ -663,4 +661,5 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   receive() external payable {
     //
   }
+
 }

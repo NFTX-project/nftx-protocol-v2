@@ -26,12 +26,18 @@ describe('0x Marketplace Zap', function () {
 
   before(async function () {
     // Set up our deployer / owner address
-    [deployer, alice, bob, ...users] = await ethers.getSigners()
+    [deployer, alice, bob, carol, ...users] = await ethers.getSigners()
 
     // Set up a test ERC20 token to simulate WETH
     const WETH = await ethers.getContractFactory("WETH");
     weth = await WETH.deploy();
     await weth.deployed();
+
+    // Fill our WETH contract with Carol's juicy ETH
+    await carol.sendTransaction({
+      to: weth.address,
+      value: ethers.utils.parseEther("50")
+    })
 
     // Set up a test ERC721 token
     const Erc721 = await ethers.getContractFactory("ERC721");
@@ -643,7 +649,7 @@ describe('0x Marketplace Zap', function () {
      *
      */
 
-    xit('Should be able to fill quote to another recipient', async function () {
+    it('Should be able to fill quote to another recipient', async function () {
       // ...
       expect(await erc721.balanceOf(alice.address)).to.equal(8)
       expect(await erc721.balanceOf(vault.address)).to.equal(6)
@@ -677,7 +683,7 @@ describe('0x Marketplace Zap', function () {
      *
      */
 
-    xit('Should be able to fill quote for multiple tokens', async function () {
+    it('Should be able to fill quote for multiple tokens', async function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(8)
       expect(await erc721.balanceOf(vault.address)).to.equal(4)
 
