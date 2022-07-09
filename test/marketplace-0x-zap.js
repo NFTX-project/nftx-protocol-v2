@@ -3,6 +3,7 @@ const { ethers } = require("hardhat");
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 const BASE = 1e18;
+const TOKENS_IN_0X = 500;
 
 
 // Store our internal contract references
@@ -74,8 +75,15 @@ describe('0x Marketplace Zap', function () {
       await erc721.publicMint(bob.address, i);
     }
 
+    // Mint some tokens to Carol that we will use later to generate vault token
+    // liquidity in our mocked 0x provider
+    for (let i = 15; i < 25; ++i) {
+      await erc721.publicMint(carol.address, i);
+    }
+
     expect(await erc721.balanceOf(alice.address)).to.equal(10);
     expect(await erc721.balanceOf(bob.address)).to.equal(5);
+    expect(await erc721.balanceOf(carol.address)).to.equal(10);
 
     // Approve the Marketplace Zap to use Alice's ERC721s
     await erc721.connect(alice).setApprovalForAll(marketplaceZap.address, true);
@@ -102,8 +110,8 @@ describe('0x Marketplace Zap', function () {
     await erc1155.connect(alice).setApprovalForAll(marketplaceZap.address, true);
 
     // Add payout token liquidity to the 0x pool
-    await weth.mint(mock0xProvider.address, String(BASE * 100))
-    expect(await weth.balanceOf(mock0xProvider.address)).to.equal(String(BASE * 100))
+    await weth.mint(mock0xProvider.address, String(BASE * TOKENS_IN_0X))
+    expect(await weth.balanceOf(mock0xProvider.address)).to.equal(String(BASE * TOKENS_IN_0X))
   });
 
 
@@ -508,13 +516,21 @@ describe('0x Marketplace Zap', function () {
       // to mint an ERC721 after calculating the mint fee also.
       await mock0xProvider.setPayOutAmount(String(BASE * 1));
 
-      // Screw Bob, lets send all his NFTs to the vault
+      // Send Bob's ERC721 tokens to the vault to ensure that we have enough tokens
+      // to be redeemed during tests.
       await erc721.connect(bob).setApprovalForAll(marketplaceZap.address, true);
       await erc721.connect(bob).transferFrom(bob.address, vault.address, 10);
       await erc721.connect(bob).transferFrom(bob.address, vault.address, 11);
       await erc721.connect(bob).transferFrom(bob.address, vault.address, 12);
       await erc721.connect(bob).transferFrom(bob.address, vault.address, 13);
       await erc721.connect(bob).transferFrom(bob.address, vault.address, 14);
+
+      // Transfer Carol's hard earned vault tokens to our mock 0x provider to
+      // provide some liquidity. We transfer a reduced number of tokens due to
+      // 0.1 fees per token being taken during the vault process.
+      await erc721.connect(carol).setApprovalForAll(vault.address, true);
+      await vault.connect(carol).mint([15, 16, 17, 18, 19], []);
+      await vault.connect(carol).transfer(mock0xProvider.address, '4000000000000000000');
     });
 
 
@@ -618,7 +634,7 @@ describe('0x Marketplace Zap', function () {
 
     it('Should be able to fill quote', async function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(7)
-      expect(await erc721.balanceOf(vault.address)).to.equal(7)
+      expect(await erc721.balanceOf(vault.address)).to.equal(12)
 
       // Process a buy of 1 ERC721 -> 1.1 tokens -> 1 ERC721
       await marketplaceZap.connect(alice).buyAndRedeem721(
@@ -641,71 +657,7 @@ describe('0x Marketplace Zap', function () {
       // has been reduced to 1 token. As this was a random buy, we don't know exactly
       // which token was purchased.
       expect(await erc721.balanceOf(alice.address)).to.equal(8)
-      expect(await erc721.balanceOf(vault.address)).to.equal(6)
-    });
-
-
-    /**
-     *
-     */
-
-    it('Should be able to fill quote to another recipient', async function () {
-      // ...
-      expect(await erc721.balanceOf(alice.address)).to.equal(8)
-      expect(await erc721.balanceOf(vault.address)).to.equal(6)
-      expect(await erc721.balanceOf(bob.address)).to.equal(1)
-
-      // Process a buy of 2 ERC721 -> 2.2 tokens -> 2 ERC721
-      await marketplaceZap.connect(alice).buyAndRedeem721(
-        await vault.vaultId(),    // vaultId
-        2,                        // amount
-        [],                       // specificIds
-        alice.address,            // spender
-        mock0xProvider.address,   // swapTarget
-        _create_call_data(        // swapCallData
-          weth.address,            // payInToken
-          vault.address            // payOutToken
-        ),
-        bob.address,            // to
-        {
-          value: ethers.utils.parseEther('2')  // redeemFees
-        }
-      )
-
-      // ...
-      expect(await erc721.balanceOf(alice.address)).to.equal(8)
-      expect(await erc721.balanceOf(vault.address)).to.equal(4)
-      expect(await erc721.balanceOf(bob.address)).to.equal(3)
-    });
-
-
-    /**
-     *
-     */
-
-    it('Should be able to fill quote for multiple tokens', async function () {
-      expect(await erc721.balanceOf(alice.address)).to.equal(8)
-      expect(await erc721.balanceOf(vault.address)).to.equal(4)
-
-      // Process a buy of 3 ERC721 -> 3.3 tokens -> 3 ERC721
-      await marketplaceZap.connect(alice).buyAndRedeem721(
-        await vault.vaultId(),    // vaultId
-        3,                        // amount
-        [],                       // specificIds
-        alice.address,            // spender
-        mock0xProvider.address,   // swapTarget
-        _create_call_data(        // swapCallData
-          weth.address,            // payInToken
-          vault.address            // payOutToken
-        ),
-        alice.address,            // to
-        {
-          value: ethers.utils.parseEther('3')  // redeemFees
-        }
-      )
-
-      expect(await erc721.balanceOf(alice.address)).to.equal(11)
-      expect(await erc721.balanceOf(vault.address)).to.equal(1)
+      expect(await erc721.balanceOf(vault.address)).to.equal(11)
     });
 
   })
