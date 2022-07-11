@@ -124,7 +124,19 @@ describe("Mainnet unstaking test ERC721", function () {
     expect(lpStakingPaycValB).to.equal(lpStakingPaycValA);
   });
 
-  //TODO: should distribute fees on inventory stake
+  it("Should distribute fees on inventory stake", async () => {
+    let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
+    console.log("FeeDistrib PAYC balance before inventory stake:", formatEther(feeDistribPaycBalA));
+
+    let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
+    console.log("Zetsu PAYC balance before inventory stake:", formatEther(zetsuPaycBalA));
+
+    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    console.log("LPStaking PAYC balance before inventory stake:", formatEther(lpStakingPaycValA));
+
+    // TODO: continue here
+    // await 
+  })
 
   it("Should not distribute fees on redeem", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
