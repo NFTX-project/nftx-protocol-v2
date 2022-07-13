@@ -12,6 +12,7 @@ interface INFTXSimpleFeeDistributor {
 
   function nftxVaultFactory() external view returns (address);
   function lpStaking() external view returns (address);
+  function v3Staking() external view returns (address);
   function inventoryStaking() external view returns (address);
   function treasury() external view returns (address);
   function allocTotal() external view returns (uint256);
@@ -32,4 +33,9 @@ interface INFTXSimpleFeeDistributor {
   function setLPStakingAddress(address _lpStaking) external;
   function setInventoryStakingAddress(address _inventoryStaking) external;
   function setNFTXVaultFactory(address _factory) external;
+
+   // V3 toggle utils 
+  function activateV3Switch() external;
+  function toggleVaultsToV3(uint256[] calldata vaultIds, bool v3State) external;
+  function setV3StakingAddress(address v3Staking) external;
 } 

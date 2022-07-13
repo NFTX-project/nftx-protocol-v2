@@ -35,10 +35,11 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   event UpdateTreasuryAddress(address newTreasury);
   event UpdateLPStakingAddress(address newLPStaking);
   event UpdateInventoryStakingAddress(address newInventoryStaking);
+  event UpdateV3StakingAddress(address newV3Staking);
   event UpdateNFTXVaultFactory(address factory);
   event PauseDistribution(bool paused); 
-  event ActivateV3Toggle(uint256 vaultId);
-  event SwitchToV3(uint256 vaultId);
+  event V3SwitchActive(uint256 startingVaultID);
+  event SwitchToV3(uint256 vaultId, bool v3State);
 
   event AddFeeReceiver(address receiver, uint256 allocPoint);
   event UpdateFeeReceiverAlloc(address receiver, uint256 allocPoint);
@@ -99,7 +100,11 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   function initializeVaultReceivers(uint256 _vaultId) external override {
     require(msg.sender == nftxVaultFactory, "FeeReceiver: not factory");
-    INFTXLPStaking(lpStaking).addPoolForVault(_vaultId);
+    if (_vaultId > v3VaultIdSwitch || v3Toggle[_vaultId]) {
+      // not sure what this does yet lol 
+    } else {
+      INFTXLPStaking(lpStaking).addPoolForVault(_vaultId);
+    }
     if (inventoryStaking != address(0))
       INFTXInventoryStaking(inventoryStaking).deployXTokenForVault(_vaultId);
   }
@@ -167,11 +172,14 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   function activateV3Switch() external override onlyOwner {
     v3VaultIdSwitch = INFTXVaultFactory(nftxVaultFactory).numVaults();
-    // event V3SwitchActive(v3VaultIdSwitch)
+    emit V3SwitchActive(v3VaultIdSwitch);
   }
 
-  function toggleVaultsToV3(uint256[] memory vaultIds) external override onlyOwner {
-    v3Toggle[vaultIds[0]] = true;
+  function toggleVaultsToV3(uint256[] memory vaultIds, bool v3State) external override onlyOwner {
+    for (uint256 i; i < vaultIds.length; i++) {
+      v3Toggle[vaultIds[i]] = v3State;
+      emit SwitchToV3(vaultIds[i], v3State);
+    }
   }
 
   function rescueTokens(address _address) external override onlyOwner {
