@@ -11,6 +11,8 @@ import "./util/Address.sol";
 import "./proxy/ClonesUpgradeable.sol";
 import "./StakingTokenProvider.sol";
 import "./token/TimelockRewardDistributionTokenImpl.sol";
+import "./interface/INFTXSimpleFeeDistributor.sol";
+import "./interface/INFTXVault.sol";
 
 // Author: 0xKiwi.
 
@@ -121,6 +123,8 @@ contract NFTXLPStaking is PausableUpgradeable {
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
 
+        _distributeFees(vaultId);
+
         StakingPool memory pool = vaultStakingInfo[vaultId];
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -145,6 +149,9 @@ contract NFTXLPStaking is PausableUpgradeable {
         onlyOwnerIfPaused(10);
         // Check the pool in case its been updated.
         updatePoolForVault(vaultId);
+
+        _distributeFees(vaultId);
+
         StakingPool memory pool = vaultStakingInfo[vaultId];
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -153,6 +160,7 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function exit(uint256 vaultId) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
         _withdraw(pool, balanceOf(vaultId, msg.sender), msg.sender);
     }
@@ -161,6 +169,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
         TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
+        _distributeFees(INFTXVault(_rewardToken).vaultId());
         _claimRewards(pool, msg.sender);
         _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
     }
@@ -205,12 +214,14 @@ contract NFTXLPStaking is PausableUpgradeable {
 
     function withdraw(uint256 vaultId, uint256 amount) external {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
         _withdraw(pool, amount, msg.sender);
     }
 
     function claimRewards(uint256 vaultId) public {
         StakingPool memory pool = vaultStakingInfo[vaultId];
+        _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
     }
 
@@ -333,6 +344,10 @@ contract NFTXLPStaking is PausableUpgradeable {
         bytes32 salt = keccak256(abi.encodePacked(pool.stakingToken, pool.rewardToken));
         address tokenAddr = ClonesUpgradeable.predictDeterministicAddress(address(rewardDistTokenImpl), salt);
         return IRewardDistributionToken(tokenAddr);
+    }
+
+    function _distributeFees(uint256 vaultId) internal {
+        INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
 
     function isContract(address account) internal view returns (bool) {
