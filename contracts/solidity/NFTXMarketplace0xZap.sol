@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXFeeDistributor.sol";
-import "./interface/INFTXLPStaking.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
@@ -53,9 +52,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
 
-  /// @notice An interface for the Liquidity Pool staking contract
-  INFTXLPStaking public immutable lpStaking;
-
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable nftxFactory;
 
@@ -92,14 +88,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * respective interfaces.
    * 
    * @param _nftxFactory NFTX Vault Factory contract address
-   * @param _lpStaking Liquidity Pool Staking contract address
    * @param _WETH WETH contract address
    */
 
-  constructor(address _nftxFactory, address _lpStaking, address _WETH) {
+  constructor(address _nftxFactory, address _WETH) {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
-    lpStaking = INFTXLPStaking(_lpStaking);
-
     WETH = IWETH(_WETH);
   }
 
