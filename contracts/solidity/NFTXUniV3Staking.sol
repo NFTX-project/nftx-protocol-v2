@@ -46,6 +46,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
     event Withdraw(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, address sender);
     event FeesReceived(uint256 vaultId, uint256 amount);
+    event TradingFeesReceived(uint256 vaultId, uint256 amount);
+    event FeesClaimed(uint256 vaultId, uint256 tokenId, uint256 amount, address sender);
 
     function __NFTXUniV3Staking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
         __Ownable_init();
@@ -209,7 +211,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       // Send all vault tokens to treasury.
       IERC20Upgradeable(address1 == _vaultToken ? address0 : address1).transfer(owner(), address1 == _vaultToken ? amount0 : amount1);
       _distributeRewards(vaultId, address0 == _vaultToken ? amount0 : amount1);
-      emit FeesReceived(vaultId,  address0 == _vaultToken ? amount0 : amount1);
+      emit TradingFeesReceived(vaultId,  address0 == _vaultToken ? amount0 : amount1);
     }
 
     // TEST THIS MORE
@@ -222,6 +224,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       address _vaultToken = nftxVaultFactory.vault(vaultId);
       (uint256 amount) = _deductWithdrawableRewards(tokenId);
       IERC20Upgradeable(_vaultToken).transfer(receiver, amount);
+      emit FeesClaimed(vaultId, tokenId, amount, msg.sender);
     }
 
     // TEST THIS MORE
