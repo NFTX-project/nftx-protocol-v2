@@ -42,9 +42,9 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
 
     mapping(uint256 => uint256) vaultV3PositionId;
 
-    event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
-    event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
-    event Withdraw(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, address sender);
+    event PositionCreated(uint256 vaultId, uint256 tokenId, address sender);
+    event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
+    event Withdraw(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, address sender);
     event FeesReceived(uint256 vaultId, uint256 amount);
 
     function __NFTXUniV3Staking_init(address _v3Factory, address _nftManager, address _defaultPair, address _nftxVaultFactory) external virtual initializer {
@@ -66,9 +66,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     function initializeUniV3Position(uint256 vaultId, uint160 sqrtPrice, uint256 amount0, uint256 amount1) public returns (uint256) {
       onlyOwnerIfPaused(0);
       require(vaultV3PositionId[vaultId] == 0, "Vault V3 position exists");
-      address vaultToken = nftxVaultFactory.vault(vaultId);
-      PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(vaultToken, defaultPair, DEFAULT_FEE);
-      address pool = nftManager.createAndInitializePoolIfNecessary(poolKey.token0, poolKey.token1, poolKey.fee, sqrtPrice);
+      PoolAddress.PoolKey memory poolKey = PoolAddress.getPoolKey(nftxVaultFactory.vault(vaultId), defaultPair, DEFAULT_FEE);
+      nftManager.createAndInitializePoolIfNecessary(poolKey.token0, poolKey.token1, poolKey.fee, sqrtPrice);
 
       IERC20Upgradeable(poolKey.token0).transferFrom(msg.sender, address(this), amount0);
       IERC20Upgradeable(poolKey.token1).transferFrom(msg.sender, address(this), amount1);
@@ -93,9 +92,12 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
             uint256 amount0,
             uint256 amount1
         ) {
+          uint256 _positionId = positionsCreated;
+          positionsCreated = _positionId + 1;
           vaultV3PositionId[vaultId] = tokenId;
-          _mint(msg.sender, positionsCreated, vaultId, liquidity);
-          positionsCreated = positionsCreated + 1;
+          _mint(msg.sender, _positionId, vaultId, liquidity);
+          emit PositionCreated(vaultId, _positionId, msg.sender);
+          emit Deposit(vaultId, _positionId, liquidity, 0, msg.sender);
           return tokenId;
         } catch (bytes memory reason) {
             revert(string(reason));
@@ -107,8 +109,10 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       (uint256 liquidityDelta, ,) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
 
       uint256 curIndex = positionsCreated;
-      _mint(msg.sender, curIndex, vaultId, liquidityDelta);
       positionsCreated = curIndex + 1;
+      _mint(msg.sender, curIndex, vaultId, liquidityDelta);
+      emit PositionCreated(vaultId, curIndex, msg.sender);
+      emit Deposit(vaultId, curIndex, liquidityDelta, 0, msg.sender);
       return curIndex;
     }
 
@@ -121,6 +125,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       (uint256 liquidityDelta, ,) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
       _increaseBalance(tokenId, liquidityDelta);
       
+      emit Deposit(vaultId, tokenId, liquidityDelta, 0, msg.sender);
+
       return liquidityDelta;
     }
 
@@ -131,6 +137,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
 
       (uint128 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, liquidityToRemove, amount0Max, amount1Max);
       _decreaseBalance(tokenId, uint256(liquidityDelta));
+
+      emit Withdraw(vaultId, tokenId, liquidityDelta, msg.sender);
     }
 
     function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256, uint256, uint256) {
@@ -201,6 +209,7 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       // Send all vault tokens to treasury.
       IERC20Upgradeable(address1 == _vaultToken ? address0 : address1).transfer(owner(), address1 == _vaultToken ? amount0 : amount1);
       _distributeRewards(vaultId, address0 == _vaultToken ? amount0 : amount1);
+      emit FeesReceived(vaultId,  address0 == _vaultToken ? amount0 : amount1);
     }
 
     // TEST THIS MORE
