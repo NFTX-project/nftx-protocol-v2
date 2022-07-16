@@ -21,7 +21,7 @@ interface ArtBlocks {
  * @title NFTX Art Blocks Curated Eligibility
  * @author Twade
  * 
- * @notice Allows for an NFTX vault to only access `curated` ArtBlocks project tokens.
+ * @notice Allows for an NFTX vault to only allow `curated` ArtBlocks project tokens.
  */
 
 abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkClient, ConfirmedOwner {
