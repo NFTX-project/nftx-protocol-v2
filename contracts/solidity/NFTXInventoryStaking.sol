@@ -198,4 +198,18 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function _distributeFees(uint256 vaultId) internal {
         INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
+
+    /* function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        return IERC20Upgradeable(vaultStakingInfo[vaultId].rewardToken).balanceOf(nftxVaultFactory.feeDistributor());
+    }
+
+    function undistributedFees(uint256 vaultId, address staker) public view returns (uint256) {
+        TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(vaultStakingInfo[vaultId]);
+        uint256 totalSupply = xSlp.totalSupply();
+        if (totalSupply == 0) {
+            return 0;
+        }
+        uint256 stakerPortion = xSlp.balanceOf(staker) * 1e18 / totalSupply;
+        return totalUndistributedFees(vaultId) * stakerPortion / 1e18;
+    } */
 }

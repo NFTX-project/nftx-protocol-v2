@@ -276,19 +276,19 @@ contract NFTXLPStaking is PausableUpgradeable {
         return dist.balanceOf(addr);
     }
 
-    function oldBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
+    /* function oldBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         IRewardDistributionToken dist = _oldRewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         return dist.balanceOf(addr);
-    }
+    } */
 
-    function unusedBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
+    /* function unusedBalanceOf(uint256 vaultId, address addr) public view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         IRewardDistributionToken dist = _unusedRewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
         return dist.balanceOf(addr);
-    }
+    } */
 
     function lockedUntil(uint256 vaultId, address who) external view returns (uint256) {
         StakingPool memory pool = vaultStakingInfo[vaultId];
@@ -366,5 +366,27 @@ contract NFTXLPStaking is PausableUpgradeable {
         TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(pool);
         xSlp.burnFrom(from, amount);
         xSlp.mint(to, amount);
+    }
+
+    function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        return IERC20Upgradeable(vaultStakingInfo[vaultId].rewardToken).balanceOf(nftxVaultFactory.feeDistributor());
+    }
+
+    function undistributedFees(uint256 vaultId, address staker) public view returns (uint256) {
+        TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(vaultStakingInfo[vaultId]);
+        uint256 totalSupply = xSlp.totalSupply();
+        if (totalSupply == 0) {
+            return 0;
+        }
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        require(feeDistrib.feeReceiverAddr(0) == address(this), "wrong index");
+        uint256 lpAllocation = feeDistrib.feeReceiverAlloc(0);
+        uint256 stakerPortion = xSlp.balanceOf(staker) * 1e18 / totalSupply * lpAllocation / 1*18;
+        return totalUndistributedFees(vaultId) * stakerPortion / 1e18;
+    }
+
+    function adjustedDividendOf(uint256 vaultId, address staker) public view returns (uint256) {
+        TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(vaultStakingInfo[vaultId]);
+        return undistributedFees(vaultId, staker) + xSlp.dividendOf(staker);
     }
 }

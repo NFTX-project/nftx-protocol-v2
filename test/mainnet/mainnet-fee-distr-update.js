@@ -69,7 +69,7 @@ describe("Mainnet unstaking test ERC721", function () {
       "NFTXInventoryStaking",
       "0x3E135c3E981fAe3383A5aE0d323860a34CfAB893"
     );
-    lpStaking = await ethers.getContractAt("INFTXLPStaking", "0x688c3E4658B5367da06fd629E41879beaB538E37");
+    lpStaking = await ethers.getContractAt("NFTXLPStaking", "0x688c3E4658B5367da06fd629E41879beaB538E37");
     stakingZap = await ethers.getContractAt("NFTXStakingZap", "0x7a5e0B4069709cF4D02423b8cafDc608f4436791");
     marketplaceZap = await ethers.getContractAt(
       "NFTXMarketplaceZap",
@@ -99,24 +99,24 @@ describe("Mainnet unstaking test ERC721", function () {
     const lpStakingImpl = await LPStakingImpl.deploy();
     await lpStakingImpl.deployed();
 
-    await proxyController.connect(dao).upgradeProxyTo(2, lpStakingImpl.address);
+    // await proxyController.connect(dao).upgradeProxyTo(2, lpStakingImpl.address);
 
-    // Upgrade inventory staking
-    const InvStakingImpl = await ethers.getContractFactory("NFTXInventoryStaking");
-    const invStakingImpl = await InvStakingImpl.deploy();
-    await invStakingImpl.deployed();
+    // // Upgrade inventory staking
+    // const InvStakingImpl = await ethers.getContractFactory("NFTXInventoryStaking");
+    // const invStakingImpl = await InvStakingImpl.deploy();
+    // await invStakingImpl.deployed();
 
-    await proxyController.connect(dao).upgradeProxyTo(5, invStakingImpl.address);
+    // await proxyController.connect(dao).upgradeProxyTo(5, invStakingImpl.address);
 
-    // Upgrade vault (after other upgrades)
-    const VaultImpl = await ethers.getContractFactory("NFTXVaultUpgradeable");
-    const vaultImpl = await VaultImpl.deploy();
-    await vaultImpl.deployed();
+    // // Upgrade vault (after other upgrades)
+    // const VaultImpl = await ethers.getContractFactory("NFTXVaultUpgradeable");
+    // const vaultImpl = await VaultImpl.deploy();
+    // await vaultImpl.deployed();
 
-    await factory.connect(dao).upgradeChildTo(vaultImpl.address);
+    // await factory.connect(dao).upgradeChildTo(vaultImpl.address);
   });
 
-  it("Should claim existing LP fees", async () => {
+  /* it("Should claim existing LP fees", async () => {
     await lpStaking.connect(zetsu).claimRewards(paycVaultId);
   });
 
@@ -189,11 +189,19 @@ describe("Mainnet unstaking test ERC721", function () {
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
     let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
 
+    console.log('--A1', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-AA1', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('AAA1', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
+
     await paycNft.connect(zetsu).setApprovalForAll(stakingZap.address, true);
     await stakingZap.connect(zetsu).addLiquidity721ETH(paycVaultId, [paycNftIds[1]], 0, {
       value: parseEther("0.05"),
       gasLimit: "1000000",
     });
+
+    console.log('\n--A2', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-AA2', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('AAA2', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
@@ -221,7 +229,15 @@ describe("Mainnet unstaking test ERC721", function () {
     let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
     let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
 
+    console.log('--B1', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-BB1', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('BBB1', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
+
     await paycVault.connect(zetsu).swap([paycNftIds[2]], [1], []);
+    
+    console.log('\n--B2', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-BB2', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('BBB2', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
@@ -240,6 +256,10 @@ describe("Mainnet unstaking test ERC721", function () {
     await sleep(3000);
     await inventoryStaking.connect(zetsu).withdraw(paycVaultId, BASE.div(10));
 
+    console.log('--C1', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-CC1', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('CCC1', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
+
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
     let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
@@ -247,6 +267,10 @@ describe("Mainnet unstaking test ERC721", function () {
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA));
     expect(lpStakingPaycValB.gt(lpStakingPaycValA));
     expect(xPaycShareValB.gt(xPaycShareValA));
+
+    console.log('\n--C2', (await lpStaking.totalUndistributedFees(paycVaultId)).toString());
+    console.log('-CC2', (await lpStaking.undistributedFees(paycVaultId, zetsu._address)).toString());
+    console.log('CCC2', (await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address)).toString());
 
     let feeDistribPaycBalDif = feeDistribPaycBalA.sub(feeDistribPaycBalB);
     let lpStakingPaycValDif = lpStakingPaycValB.sub(lpStakingPaycValA);
@@ -338,5 +362,5 @@ describe("Mainnet unstaking test ERC721", function () {
     let xPaycValDif = xPaycValB.sub(xPaycValA);
     expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(19)));
     expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(21)));
-  });
+  }); */
 });
