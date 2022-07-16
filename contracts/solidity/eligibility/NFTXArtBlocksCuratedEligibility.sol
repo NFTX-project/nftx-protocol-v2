@@ -32,10 +32,10 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
     event NFTXEligibilityInit();
 
     /// @notice Emitted when a project validity check is started
-    event PrecursoryCheckStarted(uint projectId, bytes32 jobId);
+    event PrecursoryCheckStarted(uint projectId, bytes32 requestId);
 
     /// @notice Emitted when a project validity check has been completed
-    event PrecursoryCheckComplete(uint projectId, bytes32 jobId, bool isValid);
+    event PrecursoryCheckComplete(uint projectId, bytes32 requestId, bool isValid);
 
     /// @notice Stores a mapping of ArtBlock project eligibility
     /// @dev 0 === unset, 1 === True, 2 === False
