@@ -369,7 +369,10 @@ contract NFTXLPStaking is PausableUpgradeable {
     }
 
     function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
-        return IERC20Upgradeable(vaultStakingInfo[vaultId].rewardToken).balanceOf(nftxVaultFactory.feeDistributor());
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        require(feeDistrib.feeReceiverAddr(0) == address(this), "wrong index");
+        uint256 lpAllocation = feeDistrib.feeReceiverAlloc(0);
+        return IERC20Upgradeable(vaultStakingInfo[vaultId].rewardToken).balanceOf(nftxVaultFactory.feeDistributor()) * lpAllocation / 1e18;
     }
 
     function undistributedFees(uint256 vaultId, address staker) public view returns (uint256) {
@@ -378,10 +381,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         if (totalSupply == 0) {
             return 0;
         }
-        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
-        require(feeDistrib.feeReceiverAddr(0) == address(this), "wrong index");
-        uint256 lpAllocation = feeDistrib.feeReceiverAlloc(0);
-        uint256 stakerPortion = xSlp.balanceOf(staker) * 1e18 / totalSupply * lpAllocation / 1*18;
+        uint256 stakerPortion = xSlp.balanceOf(staker) * 1e18 / totalSupply;
         return totalUndistributedFees(vaultId) * stakerPortion / 1e18;
     }
 

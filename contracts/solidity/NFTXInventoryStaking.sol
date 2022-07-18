@@ -199,17 +199,22 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
 
-    /* function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
-        return IERC20Upgradeable(vaultStakingInfo[vaultId].rewardToken).balanceOf(nftxVaultFactory.feeDistributor());
+    function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        require(feeDistrib.feeReceiverAddr(1) == address(this), "wrong index");
+        uint256 invAllocation = feeDistrib.feeReceiverAlloc(1);
+        return IERC20Upgradeable(nftxVaultFactory.vault(vaultId)).balanceOf(nftxVaultFactory.feeDistributor()) * invAllocation / 1e18;
     }
 
-    function undistributedFees(uint256 vaultId, address staker) public view returns (uint256) {
-        TimelockRewardDistributionTokenImpl xSlp = _rewardDistributionTokenAddr(vaultStakingInfo[vaultId]);
-        uint256 totalSupply = xSlp.totalSupply();
-        if (totalSupply == 0) {
-            return 0;
-        }
-        uint256 stakerPortion = xSlp.balanceOf(staker) * 1e18 / totalSupply;
-        return totalUndistributedFees(vaultId) * stakerPortion / 1e18;
-    } */
+    function adjustedXTokenShareValue(uint256 vaultId) public view returns (uint256) {
+        IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
+        require(address(xToken) != address(0), "XToken not deployed");
+
+        uint256 multiplier = 10 ** 18;
+        uint256 adjustedBaseTokenBal = baseToken.balanceOf(address(xToken)) + totalUndistributedFees(vaultId);
+        return xToken.totalSupply() > 0 
+            ? multiplier * adjustedBaseTokenBal / xToken.totalSupply() 
+            : multiplier;
+    }
 }
