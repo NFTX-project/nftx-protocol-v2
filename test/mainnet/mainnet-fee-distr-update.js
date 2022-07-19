@@ -122,7 +122,6 @@ describe("Mainnet unstaking test ERC721", function () {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
 
     await paycVault.connect(zetsu).mint([paycNftIds[0]], [1]);
@@ -130,7 +129,6 @@ describe("Mainnet unstaking test ERC721", function () {
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
 
     expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(10).div(100)));
@@ -142,7 +140,6 @@ describe("Mainnet unstaking test ERC721", function () {
   it("Should distribute fees on inventory stake", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
     let xPaycSupplyA = await xPayc.totalSupply();
 
@@ -152,12 +149,10 @@ describe("Mainnet unstaking test ERC721", function () {
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
     let xPaycSupplyB = await xPayc.totalSupply();
 
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA)).to.equal(true);
-    // expect(lpStakingPaycValB.gt(lpStakingPaycValA)).to.equal(true);
     expect(xSlpRewardBalB.gt(xSlpRewardBalA)).to.equal(true);
     expect(xPaycShareValB.gt(xPaycShareValA)).to.equal(true);
 
@@ -176,14 +171,12 @@ describe("Mainnet unstaking test ERC721", function () {
   it("Should not distribute fees on redeem", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
-    // let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
 
     await paycVault.connect(zetsu).redeem(1, []);
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
-    // let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
 
     expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
@@ -194,7 +187,6 @@ describe("Mainnet unstaking test ERC721", function () {
   it("Should distribute fees on liquidity stake", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
     let xPaycSupplyA = await xPayc.totalSupply();
 
@@ -206,12 +198,10 @@ describe("Mainnet unstaking test ERC721", function () {
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    // let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
     let xPaycSupplyB = await xPayc.totalSupply();
 
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA)).to.equal(true);
-    // expect(lpStakingPaycValB.gt(lpStakingPaycValA)).to.equal(true);
     expect(xSlpRewardBalB.gt(xSlpRewardBalA)).to.equal(true);
     expect(xPaycShareValB.gt(xPaycShareValA)).to.equal(true);
 
@@ -230,14 +220,12 @@ describe("Mainnet unstaking test ERC721", function () {
   it("Should not distribute fees on swap", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
-    // let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
 
     await paycVault.connect(zetsu).swap([paycNftIds[2]], [1], []);
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
-    // let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
     let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
 
     expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
@@ -245,51 +233,46 @@ describe("Mainnet unstaking test ERC721", function () {
     expect(xSlpRewardBalB).to.equal(xSlpRewardBalA);
   });
 
-  /* it("Should distribute fees on inventory unstake", async () => {
+  it("Should distribute fees on inventory unstake", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyA = await xPayc.totalSupply();
 
     let xTokenShareValueA = await inventoryStaking.xTokenShareValue(paycVaultId);
     let adjustedXTokenShareValueA = await inventoryStaking.adjustedXTokenShareValue(paycVaultId);
     expect(adjustedXTokenShareValueA.gt(xTokenShareValueA)).to.equal(true);
 
-    console.log('--B1', (xTokenShareValueA).toString());
-    console.log('-BB1', (await inventoryStaking.totalUndistributedFees(paycVaultId)).toString());
-    console.log('BBB1', (adjustedXTokenShareValueA).toString());
-
+    let unstakeAmount = BASE.div(10);
+    let unstakeAmountUnderlying = unstakeAmount.mul(xTokenShareValueA).div(BASE);
     await sleep(3000);
-    await inventoryStaking.connect(zetsu).withdraw(paycVaultId, BASE.div(10));
+    await inventoryStaking.connect(zetsu).withdraw(paycVaultId, unstakeAmount);
 
     let xTokenShareValueB = await inventoryStaking.adjustedXTokenShareValue(paycVaultId);
     expect(adjustedXTokenShareValueA).to.equal(xTokenShareValueB);
 
-    console.log('\n--B2', (xTokenShareValueB).toString());
-    console.log('-BB2', (await inventoryStaking.totalUndistributedFees(paycVaultId)).toString());
-    console.log('BBB2', (await inventoryStaking.adjustedXTokenShareValue(paycVaultId)).toString());
-
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyB = await xPayc.totalSupply();
 
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA)).to.equal(true);
-    expect(lpStakingPaycValB.gt(lpStakingPaycValA)).to.equal(true);
+    expect(xSlpRewardBalB.gt(xSlpRewardBalA)).to.equal(true);
     expect(xPaycShareValB.gt(xPaycShareValA)).to.equal(true);
 
     let feeDistribPaycBalDif = feeDistribPaycBalA.sub(feeDistribPaycBalB);
-    let lpStakingPaycValDif = lpStakingPaycValB.sub(lpStakingPaycValA);
-    expect(lpStakingPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(79))).to.equal(true);
-    expect(lpStakingPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(81))).to.equal(true);
+    let xSlpRewardBalDif = xSlpRewardBalB.sub(xSlpRewardBalA);
+    expect(xSlpRewardBalDif.gt(feeDistribPaycBalDif.mul(79).div(100))).to.equal(true);
+    expect(xSlpRewardBalDif.lt(feeDistribPaycBalDif.mul(81).div(100))).to.equal(true);
 
-    let paycTokenSupply = await paycVault.totalSupply();
-    let xPaycValA = paycTokenSupply.mul(xPaycShareValA).div(BASE);
-    let xPaycValB = paycTokenSupply.mul(xPaycShareValB).div(BASE);
+    let xPaycValA = xPaycSupplyA.mul(xPaycShareValA).div(BASE);
+    let xPaycValB = xPaycSupplyB.mul(xPaycShareValB).div(BASE);
     let xPaycValDif = xPaycValB.sub(xPaycValA);
-    expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(19))).to.equal(true);
-    expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(21))).to.equal(true);
-  }); */
+    expect(xPaycValDif.add(unstakeAmountUnderlying).gt(feeDistribPaycBalDif.mul(19).div(100))).to.equal(true);
+    expect(xPaycValDif.add(unstakeAmountUnderlying).lt(feeDistribPaycBalDif.mul(21).div(100))).to.equal(true);
+  });
 
-  /* it("Should redeem again to accrue fees in distributor", async () => {
+  it("Should redeem again to accrue fees in distributor", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
 
     await paycVault.connect(zetsu).redeem(1, []);
@@ -297,12 +280,13 @@ describe("Mainnet unstaking test ERC721", function () {
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
 
     expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
-  }); */
+  });
 
-  /* it("Should distribute fees on liquidity rewards claim", async () => {
+  it("Should distribute fees on liquidity rewards claim", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyA = await xPayc.totalSupply();
 
     let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
     let adjustedDividendOfZetsuA = await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address);
@@ -311,30 +295,30 @@ describe("Mainnet unstaking test ERC721", function () {
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyB = await xPayc.totalSupply();
 
     let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
     let zetsuPaycBalDif = zetsuPaycBalB.sub(zetsuPaycBalA);
     expect(zetsuPaycBalDif).to.equal(adjustedDividendOfZetsuA);
 
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA)).to.equal(true);
-    expect(lpStakingPaycValB.gt(lpStakingPaycValA)).to.equal(true);
+    expect(xSlpRewardBalB.gt(xSlpRewardBalA)).to.equal(true);
     expect(xPaycShareValB.gt(xPaycShareValA)).to.equal(true);
 
     let feeDistribPaycBalDif = feeDistribPaycBalA.sub(feeDistribPaycBalB);
-    let lpStakingPaycValDif = lpStakingPaycValB.sub(lpStakingPaycValA);
-    expect(lpStakingPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(79))).to.equal(true);
-    expect(lpStakingPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(81))).to.equal(true);
+    let xSlpRewardBalDif = xSlpRewardBalB.sub(xSlpRewardBalA);
+    expect(xSlpRewardBalDif.add(zetsuPaycBalDif).gt(feeDistribPaycBalDif.mul(79).div(100))).to.equal(true);
+    expect(xSlpRewardBalDif.add(zetsuPaycBalDif).lt(feeDistribPaycBalDif.mul(81).div(100))).to.equal(true);
 
-    let paycTokenSupply = await paycVault.totalSupply();
-    let xPaycValA = paycTokenSupply.mul(xPaycShareValA).div(BASE);
-    let xPaycValB = paycTokenSupply.mul(xPaycShareValB).div(BASE);
+    let xPaycValA = xPaycSupplyA.mul(xPaycShareValA).div(BASE);
+    let xPaycValB = xPaycSupplyB.mul(xPaycShareValB).div(BASE);
     let xPaycValDif = xPaycValB.sub(xPaycValA);
-    expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(19))).to.equal(true);
-    expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(21))).to.equal(true);
-  }); */
+    expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(19).div(100))).to.equal(true);
+    expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(21).div(100))).to.equal(true);
+  });
 
-  /* it("Should redeem again to accrue fees in distributor", async () => {
+  it("Should redeem again to accrue fees in distributor", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
 
     await paycVault.connect(zetsu).redeem(1, []);
@@ -342,36 +326,44 @@ describe("Mainnet unstaking test ERC721", function () {
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
 
     expect(feeDistribPaycBalB).to.equal(feeDistribPaycBalA.add(BASE.mul(4).div(100)));
-  }); */
+  });
 
-  /* it("Should distribute fees on liquidity unstake", async () => {
+  it("Should distribute fees on liquidity unstake", async () => {
     let feeDistribPaycBalA = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValA = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValA = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalA = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyA = await xPayc.totalSupply();
 
-    let xPaycWeth = await ethers.getContractAt("IERC20Upgradeable", "0x50414dAa5CFE1fBe65d4b7bDF813f3256b968384");
+    let zetsuPaycBalA = await paycVault.balanceOf(zetsu._address);
+    let adjustedDividendOfZetsuA = await lpStaking.adjustedDividendOf(paycVaultId, zetsu._address);
+
     let xPaycWethBal = await xPaycWeth.balanceOf(zetsu._address);
     await sleep(3000);
     await lpStaking.connect(zetsu).withdraw(paycVaultId, xPaycWethBal);
 
     let feeDistribPaycBalB = await paycVault.balanceOf(feeDistributor.address);
     let xPaycShareValB = await inventoryStaking.xTokenShareValue(paycVaultId);
-    let lpStakingPaycValB = await paycVault.balanceOf(lpStaking.address);
+    let xSlpRewardBalB = await paycVault.balanceOf(xPaycWeth.address);
+    let xPaycSupplyB = await xPayc.totalSupply();
+
+    let zetsuPaycBalB = await paycVault.balanceOf(zetsu._address);
+    let zetsuPaycBalDif = zetsuPaycBalB.sub(zetsuPaycBalA);
+    expect(zetsuPaycBalDif.sub(1).lte(adjustedDividendOfZetsuA)).to.equal(true);
+    expect(zetsuPaycBalDif.add(1).gte(adjustedDividendOfZetsuA)).to.equal(true);
 
     expect(feeDistribPaycBalB.lt(feeDistribPaycBalA)).to.equal(true);
-    expect(lpStakingPaycValB.gt(lpStakingPaycValA)).to.equal(true);
+    expect(xSlpRewardBalB.gt(xSlpRewardBalA)).to.equal(true);
     expect(xPaycShareValB.gt(xPaycShareValA)).to.equal(true);
 
     let feeDistribPaycBalDif = feeDistribPaycBalA.sub(feeDistribPaycBalB);
-    let lpStakingPaycValDif = lpStakingPaycValB.sub(lpStakingPaycValA);
-    expect(lpStakingPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(79))).to.equal(true);
-    expect(lpStakingPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(81))).to.equal(true);
+    let xSlpRewardBalDif = xSlpRewardBalB.sub(xSlpRewardBalA);
+    expect(xSlpRewardBalDif.add(zetsuPaycBalDif).gt(feeDistribPaycBalDif.mul(79).div(100))).to.equal(true);
+    expect(xSlpRewardBalDif.add(zetsuPaycBalDif).lt(feeDistribPaycBalDif.mul(81).div(100))).to.equal(true);
 
-    let paycTokenSupply = await paycVault.totalSupply();
-    let xPaycValA = paycTokenSupply.mul(xPaycShareValA).div(BASE);
-    let xPaycValB = paycTokenSupply.mul(xPaycShareValB).div(BASE);
+    let xPaycValA = xPaycSupplyA.mul(xPaycShareValA).div(BASE);
+    let xPaycValB = xPaycSupplyB.mul(xPaycShareValB).div(BASE);
     let xPaycValDif = xPaycValB.sub(xPaycValA);
-    expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(100).div(19))).to.equal(true);
-    expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(100).div(21))).to.equal(true);
-  }); */
+    expect(xPaycValDif.gt(feeDistribPaycBalDif.mul(19).div(100))).to.equal(true);
+    expect(xPaycValDif.lt(feeDistribPaycBalDif.mul(21).div(100))).to.equal(true);
+  });
 });
