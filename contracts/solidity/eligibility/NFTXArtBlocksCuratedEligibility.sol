@@ -7,6 +7,8 @@ import "./NFTXEligibility.sol";
 import '@chainlink/contracts/src/v0.8/ChainlinkClient.sol';
 import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
 
+import "hardhat/console.sol";
+
 
 /**
  * @title Partial interface for the ArtBlocks contract.
@@ -24,7 +26,7 @@ interface ArtBlocks {
  * @notice Allows for an NFTX vault to only allow `curated` ArtBlocks project tokens.
  */
 
-abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkClient, ConfirmedOwner {
+contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkClient, ConfirmedOwner {
 
     using Chainlink for Chainlink.Request;
 
@@ -37,12 +39,15 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
     /// @notice Emitted when a project validity check has been completed
     event PrecursoryCheckComplete(uint projectId, bytes32 requestId, bool isValid);
 
+    /// @notice Set our asset contract address
+    address private immutable assetContract;
+
     /// @notice Stores a mapping of ArtBlock project eligibility
     /// @dev 0 === unset, 1 === True, 2 === False
     mapping (uint => uint8) public projectEligibility;
 
     /// @notice Stores a mapping of token
-    mapping (uint => uint) public tokenProjects;
+    mapping (uint => uint) public tokenProjectIds;
 
     /// @notice Store the project ID against pending requests
     mapping (bytes32 => uint) public requestProjectId;
@@ -97,12 +102,20 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
      * called.
      */
 
-    constructor() ConfirmedOwner(msg.sender) {
+    constructor(
+        address _assetContract,
+        address chainlinkTokenAddress,
+        address chainlinkOracleAddress,
+        bytes32 chainlinkJobId
+    ) ConfirmedOwner(msg.sender) {
+        // Set our asset contrct
+        assetContract = _assetContract;
+
         // Set up our ChainLink references to allow our job to run against
         // a specified oracle job.
-        setChainlinkToken(0x01BE23585060835E02B77ef475b0Cc51aA1e0709);
-        setChainlinkOracle(0xf3FBB7f3391F62C8fe53f89B41dFC8159EE9653f);
-        jobId = '7d80a6386ef543a3abb52817f6707e3b';
+        setChainlinkToken(chainlinkTokenAddress);
+        setChainlinkOracle(chainlinkOracleAddress);
+        jobId = chainlinkJobId;
 
         // Set our fee to 0.1 * 10**18 (Varies by network and job)
         fee = (1 * LINK_DIVISIBILITY) / 10;
@@ -140,7 +153,7 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
     function _checkIfEligible(uint tokenId) internal view override virtual returns (bool) {
         // If we have a `projectEligibility` value already stored, then we can return
         // an eligibility boolean based on the integer value assigned.
-        return projectEligibility[tokenProjects[tokenId]] == 1;
+        return projectEligibility[tokenProjectIds[tokenId]] == 1;
     }
 
 
@@ -155,19 +168,59 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
      * @param values The corresponding eligibility values for each project ID
      */
 
-    function setProjectEligibility(uint[] calldata projectIds, uint8[] calldata values) external onlyOwner {
-        uint length = index.length;
+    function setProjectEligibility(uint[] calldata projectIds, bool[] calldata values) external onlyOwner {
+        uint length = projectIds.length;
         require(length > 0);
+        require(length == values.length);
 
         for (uint i; i < length;) {
             // Prevent a project that already has an eligibility boolean from being
             // updated or overwritten.
-            if (projectEligibility[index[i]] != 0) {
-                projectEligibility[index[i]] = value[i];
+            if (projectEligibility[projectIds[i]] == 0) {
+                projectEligibility[projectIds[i]] = values[i] ? 1 : 2;
             }
 
             unchecked { ++i; }
         }
+    }
+
+
+    /**
+     * @notice Allows the contract owner to set the eligibility of projects in bulk.
+     * 
+     * @dev This is intended to be used as an initial content population strategy that
+     * will reduce the amount of required gas. This should not be called after the initial
+     * deployment of the module.
+     * 
+     * @param projectIds An array of project IDs
+     * @param packedValues The corresponding eligibility values for each project ID
+     */
+
+    function setProjectEligibilityPackedBooleans(uint[] calldata projectIds, uint[] calldata packedValues) external onlyOwner {
+        uint length = projectIds.length;
+        require(length > 0);
+
+        uint offset;
+
+        for (uint i; i < length;) {
+            // We only need to update our offset each time we have a 0 modulus index
+            if (i % 8 == 0) {
+                unchecked { offset = length - (8 * (i / 8)) < 8 ? length - (8 * (i / 8)) : 8; }
+            }
+
+            // Prevent a project that already has an eligibility boolean from being
+            // updated or overwritten.
+            if (projectEligibility[projectIds[i]] == 0) {
+                projectEligibility[projectIds[i]] = _getBoolean(packedValues[i / 8], offset - 1 - (i % 8)) ? 1 : 2;
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal pure returns(bool) {
+        uint256 flag = (_packedBools >> _boolNumber) & uint256(1);
+        return (flag == 1 ? true : false);
     }
 
 
@@ -183,10 +236,10 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
      * @return bool If the tokenId requires precursory validation
      */
 
-    function requiresPrecursoryValidation(uint tokenId) public view returns (bool) {
+    function requiresProcessing(uint tokenId) public view returns (bool) {
         // If our value is not yet mapped, then we require a precursory validation
         // to be performed.
-        return projectEligibility[tokenProjects[tokenId]] == 0;
+        return (tokenProjectIds[tokenId] == 0 || projectEligibility[tokenProjectIds[tokenId]] == 0);
     }
 
 
@@ -207,7 +260,9 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
      * @return bytes32 The request ID of the ChainLink job being processed
      */
 
-    function runPrecursoryValidation(uint tokenId) public returns (bytes32) {
+    function processToken(uint tokenId) public returns (bytes32) {
+        require(requiresProcessing(tokenId));
+
         // Set up our chainlink job
         Chainlink.Request memory req = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
 
@@ -220,7 +275,7 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
 
         // Get our project ID, attaching it to our request, saving us a subsequent API
         // call to additionall get that information as it's available onchain.
-        uint projectId = _tokenIdToProjectId(tokenId);
+        uint projectId = tokenIdToProjectId(tokenId);
         requestProjectId[requestId] = projectId;
 
         // Let our stalkers know that we are making the request
@@ -262,17 +317,17 @@ abstract contract NFTXArtBlocksCuratedEligibility is NFTXEligibility, ChainlinkC
      * @return uint The project ID belonging to the token ID
      */
 
-    function _tokenIdToProjectId(uint _tokenId) public returns (uint) {
+    function tokenIdToProjectId(uint _tokenId) public returns (uint) {
         // Check if we already have a mapped project for the token
-        if (tokenProjects[_tokenId] != 0) {
-            return tokenProjects[_tokenId];
+        if (tokenProjectIds[_tokenId] > 0) {
+            return tokenProjectIds[_tokenId];
         }
 
         // Make an onchain request to the ArtBlocks contract to get the project
         // ID belonging to the token ID. We then map the data to optimise future
         // calls.
-        tokenProjects[_tokenId] = ArtBlocks(targetAsset()).tokenIdToProjectId(_tokenId);
-        return tokenProjects[_tokenId];
+        tokenProjectIds[_tokenId] = ArtBlocks(assetContract).tokenIdToProjectId(_tokenId);
+        return tokenProjectIds[_tokenId];
     }
 
 
