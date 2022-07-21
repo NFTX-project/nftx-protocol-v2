@@ -198,4 +198,24 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function _distributeFees(uint256 vaultId) internal {
         INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
     }
+
+    function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        (address receiverAddr, uint256 receiverAlloc) = feeDistrib.feeReceiverInfo(1);
+        require(receiverAddr == address(this), "wrong index");
+        // TODO: fetch allocationtotal from fee distributor
+        return IERC20Upgradeable(nftxVaultFactory.vault(vaultId)).balanceOf(nftxVaultFactory.feeDistributor()) * receiverAlloc / 1e18;
+    }
+
+    function adjustedXTokenShareValue(uint256 vaultId) public view returns (uint256) {
+        IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
+        require(address(xToken) != address(0), "XToken not deployed");
+
+        uint256 multiplier = 10 ** 18;
+        uint256 adjustedBaseTokenBal = baseToken.balanceOf(address(xToken)) + totalUndistributedFees(vaultId);
+        return xToken.totalSupply() > 0 
+            ? multiplier * adjustedBaseTokenBal / xToken.totalSupply() 
+            : multiplier;
+    }
 }
