@@ -200,7 +200,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param to The recipient of the WETH from the tx
    */
 
-  function buyAndRedeem721(
+  function buyAndRedeem(
     uint256 vaultId,
     uint256 amount,
     uint256[] calldata specificIds, 

@@ -502,7 +502,7 @@ describe('0x Marketplace Zap', function () {
 
   })
 
-  describe('buyAndRedeem721', async function () {
+  describe('buyAndRedeem', async function () {
 
     /**
      *
@@ -540,7 +540,7 @@ describe('0x Marketplace Zap', function () {
 
     it("Should not allow recipient to be NULL address or contract", async function () {
       await expect(
-        marketplaceZap.connect(alice).buyAndRedeem721(
+        marketplaceZap.connect(alice).buyAndRedeem(
           await vault.vaultId(),    // vaultId
           3,                        // amount
           [],                       // specificIds
@@ -555,7 +555,7 @@ describe('0x Marketplace Zap', function () {
       ).to.be.revertedWith('Invalid recipient');
 
       await expect(
-        marketplaceZap.connect(alice).buyAndRedeem721(
+        marketplaceZap.connect(alice).buyAndRedeem(
           await vault.vaultId(),    // vaultId
           1,                        // amount
           [],                       // specificIds
@@ -577,7 +577,7 @@ describe('0x Marketplace Zap', function () {
 
     it("Should require >= 1 amount", async function () {
       await expect(
-        marketplaceZap.connect(alice).buyAndRedeem721(
+        marketplaceZap.connect(alice).buyAndRedeem(
           await vault.vaultId(),    // vaultId
           0,                        // amount
           [],                       // specificIds
@@ -594,7 +594,7 @@ describe('0x Marketplace Zap', function () {
 
     it('Should prevent insufficient balance from buying', async function () {
       await expect(
-        marketplaceZap.connect(alice).buyAndRedeem721(
+        marketplaceZap.connect(alice).buyAndRedeem(
           await vault.vaultId(),    // vaultId
           1,                        // amount
           [],                       // specificIds
@@ -609,7 +609,7 @@ describe('0x Marketplace Zap', function () {
       ).to.be.reverted
 
       await expect(
-        marketplaceZap.connect(alice).buyAndRedeem721(
+        marketplaceZap.connect(alice).buyAndRedeem(
           await vault.vaultId(),    // vaultId
           2,                        // amount
           [],                       // specificIds
@@ -637,7 +637,7 @@ describe('0x Marketplace Zap', function () {
       expect(await erc721.balanceOf(vault.address)).to.equal(12)
 
       // Process a buy of 1 ERC721 -> 1.1 tokens -> 1 ERC721
-      await marketplaceZap.connect(alice).buyAndRedeem721(
+      await marketplaceZap.connect(alice).buyAndRedeem(
         await vault.vaultId(),    // vaultId
         1,                        // amount
         [],                       // specificIds
