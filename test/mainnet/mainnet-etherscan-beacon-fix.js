@@ -16,7 +16,7 @@ let childImplementation;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-describe("Mainnet unstaking test ERC721", function () {
+describe("Etherscan beacoon fix test", function () {
   before("Setup", async () => {
     await network.provider.request({
       method: "hardhat_reset",
