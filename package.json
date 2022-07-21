@@ -10,6 +10,7 @@
     "hardhat": "^2.6.5"
   },
   "dependencies": {
+    "@chainlink/contracts": "^0.4.1",
     "@ethersproject/bignumber": "^5.4.2",
     "@openzeppelin/contracts": "^3.4.1",
     "@openzeppelin/contracts-upgradeable": "^3.4.2",
