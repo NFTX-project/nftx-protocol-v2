@@ -205,4 +205,8 @@ contract NFTXVaultFactoryUpgradeable is
         NFTXVaultUpgradeable(newBeaconProxy).transferOwnership(owner());
         return newBeaconProxy;
     }
+
+    function implementation() public view returns (address) {
+        return childImplementation();
+    }
 }
