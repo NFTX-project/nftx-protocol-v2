@@ -95,16 +95,16 @@ library MerkleProof {
 
 
 /**
- * @title NFTX ENS Eligibility
+ * @title NFTX Merkle Eligibility
  * @author Twade
  * 
- * @notice Allows for an NFTX vault to only allow `curated` ArtBlocks project tokens.
+ * @notice Allows vaults to be allow eligibility based on a predefined merkle tree.
  */
 
 contract NFTXMerkleEligibility is NFTXEligibility {
 
     /// @notice Emitted when our NFTX Eligibility is deployed
-    event NFTXEligibilityInit(string name, address asset, bytes32 merkleRoot);
+    event NFTXEligibilityInit(bytes32 merkleRoot);
 
     /// @notice Emitted when a project validity check is started
     event PrecursoryCheckStarted(uint tokenId, bytes32 requestId);
@@ -119,12 +119,6 @@ contract NFTXMerkleEligibility is NFTXEligibility {
     /// @notice Merkle proof to validate all eligible domains against
     bytes32 public merkleRoot;
 
-    /// @notice The name of our eligilibity module
-    string private name;
-
-    /// @notice The asset address of the handled token
-    address private asset;
-
 
     /**
      * @notice The name of our Eligibility Module.
@@ -133,7 +127,7 @@ contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function name() public pure override virtual returns (string memory) {    
-        return name;
+        return 'MerkleEligibility';
     }
 
 
@@ -155,7 +149,7 @@ contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
    function targetAsset() public pure override virtual returns (address) {
-        return asset;
+        return 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
     }
 
 
@@ -167,25 +161,20 @@ contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function __NFTXEligibility_init_bytes(bytes memory configData) public override virtual initializer {
-        (string _name, address _asset, bytes32 _merkleRoot) = abi.decode(configData, (string, address, bytes32));
-        __NFTXEligibility_init(_name, _asset, _merkleRoot);
+        (bytes32 _merkleRoot) = abi.decode(configData, (bytes32));
+        __NFTXEligibility_init(_merkleRoot);
     }
 
 
     /**
      * @notice Parameters here should mirror the config struct.
      * 
-     * @param _name The name of our eligibility module
-     * @param _asset The address of our token contract
      * @param _merkleRoot The root of our merkle tree
      */
 
-    function __NFTXEligibility_init(string _name, address _asset, bytes32 _merkleRoot) public initializer {
-        name = _name
-        asset = _asset;
+    function __NFTXEligibility_init(bytes32 _merkleRoot) public initializer {
         merkleRoot = _merkleRoot;
-
-        emit NFTXEligibilityInit(_name, _asset _merkleRoot);
+        emit NFTXEligibilityInit(_merkleRoot);
     }
 
 
