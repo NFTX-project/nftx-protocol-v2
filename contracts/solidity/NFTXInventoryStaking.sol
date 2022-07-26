@@ -14,6 +14,8 @@ import "./util/Create2.sol";
 import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
+import "./interface/ITimelockExcludeList.sol";
+import "./interface/INFTXSimpleFeeDistributor.sol";
 
 // Author: 0xKiwi.
 
@@ -28,6 +30,9 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     bytes internal constant beaconCode = type(Create2BeaconProxy).creationCode;
 
     INFTXVaultFactory public override nftxVaultFactory;
+
+    uint256 public inventoryLockTimeErc20;
+    ITimelockExcludeList public timelockExcludeList;
 
     event XTokenCreated(uint256 vaultId, address baseToken, address xToken);
     event Deposit(uint256 vaultId, uint256 baseTokenAmount, uint256 xTokenAmount, uint256 timelockUntil, address sender);
@@ -44,6 +49,23 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     modifier onlyAdmin() {
         require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
         _;
+    }
+
+    function setTimelockExcludeList(address addr) external onlyOwner {
+        timelockExcludeList = ITimelockExcludeList(addr);
+    }
+
+    function setInventoryLockTimeErc20(uint256 time) external onlyOwner {
+        require(time <= 14 days, "Lock too long");
+        inventoryLockTimeErc20 = time;
+    }
+
+    function isAddressTimelockExcluded(address addr, uint256 vaultId) public view returns (bool) {
+        if (address(timelockExcludeList) == address(0)) {
+            return false;
+        } else {
+            return timelockExcludeList.isExcluded(addr, vaultId);
+        }
     }
 
     function deployXTokenForVault(uint256 vaultId) public virtual override {
@@ -78,16 +100,18 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     function deposit(uint256 vaultId, uint256 _amount) external virtual override {
         onlyOwnerIfPaused(10);
 
-        (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, DEFAULT_LOCKTIME);
+        uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : inventoryLockTimeErc20;
+
+        (IERC20Upgradeable baseToken, XTokenUpgradeable xToken, uint256 xTokensMinted) = _timelockMintFor(vaultId, msg.sender, _amount, timelockTime);
         // Lock the base token in the xtoken contract
         baseToken.safeTransferFrom(msg.sender, address(xToken), _amount);
-        emit Deposit(vaultId, _amount, xTokensMinted, DEFAULT_LOCKTIME, msg.sender);
+        emit Deposit(vaultId, _amount, xTokensMinted, timelockTime, msg.sender);
     }
 
     function timelockMintFor(uint256 vaultId, uint256 amount, address to, uint256 timelockLength) external virtual override returns (uint256) {
         onlyOwnerIfPaused(10);
-        require(msg.sender == nftxVaultFactory.zapContract(), "Not a zap");
-        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not fee excluded");
+        require(msg.sender == nftxVaultFactory.zapContract(), "Not staking zap");
+        require(nftxVaultFactory.excludedFromFees(msg.sender), "Not fee excluded"); // important for math that staking zap is excluded from fees
 
         (, , uint256 xTokensMinted) = _timelockMintFor(vaultId, to, amount, timelockLength);
         emit Deposit(vaultId, amount, xTokensMinted, timelockLength, to);
@@ -97,6 +121,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Leave the bar. Claim back your tokens.
     // Unlocks the staked + gained tokens and burns xTokens.
     function withdraw(uint256 vaultId, uint256 _share) external virtual override {
+        _distributeFees(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
@@ -144,6 +169,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable((xTokenAddr(address(baseToken))));
 
+        _distributeFees(vaultId);
+
         uint256 xTokensMinted = xToken.mintXTokens(account, _amount, timelockLength);
         return (baseToken, xToken, xTokensMinted);
     }
@@ -166,5 +193,29 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         // solhint-disable-next-line no-inline-assembly
         assembly { size := extcodesize(account) }
         return size != 0;
+    }
+
+    function _distributeFees(uint256 vaultId) internal {
+        INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
+    }
+
+    function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        (address receiverAddr, uint256 receiverAlloc) = feeDistrib.feeReceiverInfo(1);
+        require(receiverAddr == address(this), "wrong index");
+        // TODO: fetch allocationtotal from fee distributor
+        return IERC20Upgradeable(nftxVaultFactory.vault(vaultId)).balanceOf(nftxVaultFactory.feeDistributor()) * receiverAlloc / 1e18;
+    }
+
+    function adjustedXTokenShareValue(uint256 vaultId) public view returns (uint256) {
+        IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
+        require(address(xToken) != address(0), "XToken not deployed");
+
+        uint256 multiplier = 10 ** 18;
+        uint256 adjustedBaseTokenBal = baseToken.balanceOf(address(xToken)) + totalUndistributedFees(vaultId);
+        return xToken.totalSupply() > 0 
+            ? multiplier * adjustedBaseTokenBal / xToken.totalSupply() 
+            : multiplier;
     }
 }

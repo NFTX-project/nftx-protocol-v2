@@ -8,7 +8,7 @@ const notZeroAddr = "0x000000000000000000000000000000000000dead";
 
 let sushiRouterAddr = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
 let sushiFactoryAddr = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4";
-let wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+let wethAddress = "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6";
 
 const daoAddress = devAddress;
 
@@ -54,7 +54,23 @@ async function main() {
   // );
   // const inventoryStaking = await ethers.getContractAt(
   //   "NFTXInventoryStaking",
-  //   "0x64029E2da85B1d53815d111FEd15609034E5D557"
+  //   "0xDde5A3175F5C9755480E4CB3cCA5F1865C1976D6"
+  // );
+  // const stakingZap = await ethers.getContractAt(
+  //   "NFTXStakingZap",
+  //   "0xd9A60945DD4b3a5Ea91480e82dA20D3AceC5D857"
+  // );
+  // const timelockExcludeList = await ethers.getContractAt(
+  //   "TimelockExcludeList",
+  //   "0xFf40913CA69912212e00e93Ad4DD1480A7aeF13A"
+  // );
+  // const proxyController = await ethers.getContractAt(
+  //   "MultiProxyController",
+  //   "0xbde65406B20ADb4ba9D88908187Bc9460fF24da9"
+  // );
+  // const unstakingZap = await ethers.getContractAt(
+  //   "NFTXUnstakingInventoryZap",
+  //   "0x7c656F0691Db983ee78f68189c55C36d1862c901"
   // );
 
   const StakingProvider = await ethers.getContractFactory("StakingTokenProvider");
@@ -94,26 +110,33 @@ async function main() {
   console.log("VaultFactory:", vaultFactory.address);
 
   await feeDistrib.setNFTXVaultFactory(vaultFactory.address);
+  console.log("-- set vaultfactory on feedistrib");
   await lpStaking.setNFTXVaultFactory(vaultFactory.address);
+  console.log("-- set vaultfactory on lpstaking");
 
   const Elig = await ethers.getContractFactory("NFTXEligibilityManager");
   const eligManager = await upgrades.deployProxy(Elig, [], {
     initializer: "__NFTXEligibilityManager_init",
   });
   await eligManager.deployed();
+  console.log("EligibilityManager:", eligManager.address);
 
   await vaultFactory.setEligibilityManager(eligManager.address);
-  console.log("EligibilityManager:", eligManager.address);
+  console.log("-- set eligibilitymanager");
 
   const ListElig = await ethers.getContractFactory("NFTXListEligibility");
   const listElig = await ListElig.deploy();
   await listElig.deployed();
+  console.log("-- list eligbility deployed");
   await eligManager.addModule(listElig.address);
+  console.log("-- list eligibilty added");
 
   const RangeElig = await ethers.getContractFactory("NFTXRangeEligibility");
   const rangeElig = await RangeElig.deploy();
   await rangeElig.deployed();
+  console.log("-- range eligbility deployed");
   await eligManager.addModule(rangeElig.address);
+  console.log("-- range eligibilty added");
 
   const InventoryStaking = await ethers.getContractFactory("NFTXInventoryStaking");
   const inventoryStaking = await upgrades.deployProxy(InventoryStaking, [vaultFactory.address], {
@@ -129,7 +152,7 @@ async function main() {
   await feeDistrib.addReceiver("200000000000000000", inventoryStaking.address, true);
   console.log("-- added fee receiver 1 address");
 
-  // feeDistrib.addReceiver(<lpStaking>) occurs automatically as part of setup
+  /* feeDistrib.addReceiver("800000000000000000", <lpStaking>, true) is part of setup */
 
   const StakingZap = await ethers.getContractFactory("NFTXStakingZap");
   const stakingZap = await StakingZap.deploy(vaultFactory.address, sushiRouterAddr);
@@ -142,46 +165,78 @@ async function main() {
   await stakingZap.setInventoryLockTime(800);
   console.log("-- set inventory lock time");
 
+  await inventoryStaking.setInventoryLockTimeErc20(800);
+  console.log("-- set inventory lock time erc20");
+
+  await stakingZap.assignStakingContracts();
+  console.log("-- assigned staking contracts");
+
   await vaultFactory.setFeeExclusion(stakingZap.address, true);
   console.log("-- set fee exclusion");
+
+  await vaultFactory.setZapContract(stakingZap.address);
+  console.log("-- set zap contract");
 
   const MarketplaceZap = await ethers.getContractFactory("NFTXMarketplaceZap");
   const marketplaceZap = await MarketplaceZap.deploy(vaultFactory.address, sushiRouterAddr);
   await marketplaceZap.deployed();
   console.log("MarketplaceZap: ", marketplaceZap.address);
 
-  // const ProxyController = await ethers.getContractFactory(
-  //   "MultiProxyController"
-  // );
-  // const proxyController = await ProxyController.deploy(
-  //   [
-  //     "NFTX Factory",
-  //     "Fee Distributor",
-  //     "LP Staking",
-  //     "StakingTokenProvider",
-  //     "Eligibility Manager",
-  //     "Inventory Staking",
-  //   ],
-  //   [
-  //     vaultFactory,
-  //     feeDistrib,
-  //     lpStaking,
-  //     provider.address,
-  //     eligManager.address,
-  //     inventoryStaking.address,
-  //   ]
-  // );
-  // await proxyController.deployed();
-  // console.log("ProxyController:", proxyController.address);
+  const TimelockExcludeList = await ethers.getContractFactory("TimelockExcludeList");
+  const timelockExcludeList = await TimelockExcludeList.deploy();
+  await timelockExcludeList.deployed();
+  console.log("TimelockExcludeList:", timelockExcludeList.address);
 
-  // console.log("\nUpdating proxy admins...");
+  await stakingZap.setTimelockExcludeList(timelockExcludeList.address);
+  console.log("-- set timelockexcludelist on stakingzap");
+  await inventoryStaking.setTimelockExcludeList(timelockExcludeList.address);
+  console.log("-- set timelockexcludelist on inventorystaking");
 
-  // await upgrades.admin.changeProxyAdmin(vaultFactory.address, proxyController.address);
-  // await upgrades.admin.changeProxyAdmin(feeDistrib.address, proxyController.address);
-  // await upgrades.admin.changeProxyAdmin(lpStaking.address, proxyController.address);
-  // await upgrades.admin.changeProxyAdmin(provider.address, proxyController.address);
-  // await upgrades.admin.changeProxyAdmin(eligManager.address, proxyController.address);
-  // await upgrades.admin.changeProxyAdmin(inventoryStaking.address, proxyController.address);
+  const ProxyController = await ethers.getContractFactory("MultiProxyController");
+  const proxyController = await ProxyController.deploy(
+    [
+      "NFTX Factory",
+      "Fee Distributor",
+      "LP Staking",
+      "StakingTokenProvider",
+      "Eligibility Manager",
+      "Inventory Staking",
+    ],
+    [
+      vaultFactory.address,
+      feeDistrib.address,
+      lpStaking.address,
+      provider.address,
+      eligManager.address,
+      inventoryStaking.address,
+    ]
+  );
+  await proxyController.deployed();
+  console.log("ProxyController:", proxyController.address);
+
+  await upgrades.admin.changeProxyAdmin(vaultFactory.address, proxyController.address);
+  console.log("-- updated proxy admin on vaultfactory");
+  await upgrades.admin.changeProxyAdmin(feeDistrib.address, proxyController.address);
+  console.log("-- updated proxy admin on feedistrib");
+  await upgrades.admin.changeProxyAdmin(lpStaking.address, proxyController.address);
+  console.log("-- updated proxy admin on lpstaking");
+  await upgrades.admin.changeProxyAdmin(provider.address, proxyController.address);
+  console.log("-- updated proxy admin on provider");
+  await upgrades.admin.changeProxyAdmin(eligManager.address, proxyController.address);
+  console.log("-- updated proxy admin on eligmanager");
+  await upgrades.admin.changeProxyAdmin(inventoryStaking.address, proxyController.address);
+  console.log("-- updated proxy admin on inventorystaking");
+
+  const UnstakingZap = await ethers.getContractFactory("NFTXUnstakingInventoryZap");
+  const unstakingZap = await UnstakingZap.deploy();
+  await unstakingZap.deployed();
+
+  console.log("UnstakingInventoryZap:", unstakingZap.address);
+
+  await unstakingZap.setVaultFactory(vaultFactory.address);
+  console.log("-- set vault factory on unstakingzap");
+  await unstakingZap.setInventoryStaking(inventoryStaking.address);
+  console.log("-- set inventory staking on unstakingzap");
 
   // console.log("Adding guardians...");
   // for (let i = 0; i < teamAddresses.length; i++) {

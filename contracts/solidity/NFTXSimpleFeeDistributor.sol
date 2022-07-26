@@ -65,6 +65,10 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       return;
     } 
 
+    if (tokenBalance == 0) {
+      return;
+    }
+
     uint256 length = feeReceivers.length;
     uint256 leftover;
     for (uint256 i; i < length; ++i) {
@@ -207,5 +211,9 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       IERC20Upgradeable(_vault).safeTransfer(_receiver.receiver, amountToSend);
       return true;
     }
+  }
+
+  function feeReceiverInfo(uint256 index) external override view returns (address, uint256) {
+    return (feeReceivers[index].receiver, feeReceivers[index].allocPoint);
   }
 } 
