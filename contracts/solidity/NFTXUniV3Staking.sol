@@ -35,12 +35,11 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
     uint24 internal constant DEFAULT_FEE = 10000;
 
     uint256 public positionsCreated;
-    uint256 internal _timelockLength;
     address public v3Factory;
     INonfungiblePositionManager public nftManager;
     INFTXVaultFactory public nftxVaultFactory;
 
-    mapping(uint256 => uint256) vaultV3PositionId;
+    mapping(uint256 => uint256) public vaultV3PositionId;
 
     event PositionCreated(uint256 vaultId, uint256 tokenId, address sender);
     event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
