@@ -91,8 +91,8 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
         try nftManager.mint(params) returns (
             uint256 tokenId,
             uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
+            uint256,
+            uint256
         ) {
           uint256 _positionId = positionsCreated;
           positionsCreated = _positionId + 1;
@@ -137,10 +137,16 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       
       uint256 vaultId = vaultForToken(tokenId);
 
-      (uint128 liquidityDelta, uint256 amount0, uint256 amount1) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, liquidityToRemove, amount0Max, amount1Max);
+      (uint128 liquidityDelta, ,) = _removeLiquidityfromVaultV3Position(vaultId, msg.sender, liquidityToRemove, amount0Max, amount1Max);
       _decreaseBalance(tokenId, uint256(liquidityDelta));
 
       emit Withdraw(vaultId, tokenId, liquidityDelta, msg.sender);
+    }
+
+    // This function timelocks an NFT from the current time for the duration specified.
+    function timelockNFT(uint256 tokenId, uint256 timelockDuration) public {
+        require(msg.sender == nftxVaultFactory.zapContract(), "Not staking zap");
+        _timelockNFT(tokenId, timelockDuration);
     }
 
     function _addLiquidityToVaultV3Position(uint256 vaultId, uint256 amount0, uint256 amount1) public returns (uint256, uint256, uint256) {
@@ -239,16 +245,6 @@ contract NFTXUniV3Staking is PausableUpgradeable, DividendNFTUpgradeable {
       IERC20Upgradeable(_vaultToken).safeTransferFrom(msg.sender, address(this), amount);
       emit FeesReceived(vaultId, amount);
       return true;
-    }
-
-    function timelockLength() public view virtual override returns (uint256) {
-      return _timelockLength;
-    }
-
-    function setTimelockLength(uint256 newLength) public {
-      require(msg.sender == owner());
-      require(newLength < 2 weeks, "too long");
-      _timelockLength = newLength;
     }
 
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {

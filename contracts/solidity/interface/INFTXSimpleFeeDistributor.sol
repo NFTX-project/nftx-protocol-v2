@@ -40,5 +40,5 @@ interface INFTXSimpleFeeDistributor {
    // V3 toggle utils 
   function activateV3Switch() external;
   function toggleVaultsToV3(uint256[] calldata vaultIds, bool v3State) external;
-  function setV3StakingAddress(address v3Staking) external;
+  function setV3StakingAddress(address newV3Staking) external;
 } 

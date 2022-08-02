@@ -9,8 +9,6 @@ import "../util/SafeERC20Upgradeable.sol";
 import "../util/SafeMathUpgradeable.sol";
 import "../util/SafeMathInt.sol";
 
-import "hardhat/console.sol";
-
 /// @title Reward-Paying Token (renamed from Dividend)
 /// @author Roger Wu (https://github.com/roger-wu)
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute a target token
@@ -41,6 +39,10 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     uint256 amount1
   );
 
+  event Timelocked(uint256 tokenId, uint256 timelockDuration);
+  event IncreasePosition(uint256 tokenId, uint256 amount);
+  event DecreasePosition(uint256 tokenId, uint256 amount);
+
   // /// @dev This event MUST emit when an address withdraws their dividend.
   // /// @param to The address which withdraws target from this contract.
   // /// @param weiAmount The amount of withdrawn target in wei.
@@ -54,12 +56,14 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     __ERC721_init(_name, _symbol);
   }
 
-  function timelockLength() public virtual returns (uint256) {
-    return 0;
+  function maxTimelockLength() public virtual returns (uint256) {
+    return 2 weeks;
   }
   
-  function timelockExcluded(address who) public virtual returns (bool) {
-    return false;
+  function _timelockNFT(uint256 tokenId, uint256 timelockDuration) internal virtual {
+    require(timelockDuration < maxTimelockLength(), "Timelock too long");
+    _timelockedUntil[tokenId] = block.timestamp + timelockDuration;
+    emit Timelocked(tokenId, timelockDuration);
   }
 
   function vaultForToken(uint256 tokenId) public view returns (uint256) {
@@ -83,9 +87,10 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     _tokenBalance[tokenId] = oldBal + valueBal;
     _totalStaked[vaultId] += valueBal;
     
-    _timelockedUntil[tokenId] = block.timestamp + timelockLength();
     _magnifiedRewardCorrections[vaultId] = _magnifiedRewardCorrections[vaultId]
       .sub( (_magnifiedRewardPerShare[vaultId].mul(valueBal)).toInt256() );
+
+    emit IncreasePosition(tokenId, valueBal);
   }
 
   // does no transferring
@@ -97,6 +102,8 @@ contract DividendNFTUpgradeable is OwnableUpgradeable, ERC721Upgradeable {
     
     _magnifiedRewardCorrections[vaultId] = _magnifiedRewardCorrections[vaultId]
       .add( (_magnifiedRewardPerShare[vaultId].mul(valueSub)).toInt256() );
+
+    emit DecreasePosition(tokenId, valueSub);
   }
     
   // /**
