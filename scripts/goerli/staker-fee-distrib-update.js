@@ -27,36 +27,36 @@ async function main() {
   const FeeDistrImpl = await ethers.getContractFactory("NFTXSimpleFeeDistributor");
   const feeDistrImpl = await FeeDistrImpl.deploy();
   await feeDistrImpl.deployed();
-  console.log("feeDistrImpl:", feeDistrImpl.address);
+  console.log("\nfeeDistrImpl:", feeDistrImpl.address);
 
-  await proxyController.connect(dao).upgradeProxyTo(1, feeDistrImpl.address);
+  await proxyController.upgradeProxyTo(1, feeDistrImpl.address, {gasLimit: 650000});
   console.log("feeDistr upgraded");
 
   // Upgrade LP staking
   const LPStakingImpl = await ethers.getContractFactory("NFTXLPStaking");
   const lpStakingImpl = await LPStakingImpl.deploy();
   await lpStakingImpl.deployed();
-  console.log("lpStakingImpl:", lpStakingImpl.address);
+  console.log("\nlpStakingImpl:", lpStakingImpl.address);
 
-  await proxyController.connect(dao).upgradeProxyTo(2, lpStakingImpl.address);
+  await proxyController.upgradeProxyTo(2, lpStakingImpl.address, {gasLimit: 650000});
   console.log("lpStaking upgraded");
 
   // Upgrade inventory staking
   const InvStakingImpl = await ethers.getContractFactory("NFTXInventoryStaking");
   const invStakingImpl = await InvStakingImpl.deploy();
   await invStakingImpl.deployed();
-  console.log("invStakingImpl:", invStakingImpl.address);
+  console.log("\ninvStakingImpl:", invStakingImpl.address);
 
-  await proxyController.connect(dao).upgradeProxyTo(5, invStakingImpl.address);
+  await proxyController.upgradeProxyTo(5, invStakingImpl.address, {gasLimit: 650000});
   console.log("invStaking upgraded");
 
   // Upgrade vault template
   const VaultImpl = await ethers.getContractFactory("NFTXVaultUpgradeable");
   const vaultImpl = await VaultImpl.deploy();
   await vaultImpl.deployed();
-  console.log("vaultImpl:", vaultImpl.address);
+  console.log("\nvaultImpl:", vaultImpl.address);
 
-  await factory.connect(dao).upgradeChildTo(vaultImpl.address);
+  await factory.upgradeChildTo(vaultImpl.address, {gasLimit: 650000});
   console.log("vaultImpl upgraded");
 }
 
