@@ -2,16 +2,15 @@
 
 pragma solidity ^0.8.0;
 
+import "./INFTXVaultFactory.sol";
+
 // Author: 0xKiwi.
 
 interface INFTXUniV3Staking {
     function defaultPair() external view returns (address);
     function positionsCreated() external view returns (uint256);
     function v3Factory() external view returns (address);
-    function nftManager() external view returns (address);
-    function nftxVaultFactory() external view returns (address);
-
-    function vaultV3PositionId(uint256 id) external returns (uint256);
+    function nftxVaultFactory() external view returns (INFTXVaultFactory);
 
     event PositionCreated(uint256 vaultId, uint256 tokenId, address sender);
     event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
