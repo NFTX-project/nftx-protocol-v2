@@ -101,7 +101,7 @@ library MerkleProof {
  * @notice Allows vaults to be allow eligibility based on a predefined merkle tree.
  */
 
-contract NFTXMerkleEligibility is NFTXEligibility {
+abstract contract NFTXMerkleEligibility is NFTXEligibility {
 
     /// @notice Emitted when our NFTX Eligibility is deployed
     event NFTXEligibilityInit(bytes32 merkleRoot);
@@ -126,9 +126,7 @@ contract NFTXMerkleEligibility is NFTXEligibility {
      * @return string
      */
 
-    function name() public pure override virtual returns (string memory) {    
-        return 'MerkleEligibility';
-    }
+    function name() public pure override virtual returns (string memory) {}
 
 
     /**
@@ -148,9 +146,7 @@ contract NFTXMerkleEligibility is NFTXEligibility {
      * @return address 
      */
 
-   function targetAsset() public pure override virtual returns (address) {
-        return 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
-    }
+   function targetAsset() public pure override virtual returns (address) {}
 
 
     /**
