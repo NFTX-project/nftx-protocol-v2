@@ -227,8 +227,10 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
     	bool isValid = MerkleProof.verify(merkleProof, merkleRoot, tokenHash);
 
         // Mark our hash as processed
-        validTokenHashes[tokenHash] = isValid;
-        _processedTokenHashes[tokenHash] = true;
+        if (isValid) {
+            validTokenHashes[tokenHash] = true;
+            _processedTokenHashes[tokenHash] = false;
+        }
 
         // Let our stalkers know that we are making the request
         emit PrecursoryCheckStarted(tokenId, tokenHash);
