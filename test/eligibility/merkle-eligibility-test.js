@@ -9,7 +9,7 @@ const keccak256 = require('keccak256')
 let deployer, alice, bob, carol, users;
 
 
-describe('NFTXMerkleEligibility', function () {
+describe('NFTXENSMerkleEligibility', function () {
 
   before('Setup', async () => {
     // Set up our users
@@ -60,8 +60,8 @@ describe('NFTXMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXMerkleEligibility = await ethers.getContractFactory('NFTXMerkleEligibility');
-      eligibility = await NFTXMerkleEligibility.deploy();
+      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
+      eligibility = await NFTXENSMerkleEligibility.deploy();
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
@@ -130,8 +130,8 @@ describe('NFTXMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXMerkleEligibility = await ethers.getContractFactory('NFTXMerkleEligibility');
-      eligibility = await NFTXMerkleEligibility.deploy();
+      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
+      eligibility = await NFTXENSMerkleEligibility.deploy();
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
@@ -211,8 +211,8 @@ describe('NFTXMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXMerkleEligibility = await ethers.getContractFactory('NFTXMerkleEligibility');
-      eligibility = await NFTXMerkleEligibility.deploy();
+      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
+      eligibility = await NFTXENSMerkleEligibility.deploy();
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
@@ -292,8 +292,8 @@ describe('NFTXMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXMerkleEligibility = await ethers.getContractFactory('NFTXMerkleEligibility');
-      eligibility = await NFTXMerkleEligibility.deploy();
+      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
+      eligibility = await NFTXENSMerkleEligibility.deploy();
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
