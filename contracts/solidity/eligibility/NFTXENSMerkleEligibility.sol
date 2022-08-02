@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "./NFTXMerkleEligibility.sol";
-import "hardhat/console.sol";
 
 
 abstract contract ENS {
