@@ -215,6 +215,11 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function processToken(uint tokenId, bytes32[] calldata merkleProof) public returns (bool) {
+        // If the token has already been processed, just return the validity
+        if (!requiresProcessing(tokenId)) {
+            return _checkIfEligible(tokenId);
+        }
+
     	// Get the hashed equivalent of our tokenId
     	bytes32 tokenHash = keccak256(bytes(Strings.toString(tokenId)));
 
@@ -228,6 +233,31 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
         // Let our stalkers know that we are making the request
         emit PrecursoryCheckStarted(tokenId, tokenHash);
         emit PrecursoryCheckComplete(tokenId, tokenHash, isValid);
+
+        return isValid;
+    }
+
+
+    /**
+     * @notice This will run a number of precursory checks by encoding the token ID,
+     * creating the token hash, and then checking this against our merkle tree.
+     *
+     * @param tokenIds The ENS token ID being validated
+     * @param merkleProofs Merkle proof to validate against the tokenId
+     *
+     * @return bool[] If the token at the corresponding index is valid
+     */
+
+    function processTokens(uint[] calldata tokenIds, bytes32[][] calldata merkleProofs) public returns (bool[] memory) {
+        // Iterate over our process tokens
+        uint numberOfTokens = tokenIds.length;
+        bool[] memory isValid = new bool[](numberOfTokens);
+
+        // Loop through and process our tokens
+        for (uint i; i < numberOfTokens;) {
+            isValid[i] = processToken(tokenIds[i], merkleProofs[i]);
+            unchecked { ++i; }
+        }
 
         return isValid;
     }

@@ -116,6 +116,30 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.checkIsEligible(getTokenId('b'))).to.equal(false);
     });
 
+    it('Should be able to process multiple eligibilities', async () => {
+      // Get an array of token IDs to test
+      const tokenIds = [
+        getTokenId('a'),  // This will have already been checked
+        getTokenId('b'),  // This will be checked
+        getTokenId('e'),  // This will fail it's check
+      ];
+
+      // Calculate our tree's proof from tokenHashes
+      // for each corresponding ID.
+      const proofs = [
+        tree.getHexProof(keccak256(getTokenId('a'))),
+        tree.getHexProof(keccak256(getTokenId('b'))),
+        tree.getHexProof(keccak256(getTokenId('e'))),
+      ];
+
+      // Process our token and confirm that it has been marked as valid
+      await eligibility.processTokens(tokenIds, proofs);
+
+      expect(await eligibility.validTokenHashes(keccak256(getTokenId('a')))).to.equal(true);
+      expect(await eligibility.validTokenHashes(keccak256(getTokenId('b')))).to.equal(true);
+      expect(await eligibility.validTokenHashes(keccak256(getTokenId('e')))).to.equal(false);
+    });
+
   });
 
   describe('Pokemon Gen 1', function () {
