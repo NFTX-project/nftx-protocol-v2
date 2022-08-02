@@ -1,7 +1,8 @@
 require("dotenv").config();
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
-// require("hardhat-gas-reporter");
+require("hardhat-gas-reporter");
+require('hardhat-docgen');
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
