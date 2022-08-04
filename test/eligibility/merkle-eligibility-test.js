@@ -60,13 +60,13 @@ describe('NFTXENSMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
-      eligibility = await NFTXENSMerkleEligibility.deploy();
+      const MockNFTXENSMerkleEligibility = await ethers.getContractFactory('MockNFTXENSMerkleEligibility');
+      eligibility = await MockNFTXENSMerkleEligibility.deploy('0');
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
       await eligibility.__NFTXEligibility_init_bytes(
-        ethers.utils.defaultAbiCoder.encode(['bytes32'], [merkleRoot])
+        ethers.utils.defaultAbiCoder.encode(['bytes32', 'string', 'string'], [merkleRoot, 'Merkle__Arbritrary', ''])
       );
 
       // Confirm our merkle root is set
@@ -154,13 +154,13 @@ describe('NFTXENSMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
-      eligibility = await NFTXENSMerkleEligibility.deploy();
+      const MockNFTXENSMerkleEligibility = await ethers.getContractFactory('MockNFTXENSMerkleEligibility');
+      eligibility = await MockNFTXENSMerkleEligibility.deploy('0');
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
       await eligibility.__NFTXEligibility_init_bytes(
-        ethers.utils.defaultAbiCoder.encode(['bytes32'], [merkleRoot])
+        ethers.utils.defaultAbiCoder.encode(['bytes32', 'string', 'string'], [merkleRoot, 'Merkle__Pokemon', ''])
       );
 
       // Confirm our merkle root is set
@@ -235,13 +235,13 @@ describe('NFTXENSMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
-      eligibility = await NFTXENSMerkleEligibility.deploy();
+      const MockNFTXENSMerkleEligibility = await ethers.getContractFactory('MockNFTXENSMerkleEligibility');
+      eligibility = await MockNFTXENSMerkleEligibility.deploy('0');
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
       await eligibility.__NFTXEligibility_init_bytes(
-        ethers.utils.defaultAbiCoder.encode(['bytes32'], [merkleRoot])
+        ethers.utils.defaultAbiCoder.encode(['bytes32', 'string', 'string'], [merkleRoot, 'Merkle__NNNN', ''])
       );
 
       // Confirm our merkle root is set
@@ -316,13 +316,13 @@ describe('NFTXENSMerkleEligibility', function () {
       merkleRoot = tree.getHexRoot();
 
       // Deploy our eligibility module
-      const NFTXENSMerkleEligibility = await ethers.getContractFactory('NFTXENSMerkleEligibility');
-      eligibility = await NFTXENSMerkleEligibility.deploy();
+      const MockNFTXENSMerkleEligibility = await ethers.getContractFactory('MockNFTXENSMerkleEligibility');
+      eligibility = await MockNFTXENSMerkleEligibility.deploy('0');
       await eligibility.deployed();
 
       // Set up our eligibility contract with our merkle root
       await eligibility.__NFTXEligibility_init_bytes(
-        ethers.utils.defaultAbiCoder.encode(['bytes32'], [merkleRoot])
+        ethers.utils.defaultAbiCoder.encode(['bytes32', 'string', 'string'], [merkleRoot, 'Merkle__LLL', ''])
       );
 
       // Confirm our merkle root is set

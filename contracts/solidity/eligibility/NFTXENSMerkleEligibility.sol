@@ -11,13 +11,18 @@ abstract contract ENS {
 
 
 /**
- * @title NFTX Merkle Eligibility
+ * @title NFTX ENS Merkle Eligibility
  * @author Twade
  * 
- * @notice Allows vaults to be allow eligibility based on a predefined merkle tree.
+ * @notice Allows vaults to be allow eligibility based ENS domains, allowing for minimum
+ * expiration times to be set.
  */
 
 contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
+
+    /// @notice Minimum expiration time of domain
+    uint minExpirationTime;
+
 
     /**
      * @notice The name of our Eligibility Module.
@@ -42,6 +47,17 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
 
     /**
+     * @notice Sets the minimum expiration time for ENS domains the vault.
+     *
+     * @param _minExpirationTime Minimum expiration time in seconds
+     */
+
+    constructor(uint _minExpirationTime) {
+        minExpirationTime = _minExpirationTime;
+    }
+
+
+    /**
      * @notice Checks if a supplied token is eligible; in addition to our core merkle
      * eligibility checks we also need to confirm that the ENS domain won't expire within
      * a year.
@@ -54,7 +70,7 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
     function _checkIfEligible(uint tokenId) internal view override virtual returns (bool) {
     	// Get the expiry time of the token ID provided and ensure it has at least
     	// 365 days left until it expires.
-    	if (block.timestamp + 365 days > ENS(targetAsset()).nameExpires(tokenId)) {
+    	if (block.timestamp + minExpirationTime > ENS(targetAsset()).nameExpires(tokenId)) {
     		return false;
     	}
 
