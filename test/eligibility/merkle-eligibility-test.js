@@ -140,6 +140,16 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(keccak256(getTokenId('e')))).to.equal(false);
     });
 
+    it('Should allow multiple processing attempts', async () => {
+      const proofA = tree.getHexProof(keccak256(getTokenId('a')));
+      const proofB = tree.getHexProof(keccak256(getTokenId('b')));
+
+      expect(await eligibility.requiresProcessing(getTokenId('a'), proofA)).to.equal(false);
+      expect(await eligibility.requiresProcessing(getTokenId('a'), proofB)).to.equal(true);
+      expect(await eligibility.requiresProcessing(getTokenId('b'), proofA)).to.equal(true);
+      expect(await eligibility.requiresProcessing(getTokenId('b'), proofB)).to.equal(false);
+    });
+
   });
 
   describe('Pokemon Gen 1', function () {
