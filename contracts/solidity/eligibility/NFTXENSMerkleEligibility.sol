@@ -54,7 +54,7 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
     function _checkIfEligible(uint tokenId) internal view override virtual returns (bool) {
     	// Get the expiry time of the token ID provided and ensure it has at least
     	// 365 days left until it expires.
-    	if (block.timestamp + 365 days < ENS(targetAsset()).nameExpires(tokenId)) {
+    	if (block.timestamp + 365 days > ENS(targetAsset()).nameExpires(tokenId)) {
     		return false;
     	}
 

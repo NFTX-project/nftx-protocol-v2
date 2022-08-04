@@ -175,7 +175,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(true);
@@ -185,7 +185,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(true);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to detect invalid name', async () => {
@@ -196,7 +196,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would not allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(false);
@@ -206,7 +206,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(false);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to check eligibility', async () => {
@@ -256,7 +256,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(true);
@@ -266,7 +266,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(true);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to detect invalid name', async () => {
@@ -277,7 +277,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would not allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(false);
@@ -287,7 +287,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(false);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to check eligibility', async () => {
@@ -337,7 +337,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(true);
@@ -347,7 +347,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(true);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to detect invalid name', async () => {
@@ -358,7 +358,7 @@ describe('NFTXENSMerkleEligibility', function () {
       const proof = tree.getHexProof(tokenHash);
 
       // Confirm that prior to processing, we correctly require it to be processed
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(true);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(true);
 
       // Confirm that our local library would not allow this
       expect(tree.verify(proof, tokenHash, merkleRoot)).to.equal(false);
@@ -368,7 +368,7 @@ describe('NFTXENSMerkleEligibility', function () {
       expect(await eligibility.validTokenHashes(tokenHash)).to.equal(false);
 
       // Confirm that it no longer requires processing
-      expect(await eligibility.requiresProcessing(tokenId)).to.equal(false);
+      expect(await eligibility.requiresProcessing(tokenId, proof)).to.equal(false);
     });
 
     it('Should be able to check eligibility', async () => {
