@@ -20,8 +20,8 @@ abstract contract ENS {
 
 contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
-    /// @notice Minimum expiration time of domain
-    uint public minExpirationSeconds;
+    /// @notice Minimum expiration time of domain in seconds
+    uint public minExpirationTime;
 
 
     /**
@@ -52,8 +52,8 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
      * @param _minExpirationSeconds Minimum expiration time in seconds
      */
 
-    constructor(uint _minExpirationSeconds) {
-        minExpirationSeconds = _minExpirationSeconds;
+    constructor(uint _minExpirationTime) {
+        minExpirationTime = _minExpirationTime;
     }
 
 
