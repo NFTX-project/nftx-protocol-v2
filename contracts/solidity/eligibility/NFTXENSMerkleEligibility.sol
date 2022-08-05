@@ -21,7 +21,7 @@ abstract contract ENS {
 contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
     /// @notice Minimum expiration time of domain
-    uint minExpirationTime;
+    uint public minExpirationSeconds;
 
 
     /**
@@ -49,11 +49,11 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
     /**
      * @notice Sets the minimum expiration time for ENS domains the vault.
      *
-     * @param _minExpirationTime Minimum expiration time in seconds
+     * @param _minExpirationSeconds Minimum expiration time in seconds
      */
 
-    constructor(uint _minExpirationTime) {
-        minExpirationTime = _minExpirationTime;
+    constructor(uint _minExpirationSeconds) {
+        minExpirationSeconds = _minExpirationSeconds;
     }
 
 
@@ -70,7 +70,7 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
     function _checkIfEligible(uint tokenId) internal view override virtual returns (bool) {
     	// Get the expiry time of the token ID provided and ensure it has at least
     	// 365 days left until it expires.
-    	if (block.timestamp + minExpirationTime > ENS(targetAsset()).nameExpires(tokenId)) {
+    	if (block.timestamp + minExpirationSeconds > ENS(targetAsset()).nameExpires(tokenId)) {
     		return false;
     	}
 
