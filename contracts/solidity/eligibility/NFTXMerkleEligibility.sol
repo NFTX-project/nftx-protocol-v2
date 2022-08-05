@@ -104,7 +104,7 @@ library MerkleProof {
 abstract contract NFTXMerkleEligibility is NFTXEligibility {
 
     /// @notice Emitted when our NFTX Eligibility is deployed
-    event NFTXEligibilityInit(bytes32 merkleRoot);
+    event NFTXEligibilityInit(bytes32 merkleRoot, string _merkleReference, string _merkleLeavesURI);
 
     /// @notice Emitted when a project validity check is started
     event PrecursoryCheckStarted(uint tokenId, bytes32 requestId);
@@ -112,12 +112,18 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
     /// @notice Emitted when a project validity check has been completed
     event PrecursoryCheckComplete(uint tokenId, bytes32 requestId, bool isValid);
 
-    /// @notice Set our asset contract address
+    /// @notice Internal storage of valid and processed tokens
     mapping(bytes32 => bool) public validTokenHashes;
-    mapping(bytes32 => bool) private _processedTokenHashes;
+    mapping(bytes32 => mapping(bytes32 => bool)) private _processedTokenHashes;
 
     /// @notice Merkle proof to validate all eligible domains against
     bytes32 public merkleRoot;
+
+    /// @notice Merkle reference for any required frontend differentiation
+    string public merkleReference;
+
+    /// @notice URI to JSON list of encoded token IDs
+    string public merkleLeavesURI;
 
 
     /**
@@ -157,8 +163,13 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function __NFTXEligibility_init_bytes(bytes memory configData) public override virtual initializer {
-        (bytes32 _merkleRoot) = abi.decode(configData, (bytes32));
-        __NFTXEligibility_init(_merkleRoot);
+        (
+            bytes32 _merkleRoot,
+            string memory _merkleReference,
+            string memory _merkleLeavesURI
+        ) = abi.decode(configData, (bytes32, string, string));
+
+        __NFTXEligibility_init(_merkleRoot, _merkleReference, _merkleLeavesURI);
     }
 
 
@@ -168,9 +179,12 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      * @param _merkleRoot The root of our merkle tree
      */
 
-    function __NFTXEligibility_init(bytes32 _merkleRoot) public initializer {
+    function __NFTXEligibility_init(bytes32 _merkleRoot, string memory _merkleReference, string memory _merkleLeavesURI) public initializer {
         merkleRoot = _merkleRoot;
-        emit NFTXEligibilityInit(_merkleRoot);
+        merkleReference = _merkleReference;
+        merkleLeavesURI = _merkleLeavesURI;
+
+        emit NFTXEligibilityInit(_merkleRoot, _merkleReference, _merkleLeavesURI);
     }
 
 
@@ -184,7 +198,7 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function _checkIfEligible(uint tokenId) internal view override virtual returns (bool) {
-        return validTokenHashes[keccak256(bytes(Strings.toString(tokenId)))];
+        return validTokenHashes[_hashTokenId(tokenId)];
     }
 
     /**
@@ -199,8 +213,9 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      * @return bool If the tokenId requires precursory validation
      */
 
-    function requiresProcessing(uint tokenId) public view returns (bool) {
-        return !_processedTokenHashes[keccak256(bytes(Strings.toString(tokenId)))];
+    function requiresProcessing(uint tokenId, bytes32[] calldata merkleProof) public view returns (bool) {
+        // Check if we have a confirmed processing log
+        return !_processedTokenHashes[_hashTokenId(tokenId)][_hashMerkleProof(merkleProof)];
     }
 
 
@@ -216,21 +231,19 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
 
     function processToken(uint tokenId, bytes32[] calldata merkleProof) public returns (bool) {
         // If the token has already been processed, just return the validity
-        if (!requiresProcessing(tokenId)) {
+        if (!requiresProcessing(tokenId, merkleProof)) {
             return _checkIfEligible(tokenId);
         }
 
     	// Get the hashed equivalent of our tokenId
-    	bytes32 tokenHash = keccak256(bytes(Strings.toString(tokenId)));
+    	bytes32 tokenHash = _hashTokenId(tokenId);
 
     	// Determine if our domain is eligible by traversing our merkle tree
     	bool isValid = MerkleProof.verify(merkleProof, merkleRoot, tokenHash);
 
         // Mark our hash as processed
-        if (isValid) {
-            validTokenHashes[tokenHash] = true;
-            _processedTokenHashes[tokenHash] = false;
-        }
+        validTokenHashes[tokenHash] = isValid;
+        _processedTokenHashes[tokenHash][_hashMerkleProof(merkleProof)] = true;
 
         // Let our stalkers know that we are making the request
         emit PrecursoryCheckStarted(tokenId, tokenHash);
@@ -244,8 +257,8 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      * @notice This will run a number of precursory checks by encoding the token ID,
      * creating the token hash, and then checking this against our merkle tree.
      *
-     * @param tokenIds The ENS token ID being validated
-     * @param merkleProofs Merkle proof to validate against the tokenId
+     * @param tokenIds The ENS token IDs being validated
+     * @param merkleProofs Merkle proofs to validate against the corresponding tokenId
      *
      * @return bool[] If the token at the corresponding index is valid
      */
@@ -262,6 +275,32 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
         }
 
         return isValid;
+    }
+
+
+    /**
+     * @notice Hashes the token ID to convert it into the token hash.
+     *
+     * @param tokenId The ENS token ID being hashed
+     *
+     * @return bytes32 The encrypted token hash
+     */
+
+    function _hashTokenId(uint tokenId) private pure returns (bytes32) {
+        return keccak256(bytes(Strings.toString(tokenId)));
+    }
+
+
+    /**
+     * @notice This will convert a 2d bytes32 array into a bytes32 hash.
+     *
+     * @param merkleProofs Merkle proof to encrypted
+     *
+     * @return bytes32 The hashed merkle proof
+     */
+
+    function _hashMerkleProof(bytes32[] memory merkleProofs) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(merkleProofs));
     }
 
 }
