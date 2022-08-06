@@ -440,6 +440,7 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
 
 // How does depositing work with tokenized positions?
   function _addV3Liquidity1155WETH(
+    uint256 tokenId,
     uint256 vaultId, 
     uint256[] memory ids,
     uint256[] memory amounts,
@@ -457,8 +458,11 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
     
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-    
-    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
+
+
+    (address address0, address address1) = sortTokens(vault, address(WETH));
+    bool vaultIs1 = address1 == vault;
+    return _addV3LiquidityAndLock(tokenId, address0, address1, vaultIs1 ? wethIn : balance, vaultIs1 ? balance : wethIn, to);
   }
 
   function _addLiquidityAndLock(
@@ -495,6 +499,35 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
     uint256 lockEndTime = block.timestamp + timelockTime;
     emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
     return (amountToken, amountEth, liquidity);
+  }
+
+  function _addV3LiquidityAndLock(
+    uint256 tokenId, 
+    address address0,
+    address address1, 
+    uint256 amount0, 
+    uint256 amount1, 
+    address to
+  ) internal returns (uint256, uint256, uint256) {
+    // Provide liquidity.
+    IERC20Upgradeable(address0).safeApprove(address(uniV3Staking), amount0);
+    IERC20Upgradeable(address1).safeApprove(address(uniV3Staking), amount1);
+    (uint256 liquidityDelta, uint256 amount0Increase, uint256 amount1Increase) = uniV3Staking.addLiquidityToStakingPositionNFT(tokenId, amount0, amount1);
+
+    // uint256 timelockTime = isAddressTimelockExcluded(msg.sender, vaultId) ? 0 : lpLockTime;
+    // lpStaking.timelockDepositFor(vaultId, to, liquidity, timelockTime);
+    
+    uint256 remaining0 = amount0-amount0Increase;
+    if (remaining0 != 0) {
+      IERC20Upgradeable(address0).safeTransfer(to, remaining0);
+    }
+    uint256 remaining1 = amount1-amount1Increase;
+    if (remaining1 != 0) {
+      IERC20Upgradeable(address1).safeTransfer(to, remaining1);
+    }
+
+    // emit UserStaked(vaultId, minTokenIn, liquidity, lockEndTime, to);
+    return (liquidityDelta, amount0Increase, amount1Increase);
   }
 
   function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {

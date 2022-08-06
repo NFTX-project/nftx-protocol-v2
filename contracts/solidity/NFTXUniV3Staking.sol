@@ -92,7 +92,7 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
           vaultV3PositionId[vaultId] = tokenId;
           _mint(msg.sender, _positionId, vaultId, liquidity);
           emit PositionCreated(vaultId, _positionId, msg.sender);
-          emit Deposit(vaultId, _positionId, liquidity, 0, msg.sender);
+          emit Deposit(vaultId, _positionId, liquidity, msg.sender);
           return tokenId;
         } catch (bytes memory reason) {
             revert(string(reason));
@@ -107,25 +107,24 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
       positionsCreated = curIndex + 1;
       _mint(msg.sender, curIndex, vaultId, liquidityDelta);
       emit PositionCreated(vaultId, curIndex, msg.sender);
-      emit Deposit(vaultId, curIndex, liquidityDelta, 0, msg.sender);
+      emit Deposit(vaultId, curIndex, liquidityDelta, msg.sender);
       return curIndex;
     }
 
-    function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) public override returns (uint256) {
+    function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) public override returns (uint256, uint256, uint256) {
       onlyOwnerIfPaused(0);
-      require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+      require(ownerOf(tokenId) == msg.sender || msg.sender == nftxVaultFactory.zapContract(), "Not owner of NFT");
 
       uint256 vaultId = vaultForToken(tokenId);
 
-      (uint256 liquidityDelta, ,) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
+      (uint256 liquidityDelta, uint256 amount0Increased, uint256 amount1Increased) = _addLiquidityToVaultV3Position(vaultId, amount0, amount1);
       _increaseBalance(tokenId, liquidityDelta);
       
-      emit Deposit(vaultId, tokenId, liquidityDelta, 0, msg.sender);
-
-      return liquidityDelta;
+      emit Deposit(vaultId, tokenId, liquidityDelta, msg.sender);
+      return (liquidityDelta, amount0Increased, amount1Increased);
     }
 
-    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public override {
+    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) public override returns (uint256) {
       require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
       
       uint256 vaultId = vaultForToken(tokenId);
@@ -134,6 +133,7 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
       _decreaseBalance(tokenId, uint256(liquidityDelta));
 
       emit Withdraw(vaultId, tokenId, liquidityDelta, msg.sender);
+      return liquidityDelta;
     }
 
     // This function timelocks an NFT from the current time for the duration specified.
@@ -146,7 +146,7 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
     // TEST THIS MORE
     // TEST THIS MORE
     function claimRewardsTo(uint256 tokenId, address receiver) public override {
-      require(msg.sender == ownerOf(tokenId), "Not owner");
+      require(msg.sender == ownerOf(tokenId) || msg.sender == nftxVaultFactory.zapContract(), "Not owner");
       uint256 vaultId = vaultForToken(tokenId);
       _distributeTradingFeeRewards(vaultId);
       address _vaultToken = nftxVaultFactory.vault(vaultId);

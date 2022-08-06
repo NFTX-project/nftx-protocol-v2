@@ -264,7 +264,6 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     expect(oldBal).to.not.equal(newBal);
   })
 
-
   it("Should let user claim rewards from minting", async () => {
     const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 

@@ -13,7 +13,7 @@ interface INFTXUniV3Staking {
     function nftxVaultFactory() external view returns (INFTXVaultFactory);
 
     event PositionCreated(uint256 vaultId, uint256 tokenId, address sender);
-    event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
+    event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, address sender);
     event Withdraw(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, address sender);
     event FeesReceived(uint256 vaultId, uint256 amount);
     event ProtocolFeesReceived(uint256 vaultId, uint256 amount);
@@ -26,9 +26,9 @@ interface INFTXUniV3Staking {
 
     function createStakingPositionNFT(uint256 vaultId, uint256 amount0, uint256 amount1) external returns (uint256);
 
-    function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) external returns (uint256);
+    function addLiquidityToStakingPositionNFT(uint256 tokenId, uint256 amount0, uint256 amount1) external returns (uint256, uint256, uint256);
 
-    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) external;
+    function removeLiquidityFromVaultV3Position(uint256 tokenId, uint128 liquidityToRemove, uint128 amount0Max, uint128 amount1Max) external returns (uint256);
 
     function timelockNFT(uint256 tokenId, uint256 timelockDuration) external;
 
