@@ -280,6 +280,18 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
   });
 
 
+  it("Should deploy zap", async () => {
+    let Zap = await ethers.getContractFactory("NFTXUniV3Zap");
+
+    zap = await Zap.deploy(
+      "0xBE86f647b167567525cCAAfcd6f881F1Ee558216",
+      "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F" /* Sushi Router */
+    );
+    await zap.deployed();
+    await nftx.connect(dao).setFeeExclusion(zap.address, true);
+    await zap.assignStakingContracts();
+  })
+
   // it("Should not allow to withdraw locked tokens before lock", async () => {
   //   await expectException(staking.connect(kiwi).exit(179), "User locked");
   // });

@@ -176,9 +176,9 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
   }
 
   function assignStakingContracts() public {
-    require(address(lpStaking) == address(0) || address(inventoryStaking) == address(0), "not zero");
     lpStaking = INFTXLPStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).lpStaking());
     inventoryStaking = INFTXInventoryStaking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).inventoryStaking());
+    uniV3Staking = INFTXUniV3Staking(INFTXSimpleFeeDistributor(INFTXVaultFactory(nftxFactory).feeDistributor()).v3Staking());
   }
 
   function setTimelockExcludeList(address addr) external onlyOwner {
@@ -367,6 +367,29 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
     return liquidity;
   }
 
+  function addV3Liquidity721ETHTo(
+    uint256 tokenId,
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256 minWethIn,
+    address to
+  ) public payable nonReentrant returns (uint256) {
+    require(to != address(0) && to != address(this));
+    WETH.deposit{value: msg.value}();
+    (, uint256 amountEth, uint256 liquidity) = _addV3Liquidity721WETH(tokenId, vaultId, ids, minWethIn, msg.value, to);
+
+    // Return extras.
+    uint256 remaining = msg.value-amountEth;
+    if (remaining != 0) {
+      WETH.withdraw(remaining);
+      (bool success, ) = payable(to).call{value: remaining}("");
+      require(success, "Address: unable to send value, recipient may have reverted");
+    }
+
+    return liquidity;
+  }
+
+
   function _addLiquidity721WETH(
     uint256 vaultId, 
     uint256[] memory ids, 
@@ -414,6 +437,7 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
   }
 
   function _addV3Liquidity721WETH(
+    uint256 tokenId,
     uint256 vaultId, 
     uint256[] memory ids, 
     uint256 minWethIn,
@@ -424,17 +448,23 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
     address vault = nftxFactory.vault(vaultId);
 
     // Transfer tokens to zap and mint to NFTX.
-    address assetAddress = INFTXVault(vault).assetAddress();
     uint256 length = ids.length;
-    for (uint256 i; i < length; i++) {
-      transferFromERC721(assetAddress, ids[i], vault);
-      approveERC721(assetAddress, vault, ids[i]);
+
+    {
+      address assetAddress = INFTXVault(vault).assetAddress();
+      for (uint256 i; i < length; i++) {
+        transferFromERC721(assetAddress, ids[i], vault);
+        approveERC721(assetAddress, vault, ids[i]);
+      }
     }
-    uint256[] memory emptyIds;
-    INFTXVault(vault).mint(ids, emptyIds);
-    uint256 balance = length * BASE; // We should not be experiencing fees.
+    {
+      uint256[] memory emptyIds;
+      INFTXVault(vault).mint(ids, emptyIds);
+    }
     
-    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
+    (address address0, address address1) = sortTokens(vault, address(WETH));
+    bool vaultIs1 = address1 == vault;
+    return _addV3LiquidityAndLock(tokenId, address0, address1, vaultIs1 ? wethIn : length * BASE, vaultIs1 ? length * BASE : wethIn, to);
   }
 
 
@@ -458,7 +488,6 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
     
     uint256 count = INFTXVault(vault).mint(ids, amounts);
     uint256 balance = (count * BASE); // We should not be experiencing fees.
-
 
     (address address0, address address1) = sortTokens(vault, address(WETH));
     bool vaultIs1 = address1 == vault;
