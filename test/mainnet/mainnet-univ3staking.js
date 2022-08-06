@@ -289,7 +289,14 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     );
     await zap.deployed();
     await nftx.connect(dao).setFeeExclusion(zap.address, true);
+    await nftx.connect(dao).setZapContract(zap.address);
     await zap.assignStakingContracts();
+  })
+
+  it("should allow using Zap to deposit", async () => {
+    let ERC721 = await ethers.getContractAt("ERC721", await vaults[0].assetAddress());
+    await ERC721.connect(kiwi).setApprovalForAll(zap.address, true);
+    await zap.connect(kiwi).addV3Liquidity721ETHTo(0, 179, [1402,1911,2023,1481], BASE.div(10).mul(3), kiwi.getAddress())
   })
 
   // it("Should not allow to withdraw locked tokens before lock", async () => {
