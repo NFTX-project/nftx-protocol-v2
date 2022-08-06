@@ -236,9 +236,18 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
       address _vaultToken = nftxVaultFactory.vault(vaultId);
       (address address0, address address1) = sortTokens(_vaultToken, defaultPair);
       // Send all vault tokens to treasury.
-      IERC20Upgradeable(address1 == _vaultToken ? address0 : address1).transfer(owner(), address1 == _vaultToken ? amount0 : amount1);
-      _distributeRewards(vaultId, address0 == _vaultToken ? amount0 : amount1);
-      emit TradingFeesReceived(vaultId,  address0 == _vaultToken ? amount0 : amount1);
+      bool vaultIs1 = address1 == _vaultToken;
+      if (vaultIs1 ? amount0 > 0 : amount1 > 0) {
+        IERC20Upgradeable(vaultIs1 ? address0 : address1).transfer(
+          PausableUpgradeable(address(nftxVaultFactory)).owner(), // dao
+          vaultIs1 ? amount0 : amount1 // Send what isn't the vault token to the DAO
+        );
+        emit ProtocolFeesReceived(vaultId, vaultIs1 ? amount0 : amount1);
+      }
+      if (vaultIs1 ? amount0 > 0 : amount1 > 0) {
+        _distributeRewards(vaultId, address0 == _vaultToken ? amount0 : amount1); //
+        emit TradingFeesReceived(vaultId,  vaultIs1 ? amount1 : amount0);
+      }
     }
 
     // function timelockUntil(uint256 vaultId, address who) external view returns (uint256) {

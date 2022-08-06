@@ -16,6 +16,7 @@ interface INFTXUniV3Staking {
     event Deposit(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, uint256 timelockUntil, address sender);
     event Withdraw(uint256 vaultId, uint256 tokenId, uint256 liquidityAmount, address sender);
     event FeesReceived(uint256 vaultId, uint256 amount);
+    event ProtocolFeesReceived(uint256 vaultId, uint256 amount);
     event TradingFeesReceived(uint256 vaultId, uint256 amount);
     event FeesClaimed(uint256 vaultId, uint256 tokenId, uint256 amount, address sender);
 

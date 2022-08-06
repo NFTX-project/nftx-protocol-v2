@@ -104,13 +104,12 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
 
   function initializeVaultReceivers(uint256 _vaultId) external override {
     require(msg.sender == nftxVaultFactory, "FeeReceiver: not factory");
-    if (_vaultId > v3VaultIdSwitch || v3Toggle[_vaultId]) {
-      // not sure what this does yet lol 
-    } else {
+    if (_vaultId < v3VaultIdSwitch && !v3Toggle[_vaultId]) {
       INFTXLPStaking(lpStaking).addPoolForVault(_vaultId);
     }
-    if (inventoryStaking != address(0))
+    if (inventoryStaking != address(0)) {
       INFTXInventoryStaking(inventoryStaking).deployXTokenForVault(_vaultId);
+    }
   }
 
   function changeReceiverAlloc(uint256 _receiverIdx, uint256 _allocPoint) public override virtual onlyOwner {
@@ -175,11 +174,13 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
   }
 
   function activateV3Switch() external override onlyOwner {
+    require(v3Staking != address(0), "V3 staking address not set"); 
     v3VaultIdSwitch = INFTXVaultFactory(nftxVaultFactory).numVaults();
     emit V3SwitchActive(v3VaultIdSwitch);
   }
 
   function toggleVaultsToV3(uint256[] memory vaultIds, bool v3State) external override onlyOwner {
+    require(v3Staking != address(0), "V3 staking address not set"); 
     for (uint256 i; i < vaultIds.length; i++) {
       v3Toggle[vaultIds[i]] = v3State;
       emit SwitchToV3(vaultIds[i], v3State);

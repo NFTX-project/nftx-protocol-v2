@@ -4,7 +4,6 @@ const { expectRevert, expectException } = require("../../utils/expectRevert");
 const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers, upgrades } = require("hardhat");
 
-const addresses = require("../../addresses/rinkeby.json");
 const { zeroPad } = require("ethers/lib/utils");
 
 const BASE = BigNumber.from(10).pow(18);
@@ -207,16 +206,17 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
     await weth20.connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
 
-    let oldWBal = await weth20.balanceOf(kiwi.getAddress())
+    let oldWBal = await weth20.balanceOf(await dao.getAddress())
     let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
     await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
-    let newWBal = await weth20.balanceOf(kiwi.getAddress())
+    let newWBal = await weth20.balanceOf(await dao.getAddress())
     let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
     expect(newWBal.gt(oldWBal)).to.equal(true)
     expect(newVBal.gt(oldVBal)).to.equal(true)
   });
 
-  it("Should allow fees to come in from distributor", async () => {
+
+  it("Should allow fees to come in manually before V3 switch", async () => {
     let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
     let oldVBalUni = await vaults[0].balanceOf(uniStaking.address)
     await vaults[0].connect(kiwi).approve(uniStaking.address, oldVBal.mul(2))
@@ -226,7 +226,27 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
     expect(newVBal.lt(oldVBal)).to.equal(true)
     expect(newVBalUni.gt(oldVBalUni)).to.equal(true)
   })
-  
+
+  it("Should upgrade contracts", async () => {
+    // Upgrade fee distributor
+    const FeeDistrImpl = await ethers.getContractFactory("NFTXSimpleFeeDistributor");
+    const feeDistrImpl = await FeeDistrImpl.deploy();
+    await feeDistrImpl.deployed();
+
+    await controller.connect(dao).upgradeProxyTo(1, feeDistrImpl.address);
+  })
+
+  it("Should assign V3 staking contract to fee distributor", async () => {
+    await feeDistrib.connect(dev).setV3StakingAddress(uniStaking.address);
+    expect(await feeDistrib.v3Staking()).to.eq(uniStaking.address)
+  })
+
+  it("Should toggle V3 switch for vault 179", async () => {
+    await feeDistrib.connect(dev).toggleVaultsToV3([179], true);
+    expect(await feeDistrib.v3Toggle(179)).to.eq(true)
+  })
+
+
   // it("Should have locked balance", async () => {
   //   let newDisttoken = await staking.newRewardDistributionToken(179);
   //   let distToken = await ethers.getContractAt("IERC20Upgradeable", newDisttoken)
@@ -238,28 +258,27 @@ describe("LP Staking Upgrade Migrate Now Test", function () {
   // });
 
   it("Should mint to generate some rewards", async () => {
-    let newDisttoken = await staking.newRewardDistributionToken(179);
-    let oldBal = await vaults[0].balanceOf(newDisttoken);
+    let oldBal = await vaults[0].balanceOf(uniStaking.address);
     await vaults[0].connect(kiwi).mint([3586,3906,3958], [1]);
-    let newBal = await vaults[0].balanceOf(newDisttoken);
+    let newBal = await vaults[0].balanceOf(uniStaking.address);
     expect(oldBal).to.not.equal(newBal);
   })
 
 
-  // it("Should let user claim rewards from minting", async () => {
-  //   const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+  it("Should let user claim rewards from minting", async () => {
+    const weth20 = await ethers.getContractAt("IERC20Upgradeable", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
-  //   await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
-  //   await weth20.connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
+    // await vaults[0].connect(kiwi).approve(uniSwapRouter.address, BASE.mul(10))
 
-  //   let oldWBal = await weth20.balanceOf(kiwi.getAddress())
-  //   let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
-  //   await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
-  //   let newWBal = await weth20.balanceOf(kiwi.getAddress())
-  //   let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
-  //   expect(newWBal.gt(oldWBal)).to.equal(true)
-  //   expect(newVBal.gt(oldVBal)).to.equal(true)
-  // });
+    let oldWBal = await weth20.balanceOf(await dao.getAddress())
+    let oldVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    await uniStaking.connect(kiwi).claimRewardsTo(0, kiwi.getAddress())
+    let newWBal = await weth20.balanceOf(await dao.getAddress())
+    let newVBal = await vaults[0].balanceOf(kiwi.getAddress())
+    // No WETH to claim since this is just a protocol usage.
+    expect(newWBal.eq(oldWBal)).to.equal(true)
+    expect(newVBal.gt(oldVBal)).to.equal(true)
+  });
 
 
   // it("Should not allow to withdraw locked tokens before lock", async () => {
