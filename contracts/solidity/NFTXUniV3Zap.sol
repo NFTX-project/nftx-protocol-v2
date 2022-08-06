@@ -196,12 +196,12 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
   }
 
   function isAddressTimelockExcluded(address addr, uint256 vaultId) public view returns (bool) {
-        if (address(timelockExcludeList) == address(0)) {
-            return false;
-        } else {
-            return timelockExcludeList.isExcluded(addr, vaultId);
-        }
+    if (address(timelockExcludeList) == address(0)) {
+      return false;
+    } else {
+      return timelockExcludeList.isExcluded(addr, vaultId);
     }
+  }
 
   function provideInventory721(uint256 vaultId, uint256[] calldata tokenIds) external {
     uint256 count = tokenIds.length;
@@ -392,6 +392,54 @@ contract NFTXUniV3Zap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1
   }
 
   function _addLiquidity1155WETH(
+    uint256 vaultId, 
+    uint256[] memory ids,
+    uint256[] memory amounts,
+    uint256 minWethIn,
+    uint256 wethIn,
+    address to
+  ) internal returns (uint256, uint256, uint256) {
+    require(nftxFactory.excludedFromFees(address(this)));
+    address vault = nftxFactory.vault(vaultId);
+
+    // Transfer tokens to zap and mint to NFTX.
+    address assetAddress = INFTXVault(vault).assetAddress();
+    IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
+    IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+    
+    uint256 count = INFTXVault(vault).mint(ids, amounts);
+    uint256 balance = (count * BASE); // We should not be experiencing fees.
+    
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
+  }
+
+  function _addV3Liquidity721WETH(
+    uint256 vaultId, 
+    uint256[] memory ids, 
+    uint256 minWethIn,
+    uint256 wethIn,
+    address to
+  ) internal returns (uint256, uint256, uint256) {
+    require(nftxFactory.excludedFromFees(address(this)));
+    address vault = nftxFactory.vault(vaultId);
+
+    // Transfer tokens to zap and mint to NFTX.
+    address assetAddress = INFTXVault(vault).assetAddress();
+    uint256 length = ids.length;
+    for (uint256 i; i < length; i++) {
+      transferFromERC721(assetAddress, ids[i], vault);
+      approveERC721(assetAddress, vault, ids[i]);
+    }
+    uint256[] memory emptyIds;
+    INFTXVault(vault).mint(ids, emptyIds);
+    uint256 balance = length * BASE; // We should not be experiencing fees.
+    
+    return _addLiquidityAndLock(vaultId, vault, balance, minWethIn, wethIn, to);
+  }
+
+
+// How does depositing work with tokenized positions?
+  function _addV3Liquidity1155WETH(
     uint256 vaultId, 
     uint256[] memory ids,
     uint256[] memory amounts,

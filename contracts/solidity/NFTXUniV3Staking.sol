@@ -54,7 +54,7 @@ contract NFTXUniV3Staking is INFTXUniV3Staking, PausableUpgradeable, DividendNFT
     }
 
     modifier onlyAdmin() {
-        require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "LPStaking: Not authorized");
+        require(msg.sender == owner() || msg.sender == nftxVaultFactory.feeDistributor(), "UniV3Staking: Not authorized");
         _;
     }
 
