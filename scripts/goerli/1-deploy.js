@@ -172,7 +172,7 @@ async function main() {
   console.log("-- assigned staking contracts");
 
   await vaultFactory.setFeeExclusion(stakingZap.address, true);
-  console.log("-- set fee exclusion");
+  console.log("-- set fee exclusion for stakingzap on factory");
 
   await vaultFactory.setZapContract(stakingZap.address);
   console.log("-- set zap contract");
@@ -237,6 +237,11 @@ async function main() {
   console.log("-- set vault factory on unstakingzap");
   await unstakingZap.setInventoryStaking(inventoryStaking.address);
   console.log("-- set inventory staking on unstakingzap");
+  await unstakingZap.setSushiRouterAndWeth(sushiRouterAddr);
+  console.log("-- set sushi router and weth on unstakingzap");
+
+  await vaultFactory.setFeeExclusion(unstakingZap.address, true);
+  console.log("-- set fee exclusion for unstakingzap on factory");
 
   // console.log("Adding guardians...");
   // for (let i = 0; i < teamAddresses.length; i++) {
