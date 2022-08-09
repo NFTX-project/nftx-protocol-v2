@@ -83,7 +83,7 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
     /// @notice Merkle reference for any required frontend differentiation
     string public merkleReference;
 
-    /// @notice URI to JSON list of encoded token IDs
+    /// @notice URI to JSON list of unencoded token IDs
     string public merkleLeavesURI;
 
 
