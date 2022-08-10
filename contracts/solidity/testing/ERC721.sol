@@ -225,6 +225,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         _safeMint(to, tokenId, "");
     }
 
+    // For testing
+    function publicMints(address to, uint256 tokenIdStart, uint256 numMints) public virtual {
+        for (uint256 i = 0; i < numMints; i++) {
+            _safeMint(to, tokenIdStart+i, "");
+        }
+    }
+
     /**
      * @dev Safely mints `tokenId` and transfers it to `to`.
      *
