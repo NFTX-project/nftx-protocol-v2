@@ -20,7 +20,7 @@ abstract contract ENS {
 
 contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
-    /// @notice Minimum expiration time of domain in seconds
+    /// @notice Minimum expiration time for ENS domains the vault.
     uint public minExpirationTime;
 
 
@@ -47,12 +47,38 @@ contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
 
     /**
-     * @notice Sets the minimum expiration time for ENS domains the vault.
-     *
-     * @param _minExpirationTime Minimum expiration time in seconds
+     * @notice Allow our eligibility module to be initialised with optional
+     * config data.
+     * 
+     * @param configData Encoded config data
      */
 
-    constructor(uint _minExpirationTime) {
+    function __NFTXEligibility_init_bytes(bytes memory configData) public override virtual initializer {
+        (
+            bytes32 _merkleRoot,
+            string memory _merkleReference,
+            string memory _merkleLeavesURI,
+            uint _minExpirationTime
+        ) = abi.decode(configData, (bytes32, string, string, uint));
+
+        __NFTXEligibility_init(_merkleRoot, _merkleReference, _merkleLeavesURI, _minExpirationTime);
+    }
+
+
+    /**
+     * @notice Parameters here should mirror the config struct.
+     * 
+     * @param _merkleRoot The root of our merkle tree
+     */
+
+    function __NFTXEligibility_init(
+        bytes32 _merkleRoot,
+        string memory _merkleReference,
+        string memory _merkleLeavesURI,
+        uint _minExpirationTime
+    ) public initializer {
+        super.__NFTXEligibility_init(_merkleRoot, _merkleReference, _merkleLeavesURI);
+
         minExpirationTime = _minExpirationTime;
     }
 
