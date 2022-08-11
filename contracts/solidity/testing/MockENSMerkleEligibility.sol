@@ -56,6 +56,9 @@ contract MockNFTXENSMerkleEligibility is NFTXMerkleEligibility {
      * @notice Parameters here should mirror the config struct.
      * 
      * @param _merkleRoot The root of our merkle tree
+     * @param _merkleReference Public name of the merkle eligibility implementation
+     * @param _merkleLeavesURI API endpoint providing unencoded JSON array
+     * @param _minExpirationTime Minimum number of seconds until ENS expiration
      */
 
     function __NFTXEligibility_init(
