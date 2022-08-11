@@ -5,34 +5,6 @@ pragma solidity ^0.8.0;
 import "./NFTXEligibility.sol";
 
 
-library Strings {
-    /**
-     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
-     */
-    function toString(uint256 value) internal pure returns (string memory) {
-        // Inspired by OraclizeAPI's implementation - MIT licence
-        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-
-        if (value == 0) {
-            return "0";
-        }
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
-        }
-        return string(buffer);
-    }
-}
-
-
 /**
  * @dev These functions deal with verification of Merkle Tree proofs.
  *
@@ -60,23 +32,12 @@ library MerkleProof {
         bytes32 root,
         bytes32 leaf
     ) internal pure returns (bool) {
-        return processProof(proof, leaf) == root;
-    }
-
-    /**
-     * @dev Returns the rebuilt hash obtained by traversing a Merkle tree up
-     * from `leaf` using `proof`. A `proof` is valid if and only if the rebuilt
-     * hash matches the root of the tree. When processing the proof, the pairs
-     * of leafs & pre-images are assumed to be sorted.
-     *
-     * _Available since v4.4._
-     */
-    function processProof(bytes32[] memory proof, bytes32 leaf) internal pure returns (bytes32) {
         bytes32 computedHash = leaf;
-        for (uint256 i = 0; i < proof.length; i++) {
+        for (uint i = 0; i < proof.length;) {
             computedHash = _hashPair(computedHash, proof[i]);
+            unchecked { i++; }
         }
-        return computedHash;
+        return computedHash == root;
     }
 
     function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
@@ -122,7 +83,7 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
     /// @notice Merkle reference for any required frontend differentiation
     string public merkleReference;
 
-    /// @notice URI to JSON list of encoded token IDs
+    /// @notice URI to JSON list of unencoded token IDs
     string public merkleLeavesURI;
 
 
@@ -201,6 +162,7 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
         return validTokenHashes[_hashTokenId(tokenId)];
     }
 
+
     /**
      * @notice Checks if the token requires a precursory validation before it can have
      * it's eligibility determined.
@@ -216,40 +178,6 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
     function requiresProcessing(uint tokenId, bytes32[] calldata merkleProof) public view returns (bool) {
         // Check if we have a confirmed processing log
         return !_processedTokenHashes[_hashTokenId(tokenId)][_hashMerkleProof(merkleProof)];
-    }
-
-
-    /**
-     * @notice This will run a precursory check by encoding the token ID, creating the
-     * token hash, and then checking this against our merkle tree.
-     *
-     * @param tokenId The ENS token ID being validated
-     * @param merkleProof Merkle proof to validate against the tokenId
-     *
-     * @return bool If the token is valid
-     */
-
-    function processToken(uint tokenId, bytes32[] calldata merkleProof) public returns (bool) {
-        // If the token has already been processed, just return the validity
-        if (!requiresProcessing(tokenId, merkleProof)) {
-            return _checkIfEligible(tokenId);
-        }
-
-    	// Get the hashed equivalent of our tokenId
-    	bytes32 tokenHash = _hashTokenId(tokenId);
-
-    	// Determine if our domain is eligible by traversing our merkle tree
-    	bool isValid = MerkleProof.verify(merkleProof, merkleRoot, tokenHash);
-
-        // Mark our hash as processed
-        validTokenHashes[tokenHash] = isValid;
-        _processedTokenHashes[tokenHash][_hashMerkleProof(merkleProof)] = true;
-
-        // Let our stalkers know that we are making the request
-        emit PrecursoryCheckStarted(tokenId, tokenHash);
-        emit PrecursoryCheckComplete(tokenId, tokenHash, isValid);
-
-        return isValid;
     }
 
 
@@ -279,6 +207,39 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
 
 
     /**
+     * @notice This will run a precursory check by encoding the token ID, creating the
+     * token hash, and then checking this against our merkle tree.
+     *
+     * @param tokenId The ENS token ID being validated
+     * @param merkleProof Merkle proof to validate against the tokenId
+     *
+     * @return isValid If the token is valid
+     */
+
+    function processToken(uint tokenId, bytes32[] calldata merkleProof) public returns (bool isValid) {
+        // If the token has already been processed, just return the validity
+        if (!requiresProcessing(tokenId, merkleProof)) {
+            return _checkIfEligible(tokenId);
+        }
+
+    	// Get the hashed equivalent of our tokenId
+    	bytes32 tokenHash = _hashTokenId(tokenId);
+
+    	// Determine if our domain is eligible by traversing our merkle tree
+    	isValid = MerkleProof.verify(merkleProof, merkleRoot, tokenHash);
+
+        // Update our token eligibility _only_ if we have been able to confirm that
+        // it is eligible. This prevents incorrect proofs from bricking a token.
+        if (isValid) {
+            validTokenHashes[tokenHash] = isValid;
+        }
+
+        // Confirm that this has been processed
+        _processedTokenHashes[tokenHash][_hashMerkleProof(merkleProof)] = true;
+    }
+
+
+    /**
      * @notice Hashes the token ID to convert it into the token hash.
      *
      * @param tokenId The ENS token ID being hashed
@@ -287,7 +248,7 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
      */
 
     function _hashTokenId(uint tokenId) private pure returns (bytes32) {
-        return keccak256(bytes(Strings.toString(tokenId)));
+        return keccak256(_tokenString(tokenId));
     }
 
 
@@ -301,6 +262,39 @@ abstract contract NFTXMerkleEligibility is NFTXEligibility {
 
     function _hashMerkleProof(bytes32[] memory merkleProofs) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(merkleProofs));
+    }
+
+
+    /**
+     * @notice Converts a `uint256` to its ASCII `string` decimal representation.
+     * 
+     * @param value Integer value
+     * 
+     * @return string String of the integer value
+     */
+
+    function _tokenString(uint256 value) internal pure returns (bytes memory) {
+        if (value == 0) {
+            return "0";
+        }
+
+        uint256 temp = value;
+        uint256 digits;
+
+        while (temp != 0) {
+            unchecked { ++digits; }
+            temp /= 10;
+        }
+
+        bytes memory buffer = new bytes(digits);
+
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+
+        return buffer;
     }
 
 }
