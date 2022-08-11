@@ -7,7 +7,7 @@ import "../eligibility/NFTXMerkleEligibility.sol";
 
 contract MockNFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
-    /// @notice Minimum expiration time of domain
+    /// @notice Minimum expiration time for ENS domains in seconds
     uint public minExpirationTime;
 
 

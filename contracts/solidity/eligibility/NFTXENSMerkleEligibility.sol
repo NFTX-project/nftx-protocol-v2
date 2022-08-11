@@ -20,7 +20,7 @@ abstract contract ENS {
 
 contract NFTXENSMerkleEligibility is NFTXMerkleEligibility {
 
-    /// @notice Minimum expiration time for ENS domains the vault.
+    /// @notice Minimum expiration time for ENS domains in seconds
     uint public minExpirationTime;
 
 
