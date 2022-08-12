@@ -334,10 +334,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice TODO
-   * 
-   * @param vaultId TODO
-   * @param ids TODO
+   * @param vaultId The ID of the NFTX vault
+   * @param ids An array of token IDs to be minted
    */
 
   function _mint721(uint256 vaultId, uint256[] memory ids) internal returns (address) {
@@ -367,7 +365,9 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * ..
+   * @param vaultId The ID of the NFTX vault
+   * @param ids An array of token IDs to be minted
+   * @param amounts An array of amounts whose indexes map to the ids array
    */
 
   function _mint1155(uint256 vaultId, uint256[] memory ids, uint256[] memory amounts) internal returns (address) {
@@ -387,12 +387,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice TODO
    * 
-   * @param vaultId TODO
-   * @param idsIn TODO
-   * @param idsOut TODO
-   * @param to TODO
+   * @param vaultId The ID of the NFTX vault
+   * @param idsIn An array of token IDs to be minted
+   * @param idsOut An array of token IDs to be redeemed
+   * @param to The recipient of the idsOut from the tx
    */
 
   function _swap721(
