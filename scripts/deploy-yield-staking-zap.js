@@ -1,0 +1,42 @@
+const {BigNumber} = require("@ethersproject/bignumber");
+const {ethers, upgrades} = require("hardhat");
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+
+  console.log("Deploying account:", await deployer.getAddress());
+  console.log(
+    "Deploying account balance:",
+    (await deployer.getBalance()).toString(),
+    "\n"
+  );
+
+  const YieldStakingZap = await ethers.getContractFactory("NFTXYieldStakingZap");
+  // Goerli
+  const zap = await YieldStakingZap.deploy(
+    "0xe01Cf5099e700c282A56E815ABd0C4948298Afae",  // Vault Factory
+    "0xe5AB394e284d095aDacff8A0fb486cb5a24b0b7a",  // Inventory Staking
+    "0x33b381E2e0c4adC1dbd388888e9A29079e5b6702",  // LP Staking
+    "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",  // WETH
+  );
+  // Mainnet
+  // const zap = await YieldStakingZap.deploy(
+  //    "0xBE86f647b167567525cCAAfcd6f881F1Ee558216",  // Vault Factory
+  //    "0x5fAD0e4cc9925365b9B0bbEc9e0C3536c0B1a5C7",  // Inventory Staking
+  //    "0x688c3E4658B5367da06fd629E41879beaB538E37",  // LP Staking
+  //    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  // WETH
+  // );
+  await zap.deployed();
+  console.log("Yield Staking Zap:", zap.address);
+}
+
+main()
+  .then(() => {
+    console.log("\nDeployment completed successfully ✓");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.log("\nDeployment failed ✗");
+    console.error(error);
+    process.exit(1);
+  });

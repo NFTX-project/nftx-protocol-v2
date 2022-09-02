@@ -75,7 +75,10 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     bytes calldata swapCallData
   ) external payable nonReentrant {
     // Ensure we have tx value
-    require(msg.value > 0);
+    require(msg.value > 0, 'Invalid value provided');
+
+    // Get our start WETH balance
+    uint wethBalance = WETH.balanceOf(address(this));
 
     // Wrap ETH into WETH for our contract from the sender
     if (msg.value > 0) {
@@ -84,23 +87,24 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     // Get our vaults base staking token. This is used to calculate the xToken
     address baseToken = _vaultAddress(vaultId);
+    require(baseToken != address(0), 'Invalid vault provided');
 
     // Convert WETH to vault token
     uint256 vaultTokenAmount = _fillQuote(baseToken, swapTarget, swapCallData);
 
-    // Get the starting balance of xTokens
-    XTokenUpgradeable xToken = XTokenUpgradeable(inventoryStaking.xTokenAddr(baseToken));
-    uint256 xTokenBalance = xToken.balanceOf(address(this));
+    // Make a direct timelock mint using the default timelock duration. This sends directly
+    // to our user, rather than via the zap, to avoid the timelock locking the tx.
+    IERC20Upgradeable(baseToken).transfer(inventoryStaking.vaultXToken(vaultId), vaultTokenAmount);
+    inventoryStaking.timelockMintFor(vaultId, vaultTokenAmount, msg.sender, 2);
 
-    // Deposit vault token and receive xToken into the zap
-    inventoryStaking.deposit(vaultId, vaultTokenAmount);
-
-    // transfer xToken to caller
-    xToken.transferFrom(
-      address(this),
-      msg.sender,
-      xToken.balanceOf(address(this)) - xTokenBalance
-    );
+    // Return any left of WETH to the user as ETH
+    uint256 remainingWETH = WETH.balanceOf(address(this)) - wethBalance;
+    if (remainingWETH > 0) {
+      // Unwrap our WETH into ETH and transfer it to the recipient
+      WETH.withdraw(remainingWETH);
+      (bool success, ) = payable(msg.sender).call{value: remainingWETH}("");
+      require(success, "Unable to send unwrapped WETH");
+    }
   }
 
 
@@ -114,7 +118,10 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     bytes calldata swapCallData
   ) external payable nonReentrant {
     // Ensure we have tx value
-    require(msg.value > 0);
+    require(msg.value > 0, 'Invalid value provided');
+
+    // Get our start WETH balance
+    uint wethBalance = WETH.balanceOf(address(this));
 
     // Wrap ETH into WETH for our contract from the sender
     if (msg.value > 0) {
@@ -123,27 +130,28 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     // Get our vaults base staking token. This is used to calculate the xToken
     address baseToken = _vaultAddress(vaultId);
+    require(baseToken != address(0), 'Invalid vault provided');
 
     // Convert WETH to vault token
     uint256 vaultTokenAmount = _fillQuote(baseToken, swapTarget, swapCallData);
 
-    // Check that we have a liquidity pool for our vault
-    address stakingToken = lpStaking.stakingToken(baseToken);
-    require(stakingToken != address(0), "LPStaking: Nonexistent pool");
-
-    // Get the starting balance of xTokens
-    IERC20Upgradeable xToken = IERC20Upgradeable(lpStaking.rewardDistributionToken(vaultId));
-    uint256 xTokenBalance = xToken.balanceOf(address(this));
-
-    // Deposit vault token and receive xToken into the zap
-    lpStaking.deposit(vaultId, vaultTokenAmount);
-
-    // transfer xToken to caller
-    xToken.transferFrom(
-      address(this),
-      msg.sender,
-      xToken.balanceOf(address(this)) - xTokenBalance
+    // Allow our filled base token to be handled by our inventory stake
+    require(
+      IERC20Upgradeable(baseToken).approve(address(lpStaking), vaultTokenAmount),
+      'Unable to approve contract'
     );
+
+    // Deposit vault token and send our xtoken to the sender
+    lpStaking.timelockDepositFor(vaultId, msg.sender, vaultTokenAmount, 2);
+
+    // Return any left of WETH to the user as ETH
+    uint256 remainingWETH = WETH.balanceOf(address(this)) - wethBalance;
+    if (remainingWETH > 0) {
+      // Unwrap our WETH into ETH and transfer it to the recipient
+      WETH.withdraw(remainingWETH);
+      (bool success, ) = payable(msg.sender).call{value: remainingWETH}("");
+      require(success, "Unable to send unwrapped WETH");
+    }
   }
 
 
@@ -178,6 +186,11 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   ) internal returns (uint256) {
       // Track our balance of the buyToken to determine how much we've bought.
       uint256 boughtAmount = IERC20Upgradeable(buyToken).balanceOf(address(this));
+
+      // Give `swapTarget` an infinite allowance to spend this contract's `sellToken`.
+      // Note that for some tokens (e.g., USDT, KNC), you must first reset any existing
+      // allowance to 0 before being able to update it.
+      require(IERC20Upgradeable(address(WETH)).approve(swapTarget, type(uint256).max), 'Unable to approve contract');
 
       // Call the encoded swap function call on the contract at `swapTarget`
       (bool success,) = swapTarget.call(swapCallData);
