@@ -185,11 +185,16 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     if (remaining > 0) {
       _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
     }
+
+    // Return any remaining vault token dust that may remain due to slippage
+    _transferVaultDust(spender, vault);
   }
 
 
   /**
-   * @notice TODO
+   * @notice Purchases vault tokens from 0x with WETH and then redeems the tokens for
+   * either random or specific token IDs from the vault. The specified recipient will
+   * receive the ERC721 tokens, as well as any WETH dust that is left over from the tx.
    * 
    * @param vaultId The ID of the NFTX vault
    * @param amount The number of tokens to buy
@@ -226,6 +231,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Buy vault tokens that will cover our transaction
     uint256 quoteAmount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
 
+    // Redeem token IDs from the vault
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, quoteAmount, to);
 
@@ -234,6 +240,9 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     if (remaining > 0) {
       _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
     }
+
+    // Return any remaining vault token dust that may remain due to slippage
+    _transferVaultDust(spender, vault);
   }
 
 
@@ -330,6 +339,9 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     if (remaining > 0) {
       _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
     }
+
+    // Return any remaining vault token dust that may remain due to slippage
+    _transferVaultDust(spender, vault);
   }
 
 
@@ -574,6 +586,21 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
       WETH.withdraw(amount);
       (bool success, ) = payable(to).call{value: amount}("");
       require(success, "Unable to send unwrapped WETH");
+    }
+  }
+
+
+  /**
+   * @notice Transfers any vault token dust remaining on the contract to the spender.
+   * 
+   * @param to Recipient of the transfer
+   * @param vault Address of the vault token
+   */
+
+  function _transferVaultDust(address to, address vault) internal {
+    uint dustBalance = IERC20Upgradeable(vault).balanceOf(address(this));
+    if (dustBalance) {
+      IERC20Upgradeable(vault).transfer(to, dustBalance);
     }
   }
 
