@@ -132,7 +132,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     emit Sell(ids.length, amount, to);
 
     // Transfer the filled ETH to recipient
-    _transferEthOrWeth(to, amount, false);
+    _transferEthDust(to, amount);
   }
 
 
@@ -165,10 +165,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have been provided IDs
     require(idsIn.length != 0, 'Must send IDs');
 
+    // Check that we have a message value sent
+    require(msg.value > 0, 'Invalid amount');
+
     // Wrap ETH into WETH for our contract from the sender
-    if (msg.value > 0) {
-      WETH.deposit{value: msg.value}();
-    }
+    WETH.deposit{value: msg.value}();
 
     // Get our NFTX vault
     address vault = _vaultAddress(vaultId);
@@ -183,7 +184,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Return any remaining WETH from the transaction
     uint256 remaining = WETH.balanceOf(address(this));
     if (remaining > 0) {
-      _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
+      _transferEthDust(spender, remaining);
     }
 
     // Return any remaining vault token dust that may remain due to slippage
@@ -220,10 +221,11 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we have an amount specified
     require(amount > 0, 'Must send amount');
 
+    // Check that we have a message value sent
+    require(msg.value >= amount, 'Invalid amount');
+
     // Wrap ETH into WETH for our contract from the sender
-    if (msg.value > 0) {
-      WETH.deposit{value: msg.value}();
-    }
+    WETH.deposit{value: msg.value}();
 
     // Get our vault address information
     address vault = _vaultAddress(vaultId);
@@ -238,7 +240,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Refund any remaining WETH
     uint256 remaining = WETH.balanceOf(address(this));
     if (remaining > 0) {
-      _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
+      _transferEthDust(spender, remaining);
     }
 
     // Return any remaining vault token dust that may remain due to slippage
@@ -284,7 +286,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     emit Sell(totalAmount, amount, to);
 
     // Transfer the filled ETH to recipient
-    _transferEthOrWeth(to, amount, false);
+    _transferEthDust(to, amount);
   }
 
 
@@ -315,14 +317,15 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
+    // Check that we have a message value sent
+    require(msg.value > 0, 'Invalid amount');
+
     // Get a sum of the total number of IDs we have sent up, and validate that
     // the data sent through is valid.
     (, uint totalAmount) = _validate1155Ids(idsIn, amounts);
 
     // Wrap ETH into WETH for our contract from the sender
-    if (msg.value > 0) {
-      WETH.deposit{value: msg.value}();
-    }
+    WETH.deposit{value: msg.value}();
 
     // Get our NFTX vault
     address vault = _vaultAddress(vaultId);
@@ -337,7 +340,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Return any remaining WETH from the transaction
     uint256 remaining = WETH.balanceOf(address(this));
     if (remaining > 0) {
-      _transferEthOrWeth(spender, remaining, bool(msg.value > 0));
+      _transferEthDust(spender, remaining);
     }
 
     // Return any remaining vault token dust that may remain due to slippage
@@ -572,19 +575,13 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * 
    * @param to Recipient of the transfer
    * @param amount Amount to be transferred
-   * @param isWeth If user prefers to receive WETH rather than ETH
    */
 
-  function _transferEthOrWeth(address to, uint amount, bool isWeth) internal {
-    if (isWeth) {
-      // Transfer the WETH to the recipient
-      WETH.transfer(to, amount);
-    } else {
-      // Unwrap our WETH into ETH and transfer it to the recipient
-      WETH.withdraw(amount);
-      (bool success, ) = payable(to).call{value: amount}("");
-      require(success, "Unable to send unwrapped WETH");
-    }
+  function _transferEthDust(address to, uint amount) internal {
+    // Unwrap our WETH into ETH and transfer it to the recipient
+    WETH.withdraw(amount);
+    (bool success, ) = payable(to).call{value: amount}("");
+    require(success, "Unable to send unwrapped WETH");
   }
 
 
