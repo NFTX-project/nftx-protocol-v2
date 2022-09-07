@@ -62,9 +62,20 @@ describe('Yield Staking Zap', function () {
     mock0xProvider = await Mock0xProvider.deploy()
     await mock0xProvider.deployed()
 
+    // Set up a sushiswap mock
+    const MockSushiSwap = await ethers.getContractFactory("MockSushiSwap")
+    mockSushiSwap = await MockSushiSwap.deploy()
+    await mockSushiSwap.deployed()
+
     // Set up our NFTX Marketplace 0x Zap
     const YieldStakingZap = await ethers.getContractFactory('NFTXYieldStakingZap')
-    yieldStakingZap = await YieldStakingZap.deploy(nftx.address, inventoryStaking.address, lpStaking.address, weth.address);
+    yieldStakingZap = await YieldStakingZap.deploy(
+      nftx.address,
+      inventoryStaking.address,
+      lpStaking.address,
+      mockSushiSwap.address,  // Sushi router
+      weth.address,
+    );
     await yieldStakingZap.deployed()
 
     // Allow our yield staking zap to exclude fees
@@ -163,7 +174,17 @@ describe('Yield Staking Zap', function () {
 
     it("Should ensure a tx value is sent", async function () {
       await expect(
-        yieldStakingZap.connect(alice).buyAndStakeLiquidity(await vault.vaultId(), swapTarget, swapCallData)
+        yieldStakingZap.connect(alice).buyAndStakeLiquidity(
+          // Base
+          await vault.vaultId(),
+          // 0x
+          swapTarget,
+          swapCallData,
+          // Sushiswap
+          ethers.utils.parseEther('2'),   // minTokenIn
+          ethers.utils.parseEther('0.5'), // minWethIn
+          ethers.utils.parseEther('0.5'),
+        )
       ).to.be.revertedWith('Invalid value provided');
     });
 
@@ -172,9 +193,16 @@ describe('Yield Staking Zap', function () {
       // not check that the ID exists before referencing it.
       await expect(
         yieldStakingZap.connect(alice).buyAndStakeLiquidity(
+          // Base
           420,
+          // 0x
           swapTarget,
           swapCallData,
+          // Sushiswap
+          ethers.utils.parseEther('2'),   // minTokenIn
+          ethers.utils.parseEther('0.5'), // minWethIn
+          ethers.utils.parseEther('0.5'),
+          // TX value
           {value: ethers.utils.parseEther("1")}
         )
       ).to.be.reverted;
@@ -182,19 +210,22 @@ describe('Yield Staking Zap', function () {
 
     it("Should allow for ETH to be staked into xToken", async function () {
       await yieldStakingZap.connect(alice).buyAndStakeLiquidity(
+        // Base
         await vault.vaultId(),
+        // 0x
         swapTarget,
         swapCallData,
+        // Sushiswap
+        ethers.utils.parseEther('2'),   // minTokenIn
+        ethers.utils.parseEther('0.5'), // minWethIn
+        ethers.utils.parseEther('0.5'),
+        // TX value
         {value: ethers.utils.parseEther("1")}
       );
 
       // Our sender should now have 2 xToken
       let vaultXTokenAddress = await lpStaking.newRewardDistributionToken(await vault.vaultId());
-      console.log(vaultXTokenAddress);
-
       const xToken = await ethers.getContractAt("IERC20Upgradeable", vaultXTokenAddress);
-      console.log(xToken);
-
       expect(await xToken.balanceOf(alice.address)).to.equal('2000000000000000000');
     });
 
@@ -202,9 +233,16 @@ describe('Yield Staking Zap', function () {
       let startBalance = await ethers.provider.getBalance(bob.address);
 
       await yieldStakingZap.connect(alice).buyAndStakeLiquidity(
+        // Base
         await vault.vaultId(),
+        // 0x
         swapTarget,
         swapCallData,
+        // Sushiswap
+        ethers.utils.parseEther('2'),   // minTokenIn
+        ethers.utils.parseEther('0.5'), // minWethIn
+        ethers.utils.parseEther('0.5'),
+        // TX value
         {value: ethers.utils.parseEther("2")}
       );
 
