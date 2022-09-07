@@ -126,7 +126,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address vault = _mint721(vaultId, ids);
 
     // Sell our vault token for WETH
-    uint256 amount = _fillQuote(vault, address(WETH), spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(vault, address(WETH), swapTarget, swapCallData);
 
     // Emit our sale event
     emit Sell(ids.length, amount, to);
@@ -174,7 +174,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address vault = _vaultAddress(vaultId);
 
     // Buy enough vault tokens to fuel our buy
-    uint256 amount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(address(WETH), vault, swapTarget, swapCallData);
 
     // Swap our tokens for the IDs requested
     _swap721(vaultId, idsIn, specificIds, to);
@@ -229,7 +229,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address vault = _vaultAddress(vaultId);
 
     // Buy vault tokens that will cover our transaction
-    uint256 quoteAmount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
+    uint256 quoteAmount = _fillQuote(address(WETH), vault, swapTarget, swapCallData);
 
     // Redeem token IDs from the vault
     _redeem(vaultId, amount, specificIds, to);
@@ -278,7 +278,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address vault = _mint1155(vaultId, ids, amounts);
 
     // Sell our vault token for WETH
-    uint256 amount = _fillQuote(vault, address(WETH), spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(vault, address(WETH), swapTarget, swapCallData);
 
     // Emit our sale event
     emit Sell(totalAmount, amount, to);
@@ -328,7 +328,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     address vault = _vaultAddress(vaultId);
 
     // Buy enough vault tokens to fuel our buy
-    uint256 amount = _fillQuote(address(WETH), vault, spender, swapTarget, swapCallData);
+    uint256 amount = _fillQuote(address(WETH), vault, swapTarget, swapCallData);
 
     // Swap our tokens for the IDs requested
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
@@ -540,7 +540,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * 
    * @param sellToken The `sellTokenAddress` field from the API response
    * @param buyToken The `buyTokenAddress` field from the API response
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapTarget The `to` field from the API response
    * @param swapCallData The `data` field from the API response
    */
@@ -548,7 +547,6 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   function _fillQuote(
     address sellToken,
     address buyToken,
-    address spender,
     address payable swapTarget,
     bytes calldata swapCallData
   ) internal returns (uint256) {
@@ -599,7 +597,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
   function _transferVaultDust(address to, address vault) internal {
     uint dustBalance = IERC20Upgradeable(vault).balanceOf(address(this));
-    if (dustBalance) {
+    if (dustBalance > 0) {
       IERC20Upgradeable(vault).transfer(to, dustBalance);
     }
   }

@@ -62,7 +62,7 @@ describe('0x Marketplace Zap', function () {
 
     // Set up our NFTX Marketplace 0x Zap
     const MarketplaceZap = await ethers.getContractFactory('NFTXMarketplace0xZap')
-    marketplaceZap = await MarketplaceZap.deploy(nftx.address, staking.address, weth.address)
+    marketplaceZap = await MarketplaceZap.deploy(nftx.address, weth.address)
     await marketplaceZap.deployed()
 
     // Mint the vault asset address to Alice (10 tokens)
