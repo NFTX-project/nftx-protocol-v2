@@ -4,9 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
-import "./interface/INFTXFeeDistributor.sol";
 import "./token/IERC1155Upgradeable.sol";
-import "./token/IERC20Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
@@ -365,7 +363,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
       transferFromERC721(assetAddress, ids[i], vault);
 
       if (assetAddress == CRYPTO_PUNKS) {
-        approveERC721(assetAddress, ids[i], vault);
+        _approveERC721(assetAddress, ids[i], vault);
       }
 
       unchecked { ++i; }
@@ -426,7 +424,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
       transferFromERC721(assetAddress, idsIn[i], vault);
 
       if (assetAddress == CRYPTO_PUNKS) {
-        approveERC721(assetAddress, idsIn[i], vault);
+        _approveERC721(assetAddress, idsIn[i], vault);
       }
 
       unchecked { ++i; }
@@ -525,7 +523,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param to The address the token is being transferred to
    */
 
-  function approveERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
+  function _approveERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     if (assetAddr != CRYPTO_PUNKS) {
       return;
     }
