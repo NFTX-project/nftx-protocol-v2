@@ -51,7 +51,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   bool public paused = false;
 
   /// @notice Sets our 0x swap target
-  address private swapTarget;
+  address payable private swapTarget;
   
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
@@ -647,7 +647,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param _swapTarget The new swap target to used
    */
 
-  function setSwapTarget(address _swapTarget) external onlyOnwer {
+  function setSwapTarget(address payable _swapTarget) external onlyOnwer {
     swapTarget = _swapTarget
   }
 
