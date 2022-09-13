@@ -5,9 +5,7 @@ pragma solidity ^0.8.0;
 import "./interface/INFTXInventoryStaking.sol";
 import "./interface/INFTXLPStaking.sol";
 import "./interface/INFTXVaultFactory.sol";
-import "./interface/IRewardDistributionToken.sol";
 import "./interface/IUniswapV2Router01.sol";
-import "./token/XTokenUpgradeable.sol";
 import "./util/OwnableUpgradeable.sol";
 import "./util/ReentrancyGuardUpgradeable.sol";
 import "./util/SafeERC20Upgradeable.sol";
@@ -36,6 +34,12 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
   using SafeERC20Upgradeable for IERC20Upgradeable;
   
+  /// @notice Allows zap to be paused
+  bool public paused = false;
+
+  /// @notice Sets our 0x swap target
+  address payable private swapTarget;
+ 
   /// @notice Holds the mapping of our sushi router
   IUniswapV2Router01 public immutable sushiRouter;
 
@@ -65,7 +69,7 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     address _lpStaking,
     address _sushiRouter,
     address _weth
-  ) {
+  ) Ownable() ReentrancyGuard() {
     // Set our staking contracts
     inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
     lpStaking = INFTXLPStaking(_lpStaking);
@@ -87,13 +91,11 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
    * against the vault and timelock them.
    * 
    * @param vaultId The ID of the NFTX vault
-   * @param swapTarget The `to` field from the 0x API response
    * @param swapCallData The `data` field from the 0x API response
    */
 
   function buyAndStakeInventory(
     uint256 vaultId,
-    address payable swapTarget,
     bytes calldata swapCallData
   ) external payable nonReentrant {
     // Ensure we have tx value
@@ -112,7 +114,7 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     require(baseToken != address(0), 'Invalid vault provided');
 
     // Convert WETH to vault token
-    uint256 vaultTokenAmount = _fillQuote(baseToken, swapTarget, swapCallData);
+    uint256 vaultTokenAmount = _fillQuote(baseToken, swapCallData);
 
     // Make a direct timelock mint using the default timelock duration. This sends directly
     // to our user, rather than via the zap, to avoid the timelock locking the tx.
@@ -136,7 +138,6 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
    * sushi and then the timelocking against our LP token.
    * 
    * @param vaultId The ID of the NFTX vault
-   * @param swapTarget The `to` field from the 0x API response
    * @param swapCallData The `data` field from the 0x API response
    * @param minTokenIn The minimum amount of token to LP
    * @param minWethIn The minimum amount of ETH (WETH) to LP
@@ -148,7 +149,6 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     uint256 vaultId,
 
     // 0x integration
-    address payable swapTarget,
     bytes calldata swapCallData,
 
     // Sushiswap integration
@@ -174,7 +174,7 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     require(baseToken != address(0), 'Invalid vault provided');
 
     // Convert WETH to vault token
-    uint256 vaultTokenAmount = _fillQuote(baseToken, swapTarget, swapCallData);
+    uint256 vaultTokenAmount = _fillQuote(baseToken, swapCallData);
 
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
@@ -261,13 +261,11 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
    * @notice Swaps ERC20->ERC20 tokens held by this contract using a 0x-API quote.
    *
    * @param buyToken The `buyTokenAddress` field from the API response
-   * @param swapTarget The `to` field from the API response
    * @param swapCallData The `data` field from the API response
    */
 
   function _fillQuote(
     address buyToken,
-    address payable swapTarget,
     bytes calldata swapCallData
   ) internal returns (uint256) {
       // Track our balance of the buyToken to determine how much we've bought.
@@ -300,6 +298,28 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     require(nftxVaultAddresses[vaultId] != address(0), 'Vault does not exist');
     return nftxVaultAddresses[vaultId];
+  }
+
+
+  /**
+   * @notice Allows our zap to be paused to prevent any processing.
+   * 
+   * @param _paused New pause state
+   */
+
+  function pause(bool _paused) external onlyOnwer {
+    paused = _paused
+  }
+
+
+  /**
+   * @notice Allows our zap to be paused to prevent any processing.
+   * 
+   * @param _swapTarget The new swap target to used
+   */
+
+  function setSwapTarget(address payable _swapTarget) external onlyOnwer {
+    swapTarget = _swapTarget
   }
 
 
