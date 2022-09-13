@@ -2,6 +2,7 @@ require("dotenv").config();
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
 require("hardhat-gas-reporter");
+require("@nomiclabs/hardhat-etherscan");
 require('hardhat-docgen');
 
 /**
@@ -62,5 +63,8 @@ module.exports = {
   },
   mocha: {
     timeout: 100000,
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY
   },
 };
