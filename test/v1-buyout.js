@@ -56,7 +56,7 @@ describe("V1 Buyout", function () {
       "Cannot pair with 0 ETH"
     );
   });
-  
+
   it("Should not initiailzie again", async () => {
     await expectException(
       buyout.__NFTXV1Buyout_init(),
@@ -65,8 +65,8 @@ describe("V1 Buyout", function () {
   });
 
   it("Should allow the owner to set a buyout with 4 eth", async () => {
-    await buyout.addBuyout(xToken.address, {value: ethers.utils.parseEther("4")})
-    expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
+    await buyout.addBuyout(xToken.address, { value: ethers.utils.parseEther("4") })
+    expect(await buyout.ethAvailable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("4"))
   });
 
@@ -76,14 +76,14 @@ describe("V1 Buyout", function () {
     let newBal = await ethers.provider.getBalance(primary.address);
     expect(await ethers.provider.getBalance(buyout.address)).to.equal("0")
     expect(newBal).to.gt(oldBal.add(ethers.utils.parseEther("4")).sub(ethers.utils.parseEther("0.1")))
-    expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
+    expect(await buyout.ethAvailable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
     await buyout.clearBuyout(xToken.address);
-    expect(await buyout.ethAvailiable(xToken.address)).to.equal("0")
+    expect(await buyout.ethAvailable(xToken.address)).to.equal("0")
   })
 
   it("Should allow the owner to add back a buyout with 4 eth", async () => {
-    await buyout.addBuyout(xToken.address, {value: ethers.utils.parseEther("4")})
-    expect(await buyout.ethAvailiable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
+    await buyout.addBuyout(xToken.address, { value: ethers.utils.parseEther("4") })
+    expect(await buyout.ethAvailable(xToken.address)).to.equal(ethers.utils.parseEther("4"))
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("4"))
   });
 
@@ -127,15 +127,15 @@ describe("V1 Buyout", function () {
   })
 
   it("Should allow the owner to set a buyout with 10 eth", async () => {
-    await buyout.addBuyout(xToken2.address, {value: ethers.utils.parseEther("10")})
-    expect(await buyout.ethAvailiable(xToken2.address)).to.equal(ethers.utils.parseEther("10"))
+    await buyout.addBuyout(xToken2.address, { value: ethers.utils.parseEther("10") })
+    expect(await buyout.ethAvailable(xToken2.address)).to.equal(ethers.utils.parseEther("10"))
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("10"))
   });
 
   it("Should mint fractions of tokens for everyone", async () => {
     await xToken2.connect(alice).mint(await alice.getAddress(), ethers.utils.parseEther("2.5"));
     await xToken2.connect(bob).mint(await bob.getAddress(), ethers.utils.parseEther("3.33"));
-    await xToken2.connect(charlie).mint(await charlie.getAddress(), ethers.utils.parseEther((10-2.5-3.33).toString()));
+    await xToken2.connect(charlie).mint(await charlie.getAddress(), ethers.utils.parseEther((10 - 2.5 - 3.33).toString()));
   });
 
   it("Should be able to claim a 1/3rd of eth for 1/3rd of tokens", async () => {
@@ -151,8 +151,8 @@ describe("V1 Buyout", function () {
 
   it("Should allow the owner to set another concurrent buyout with 10 eth", async () => {
     let oldBuyoutBal = await ethers.provider.getBalance(buyout.address);
-    await buyout.addBuyout(xToken3.address, {value: ethers.utils.parseEther("10")})
-    expect(await buyout.ethAvailiable(xToken3.address)).to.equal(ethers.utils.parseEther("10"))
+    await buyout.addBuyout(xToken3.address, { value: ethers.utils.parseEther("10") })
+    expect(await buyout.ethAvailable(xToken3.address)).to.equal(ethers.utils.parseEther("10"))
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(oldBuyoutBal.add(ethers.utils.parseEther("10")))
   });
 
@@ -163,25 +163,25 @@ describe("V1 Buyout", function () {
   });
 
   it("Should be able to claim a portion of eth for a portion of tokens", async () => {
-    await xToken2.connect(charlie).approve(buyout.address, ethers.utils.parseEther((10-2.5-3.33).toString()));
+    await xToken2.connect(charlie).approve(buyout.address, ethers.utils.parseEther((10 - 2.5 - 3.33).toString()));
     let oldBal = await ethers.provider.getBalance(charlie.address);
     let oldBuyoutBal = await ethers.provider.getBalance(buyout.address);
     await buyout.connect(charlie).claimETH(xToken2.address)
     let newBal = await ethers.provider.getBalance(charlie.address);
     let newBuyoutBal = await ethers.provider.getBalance(buyout.address);
-    expect(newBal).to.be.gt(oldBal.add(ethers.utils.parseEther((10-2.5-3.33).toString()).sub(ethers.utils.parseEther("0.1"))))
-    expect(newBuyoutBal).to.equal(oldBuyoutBal.sub(ethers.utils.parseEther((10-2.5-3.33).toString())))
+    expect(newBal).to.be.gt(oldBal.add(ethers.utils.parseEther((10 - 2.5 - 3.33).toString()).sub(ethers.utils.parseEther("0.1"))))
+    expect(newBuyoutBal).to.equal(oldBuyoutBal.sub(ethers.utils.parseEther((10 - 2.5 - 3.33).toString())))
   });
 
   it("Should allow the owner to remove a buyout and receive proper amount of eth", async () => {
     let oldBal = await ethers.provider.getBalance(primary.address);
     let oldBuyoutBal = await ethers.provider.getBalance(buyout.address);
-    let oldEth = await buyout.ethAvailiable(xToken2.address);
+    let oldEth = await buyout.ethAvailable(xToken2.address);
     await buyout.removeBuyout(xToken2.address)
     let newBal = await ethers.provider.getBalance(primary.address);
     let newBuyoutBal = await ethers.provider.getBalance(buyout.address);
-    expect(await buyout.ethAvailiable(xToken2.address)).to.equal("0")
-    expect(await buyout.ethAvailiable(xToken3.address)).to.equal(ethers.utils.parseEther("10"))
+    expect(await buyout.ethAvailable(xToken2.address)).to.equal("0")
+    expect(await buyout.ethAvailable(xToken3.address)).to.equal(ethers.utils.parseEther("10"))
     expect(newBuyoutBal).to.equal(oldBuyoutBal.sub(oldEth))
     expect(newBal).to.be.gt(oldBal.add(oldEth).sub(ethers.utils.parseEther("0.15")))
   });
@@ -194,7 +194,7 @@ describe("V1 Buyout", function () {
     let newBal = await ethers.provider.getBalance(alice.address);
     let newBuyoutBal = await ethers.provider.getBalance(buyout.address);
     expect(await ethers.provider.getBalance(buyout.address)).to.equal(ethers.utils.parseEther("7.5"))
-    expect(await buyout.ethAvailiable(xToken3.address)).to.equal(ethers.utils.parseEther("7.5"))
+    expect(await buyout.ethAvailable(xToken3.address)).to.equal(ethers.utils.parseEther("7.5"))
     expect(newBal).to.be.gt(oldBal.add(ethers.utils.parseEther("2.5").sub(ethers.utils.parseEther("0.1"))))
     expect(newBuyoutBal).to.equal(oldBuyoutBal.sub(ethers.utils.parseEther("2.5")))
   });
