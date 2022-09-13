@@ -9,3 +9,4 @@ flattened
 #Hardhat files
 cache
 artifacts
+hardhat.config.local.js
