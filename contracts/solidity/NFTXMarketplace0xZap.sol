@@ -62,23 +62,29 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   // Set a constant address for specific contracts that need special logic
   address constant CRYPTO_PUNKS = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
 
-  /// @notice Emitted when ..
+  /// @notice Emitted by the `buyAndRedeem` function.
   /// @param count The number of tokens affected by the event
   /// @param ethSpent The amount of ETH spent in the buy
   /// @param to The user affected by the event
   event Buy(uint256 count, uint256 ethSpent, address to);
 
-  /// @notice Emitted when ..
+  /// @notice Emitted by the `mintAndSell` functions.
   /// @param count The number of tokens affected by the event
   /// @param ethReceived The amount of ETH received in the sell
   /// @param to The user affected by the event
   event Sell(uint256 count, uint256 ethReceived, address to);
 
-  /// @notice Emitted when ..
+  /// @notice Emitted by the `buyAndSwap` functions.
   /// @param count The number of tokens affected by the event
   /// @param ethSpent The amount of ETH spent in the swap
   /// @param to The user affected by the event
   event Swap(uint256 count, uint256 ethSpent, address to);
+
+  /// @notice Emitted when dust is returned after a transaction.
+  /// @param ethAmount Amount of ETH returned to user
+  /// @param vTokenAmount Amount of vToken returned to user
+  /// @param to The user affected by the event
+  event DustReturned(uint256 ethAmount, uint256 vTokenAmount, address to);
 
 
   /**
@@ -129,8 +135,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Emit our sale event
     emit Sell(ids.length, amount, to);
 
-    // Transfer the filled ETH to recipient
-    _transferEthDust(to, amount);
+    // Transfer dust back to the spender
+    _transferDust(spender, vault);
   }
 
 
@@ -179,14 +185,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     _swap721(vaultId, idsIn, specificIds, to);
     emit Swap(idsIn.length, amount, to);
 
-    // Return any remaining WETH from the transaction
-    uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining > 0) {
-      _transferEthDust(spender, remaining);
-    }
-
-    // Return any remaining vault token dust that may remain due to slippage
-    _transferVaultDust(spender, vault);
+    // Transfer dust back to the spender
+    _transferDust(spender, vault);
   }
 
 
@@ -235,14 +235,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, quoteAmount, to);
 
-    // Refund any remaining WETH
-    uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining > 0) {
-      _transferEthDust(spender, remaining);
-    }
-
-    // Return any remaining vault token dust that may remain due to slippage
-    _transferVaultDust(spender, vault);
+    // Transfer dust back to the spender
+    _transferDust(spender, vault);
   }
 
 
@@ -283,8 +277,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     // Emit our sale event
     emit Sell(totalAmount, amount, to);
 
-    // Transfer the filled ETH to recipient
-    _transferEthDust(to, amount);
+    // Transfer dust back to the spender
+    _transferDust(to, vault);
   }
 
 
@@ -335,14 +329,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
     emit Swap(totalAmount, amount, to);
 
-    // Return any remaining WETH from the transaction
-    uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining > 0) {
-      _transferEthDust(spender, remaining);
-    }
-
-    // Return any remaining vault token dust that may remain due to slippage
-    _transferVaultDust(spender, vault);
+    // Transfer dust back to the spender
+    _transferDust(spender, vault);
   }
 
 
@@ -569,32 +557,28 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
 
 
   /**
-   * @notice Transfers ETH or WETH to a recipient, based on preference.
+   * @notice Transfers remaining ETH and vault token dust to a recipient.
    * 
    * @param to Recipient of the transfer
-   * @param amount Amount to be transferred
-   */
-
-  function _transferEthDust(address to, uint amount) internal {
-    // Unwrap our WETH into ETH and transfer it to the recipient
-    WETH.withdraw(amount);
-    (bool success, ) = payable(to).call{value: amount}("");
-    require(success, "Unable to send unwrapped WETH");
-  }
-
-
-  /**
-   * @notice Transfers any vault token dust remaining on the contract to the spender.
-   * 
-   * @param to Recipient of the transfer
+   * @param spender Address of user that actioned the process
    * @param vault Address of the vault token
    */
 
-  function _transferVaultDust(address to, address vault) internal {
+  function _transferDust(address spender, address vault) internal {
+    uint256 remaining = WETH.balanceOf(address(this));
+    if (remaining > 0) {
+      // Unwrap our WETH into ETH and transfer it to the recipient
+      WETH.withdraw(amount);
+      (bool success, ) = payable(spender).call{value: amount}("");
+      require(success, "Unable to send unwrapped WETH");
+    }
+
     uint dustBalance = IERC20Upgradeable(vault).balanceOf(address(this));
     if (dustBalance > 0) {
-      IERC20Upgradeable(vault).transfer(to, dustBalance);
+      IERC20Upgradeable(vault).transfer(spender, dustBalance);
     }
+
+    emit DustReturned(remaining, dustBalance, spender);
   }
 
 
