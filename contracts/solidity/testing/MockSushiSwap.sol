@@ -2,10 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import "./interface/IUniswapV2Router01.sol";
 
-
-contract MockSushiSwap is IUniswapV2Router01 {
+contract MockSushiSwap {
 
 	function addLiquidity(
         address tokenA,

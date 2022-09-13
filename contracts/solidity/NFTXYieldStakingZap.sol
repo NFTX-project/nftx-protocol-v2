@@ -26,7 +26,8 @@ interface IWETH {
 
 
 /**
- * @notice 
+ * @notice Allows users to buy and stake tokens into either an inventory or liquidity
+ * pool, handling the steps between buying and staking across 0x and sushi.
  * 
  * @author Twade
  */
@@ -35,7 +36,7 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
   using SafeERC20Upgradeable for IERC20Upgradeable;
   
-  /// @notice ..
+  /// @notice Holds the mapping of our sushi router
   IUniswapV2Router01 public immutable sushiRouter;
 
   /// @notice An interface for the WETH contract
@@ -48,12 +49,14 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable nftxFactory;
 
-  /// @notice A mapping of NFTX Vault IDs to their address corresponding vault contract address
+  /// @notice A mapping of NFTX Vault IDs to their address corresponding
+  /// vault contract address
   mapping(uint256 => address) public nftxVaultAddresses;
 
 
   /**
-   * @notice Initialises our zap.
+   * @notice Initialises our zap and sets our internal addresses that will be referenced
+   * in our contract. This allows for varied addresses based on the network.
    */
 
   constructor(
@@ -79,7 +82,13 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
 
   /**
-   * @notice ..
+   * @notice Allows the user to buy and stake tokens against an Inventory. This will
+   * handle the purchase of the vault tokens against 0x and then generate the xToken
+   * against the vault and timelock them.
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param swapTarget The `to` field from the 0x API response
+   * @param swapCallData The `data` field from the 0x API response
    */
 
   function buyAndStakeInventory(
@@ -122,7 +131,16 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
 
   /**
-   * @notice ..
+   * @notice Allows the user to buy and stake tokens against a Liquidity pool. This will
+   * handle the purchase of the vault tokens against 0x, the liquidity pool supplying via
+   * sushi and then the timelocking against our LP token.
+   * 
+   * @param vaultId The ID of the NFTX vault
+   * @param swapTarget The `to` field from the 0x API response
+   * @param swapCallData The `data` field from the 0x API response
+   * @param minTokenIn The minimum amount of token to LP
+   * @param minWethIn The minimum amount of ETH (WETH) to LP
+   * @param wethIn The amount of ETH (WETH) supplied
    */
 
   function buyAndStakeLiquidity(
@@ -161,10 +179,10 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
     IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), minTokenIn);
-    (uint256 amountToken, uint256 amountEth, uint256 liquidity) = sushiRouter.addLiquidity(
+    (uint256 amountToken, , uint256 liquidity) = sushiRouter.addLiquidity(
       baseToken,
       address(WETH),
-      minTokenIn,
+      vaultTokenAmount,
       wethIn,
       minTokenIn,
       minWethIn,
@@ -178,7 +196,7 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     lpStaking.timelockDepositFor(vaultId, msg.sender, liquidity, 48 hours);
     
     // Return any token dust to the caller
-    uint256 remainingTokens = minTokenIn - amountToken;
+    uint256 remainingTokens = vaultTokenAmount - amountToken;
     if (remainingTokens != 0) {
       IERC20Upgradeable(baseToken).transfer(msg.sender, remainingTokens);
     }
@@ -194,7 +212,12 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   }
 
 
-  // calculates the CREATE2 address for a pair without making any external calls
+  /**
+   * @notice Calculates the CREATE2 address for a sushi pair without making any
+   * external calls.
+   * 
+   * @return pair Address of our token pair
+   */
   function pairFor(address tokenA, address tokenB) internal view returns (address pair) {
     (address token0, address token1) = sortTokens(tokenA, tokenB);
     pair = address(uint160(uint256(keccak256(abi.encodePacked(
@@ -206,7 +229,11 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
   }
 
 
-  // returns sorted token addresses, used to handle return values from pairs sorted in this order
+  /**
+   * @notice Returns sorted token addresses, used to handle return values from pairs sorted in
+   * this order.
+   */
+
   function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
       require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
       (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
