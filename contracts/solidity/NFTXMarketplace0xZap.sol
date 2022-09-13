@@ -278,7 +278,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     emit Sell(totalAmount, amount, to);
 
     // Transfer dust back to the spender
-    _transferDust(to, vault);
+    _transferDust(spender, vault);
   }
 
 
@@ -559,8 +559,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   /**
    * @notice Transfers remaining ETH and vault token dust to a recipient.
    * 
-   * @param to Recipient of the transfer
-   * @param spender Address of user that actioned the process
+   * @param spender Address of the dust recipient
    * @param vault Address of the vault token
    */
 
@@ -568,8 +567,8 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
     uint256 remaining = WETH.balanceOf(address(this));
     if (remaining > 0) {
       // Unwrap our WETH into ETH and transfer it to the recipient
-      WETH.withdraw(amount);
-      (bool success, ) = payable(spender).call{value: amount}("");
+      WETH.withdraw(remaining);
+      (bool success, ) = payable(spender).call{value: remaining}("");
       require(success, "Unable to send unwrapped WETH");
     }
 
