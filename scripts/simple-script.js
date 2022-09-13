@@ -1,5 +1,5 @@
-const {BigNumber} = require("@ethersproject/bignumber");
-const {ethers, upgrades} = require("hardhat");
+const { BigNumber } = require("@ethersproject/bignumber");
+const { ethers, upgrades } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -11,14 +11,10 @@ async function main() {
     "\n"
   );
 
-  const MarketZap = await ethers.getContractFactory(
-    "NFTXMarketplace0xZap"
-  );
+  const vault = await ethers.getContractAt("NFTXVaultUpgradeable", "0x13edcC775f8895961B81Db5C0205889B3Afb3A16");
 
-  // Goerli constructor
-  const zap = await MarketZap.deploy("0xe01Cf5099e700c282A56E815ABd0C4948298Afae", "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6");
-  await zap.deployed();
-  console.log("Marketplace Zap:", zap.address);
+  await vault.setVaultMetadata("Ringers (VOID)", "RINGER-VOID");
+
 }
 
 main()
