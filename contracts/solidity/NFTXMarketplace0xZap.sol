@@ -7,8 +7,8 @@ import "./interface/INFTXVaultFactory.sol";
 import "./token/IERC1155Upgradeable.sol";
 import "./token/ERC721HolderUpgradeable.sol";
 import "./token/ERC1155HolderUpgradeable.sol";
-import "./util/OwnableUpgradeable.sol";
-import "./util/ReentrancyGuardUpgradeable.sol";
+import "./util/Ownable.sol";
+import "./util/ReentrancyGuard.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
 
@@ -43,7 +43,7 @@ interface IWETH {
  * @author Twade
  */
 
-contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
 
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -51,7 +51,7 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
   bool public paused = false;
 
   /// @notice Sets our 0x swap target
-  address private swapTarget;
+  address payable private swapTarget;
   
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
@@ -636,19 +636,19 @@ contract NFTXMarketplace0xZap is OwnableUpgradeable, ReentrancyGuardUpgradeable,
    * @param _paused New pause state
    */
 
-  function pause(bool _paused) external onlyOnwer {
-    paused = _paused
+  function pause(bool _paused) external onlyOwner {
+    paused = _paused;
   }
 
 
   /**
-   * @notice Allows our zap to be paused to prevent any processing.
+   * @notice Allows our zap to set the swap target for 0x.
    * 
    * @param _swapTarget The new swap target to used
    */
 
-  function setSwapTarget(address _swapTarget) external onlyOnwer {
-    swapTarget = _swapTarget
+  function setSwapTarget(address payable _swapTarget) external onlyOwner {
+    swapTarget = _swapTarget;
   }
 
 
