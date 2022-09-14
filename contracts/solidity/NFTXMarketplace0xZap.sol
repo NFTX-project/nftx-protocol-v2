@@ -123,7 +123,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external nonReentrant {
+  ) external nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -164,7 +164,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -212,7 +212,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -258,7 +258,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external nonReentrant {
+  ) external nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -301,7 +301,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -532,7 +532,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address sellToken,
     address buyToken,
     bytes calldata swapCallData
-  ) internal returns (uint256) onlyOwnerIfPaused {
+  ) internal returns (uint256) {
     // Track our balance of the buyToken to determine how much we've bought.
     uint256 boughtAmount = IERC20(buyToken).balanceOf(address(this));
 
