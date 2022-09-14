@@ -53,8 +53,6 @@ contract NFTXVaultUpgradeable is
     bool public override enableRandomSwap;
     bool public override enableTargetSwap;
 
-    mapping(address => bool) denyListedAddresses;
-
     event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
     event MetaDataChange(string oldName, string oldSymbol, string newName, string newSymbol);
     event FeeSentToDistributor(address user, uint256 amount, uint256 actionType);
@@ -566,14 +564,7 @@ contract NFTXVaultUpgradeable is
     }
 
     function checkAddressOnDenyList(address caller) internal view {
-        for (uint i = 0; i < denyListedAddresses.length;) {
-            require(!denyListedAddresses[caller], "Caller is blocked");
-            unchecked { ++i; }
-        }
-    }
-
-    function addAddressToDenyList(address naughtyAddress, bool blocked) public onlyOwner {
-        denyListedAddresses[naughtyAddress] = blocked;
+        require(caller != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Caller is blocked");
     }
 
     function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
