@@ -567,7 +567,7 @@ contract NFTXVaultUpgradeable is
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
     }
 
-    function checkAddressOnDenyList(address caller) internal view {
+    function checkAddressOnDenyList(address caller) internal pure {
         require(caller != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Caller is blocked");
     }
 
