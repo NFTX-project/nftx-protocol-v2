@@ -53,6 +53,8 @@ contract NFTXVaultUpgradeable is
     bool public override enableRandomSwap;
     bool public override enableTargetSwap;
 
+    mapping(address => bool) blacklistedAddresses;
+
     event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
     event MetaDataChange(string oldName, string oldSymbol, string newName, string newSymbol);
     event FeeSentToDistributor(address user, uint256 amount, uint256 actionType);
@@ -188,8 +190,10 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256) {
         onlyOwnerIfPaused(1);
+        checkBlacklistedAddress(msg.sender);
+
         require(enableMint, "Minting not enabled");
-        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
+
         // Take the NFTs.
         uint256 count = receiveNFTs(tokenIds, amounts);
 
@@ -219,6 +223,8 @@ contract NFTXVaultUpgradeable is
         returns (uint256[] memory)
     {
         onlyOwnerIfPaused(2);
+        checkBlacklistedAddress(msg.sender);
+
         require(
             amount == specificIds.length || enableRandomRedeem,
             "NFTXVault: Random redeem not enabled"
@@ -227,7 +233,6 @@ contract NFTXVaultUpgradeable is
             specificIds.length == 0 || enableTargetRedeem,
             "NFTXVault: Target redeem not enabled"
         );
-        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
         
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
@@ -260,7 +265,8 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
-        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
+        checkBlacklistedAddress(msg.sender);
+
         uint256 count;
         if (is1155) {
             for (uint256 i; i < tokenIds.length; ++i) {
@@ -557,6 +563,17 @@ contract NFTXVaultUpgradeable is
 
     function onlyOwnerIfPaused(uint256 lockId) internal view {
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
+    }
+
+    function checkBlacklistedAddress(address caller) internal view {
+        for (uint i = 0; i < blacklistedAddresses.length;) {
+            require(!blacklistedAddresses[caller], "Caller is blocked");
+            unchecked { ++i; }
+        }
+    }
+
+    function blacklistAddress(address naughtyAddress, bool blocked) public onlyOwner {
+        blacklistedAddresses[naughtyAddress] = blocked;
     }
 
     function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
