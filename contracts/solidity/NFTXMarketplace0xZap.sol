@@ -532,10 +532,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address sellToken,
     address buyToken,
     bytes calldata swapCallData
-  ) internal returns (uint256) {
-    // Ensure our contract is not paused, otherwise we need to stop logic
-    require(!paused, 'Zap is paused');
-
+  ) internal returns (uint256) onlyOwnerIfPaused {
     // Track our balance of the buyToken to determine how much we've bought.
     uint256 boughtAmount = IERC20(buyToken).balanceOf(address(this));
 
@@ -665,6 +662,18 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     } else {
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }
+  }
+
+
+  /**
+   * @notice A modifier that only allows the owner to interact with the function
+   * if the contract is paused. If the contract is not paused then anyone can
+   * interact with the function.
+   */
+
+  modifier onlyOwnerIfPaused() {
+    require(!paused || msg.sender == owner(), "Zap is paused");
+    _;
   }
 
 
