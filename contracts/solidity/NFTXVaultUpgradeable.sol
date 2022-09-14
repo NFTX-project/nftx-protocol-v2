@@ -53,7 +53,7 @@ contract NFTXVaultUpgradeable is
     bool public override enableRandomSwap;
     bool public override enableTargetSwap;
 
-    mapping(address => bool) blacklistedAddresses;
+    mapping(address => bool) denyListedAddresses;
 
     event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
     event MetaDataChange(string oldName, string oldSymbol, string newName, string newSymbol);
@@ -190,7 +190,7 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256) {
         onlyOwnerIfPaused(1);
-        checkBlacklistedAddress(msg.sender);
+        checkDenylistedAddress(msg.sender);
 
         require(enableMint, "Minting not enabled");
 
@@ -223,7 +223,7 @@ contract NFTXVaultUpgradeable is
         returns (uint256[] memory)
     {
         onlyOwnerIfPaused(2);
-        checkBlacklistedAddress(msg.sender);
+        checkDenylistedAddress(msg.sender);
 
         require(
             amount == specificIds.length || enableRandomRedeem,
@@ -265,7 +265,7 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
-        checkBlacklistedAddress(msg.sender);
+        checkDenylistedAddress(msg.sender);
 
         uint256 count;
         if (is1155) {
@@ -565,15 +565,15 @@ contract NFTXVaultUpgradeable is
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
     }
 
-    function checkBlacklistedAddress(address caller) internal view {
-        for (uint i = 0; i < blacklistedAddresses.length;) {
-            require(!blacklistedAddresses[caller], "Caller is blocked");
+    function checkDenyListedAddress(address caller) internal view {
+        for (uint i = 0; i < denyListedAddresses.length;) {
+            require(!denyListedAddresses[caller], "Caller is blocked");
             unchecked { ++i; }
         }
     }
 
-    function blacklistAddress(address naughtyAddress, bool blocked) public onlyOwner {
-        blacklistedAddresses[naughtyAddress] = blocked;
+    function denyListAddress(address naughtyAddress, bool blocked) public onlyOwner {
+        denyListedAddresses[naughtyAddress] = blocked;
     }
 
     function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
