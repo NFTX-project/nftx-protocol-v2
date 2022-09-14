@@ -189,6 +189,7 @@ contract NFTXVaultUpgradeable is
     ) public override virtual nonReentrant returns (uint256) {
         onlyOwnerIfPaused(1);
         require(enableMint, "Minting not enabled");
+        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
         // Take the NFTs.
         uint256 count = receiveNFTs(tokenIds, amounts);
 
@@ -226,6 +227,7 @@ contract NFTXVaultUpgradeable is
             specificIds.length == 0 || enableTargetRedeem,
             "NFTXVault: Target redeem not enabled"
         );
+        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
         
         // We burn all from sender and mint to fee receiver to reduce costs.
         _burn(msg.sender, base * amount);
@@ -258,6 +260,7 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
+        require(msg.sender != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Blocked");
         uint256 count;
         if (is1155) {
             for (uint256 i; i < tokenIds.length; ++i) {
