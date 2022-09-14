@@ -6,8 +6,8 @@ import "./interface/INFTXInventoryStaking.sol";
 import "./interface/INFTXLPStaking.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/IUniswapV2Router01.sol";
-import "./util/OwnableUpgradeable.sol";
-import "./util/ReentrancyGuardUpgradeable.sol";
+import "./util/Ownable.sol";
+import "./util/ReentrancyGuard.sol";
 import "./util/SafeERC20Upgradeable.sol";
 
 
@@ -30,7 +30,7 @@ interface IWETH {
  * @author Twade
  */
 
-contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
   using SafeERC20Upgradeable for IERC20Upgradeable;
   
@@ -307,19 +307,19 @@ contract NFTXYieldStakingZap is OwnableUpgradeable, ReentrancyGuardUpgradeable {
    * @param _paused New pause state
    */
 
-  function pause(bool _paused) external onlyOnwer {
-    paused = _paused
+  function pause(bool _paused) external onlyOwner {
+    paused = _paused;
   }
 
 
   /**
-   * @notice Allows our zap to be paused to prevent any processing.
+   * @notice Allows our zap to set the swap target for 0x.
    * 
    * @param _swapTarget The new swap target to used
    */
 
-  function setSwapTarget(address payable _swapTarget) external onlyOnwer {
-    swapTarget = _swapTarget
+  function setSwapTarget(address payable _swapTarget) external onlyOwner {
+    swapTarget = _swapTarget;
   }
 
 
