@@ -6,6 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXEligibility.sol";
 import "./interface/INFTXEligibilityManager.sol";
+import "./interface/INFTXFeeDistributor.sol";
 import "./interface/INFTXSimpleFeeDistributor.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
 import "./token/ERC721SafeHolderUpgradeable.sol";
