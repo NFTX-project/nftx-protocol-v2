@@ -190,7 +190,7 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256) {
         onlyOwnerIfPaused(1);
-        checkDenylistedAddress(msg.sender);
+        checkAddressOnDenyList(msg.sender);
 
         require(enableMint, "Minting not enabled");
 
@@ -223,7 +223,7 @@ contract NFTXVaultUpgradeable is
         returns (uint256[] memory)
     {
         onlyOwnerIfPaused(2);
-        checkDenylistedAddress(msg.sender);
+        checkAddressOnDenyList(msg.sender);
 
         require(
             amount == specificIds.length || enableRandomRedeem,
@@ -265,7 +265,7 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
-        checkDenylistedAddress(msg.sender);
+        checkAddressOnDenyList(msg.sender);
 
         uint256 count;
         if (is1155) {
@@ -565,14 +565,14 @@ contract NFTXVaultUpgradeable is
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
     }
 
-    function checkDenyListedAddress(address caller) internal view {
+    function checkAddressOnDenyList(address caller) internal view {
         for (uint i = 0; i < denyListedAddresses.length;) {
             require(!denyListedAddresses[caller], "Caller is blocked");
             unchecked { ++i; }
         }
     }
 
-    function denyListAddress(address naughtyAddress, bool blocked) public onlyOwner {
+    function addAddressToDenyList(address naughtyAddress, bool blocked) public onlyOwner {
         denyListedAddresses[naughtyAddress] = blocked;
     }
 
