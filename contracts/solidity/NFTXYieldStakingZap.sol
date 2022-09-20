@@ -175,6 +175,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Convert WETH to vault token
     uint256 vaultTokenAmount = _fillQuote(baseToken, swapCallData);
+    require(vaultTokenAmount > minTokenIn, 'Insufficient tokens acquired');
 
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
@@ -182,7 +183,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     (uint256 amountToken, , uint256 liquidity) = sushiRouter.addLiquidity(
       baseToken,
       address(WETH),
-      vaultTokenAmount,
+      minTokenIn,
       wethIn,
       minTokenIn,
       minWethIn,
@@ -218,6 +219,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
    * 
    * @return pair Address of our token pair
    */
+
   function pairFor(address tokenA, address tokenB) internal view returns (address pair) {
     (address token0, address token1) = sortTokens(tokenA, tokenB);
     pair = address(uint160(uint256(keccak256(abi.encodePacked(
