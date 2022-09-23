@@ -62,9 +62,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
   /// @notice A mapping of NFTX Vault IDs to their address corresponding vault contract address
   mapping(uint256 => address) public nftxVaultAddresses;
 
-  /// @notice The decimal accuracy
-  uint256 constant BASE = 1e18;
-
   // Set a constant address for specific contracts that need special logic
   address constant CRYPTO_PUNKS = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
 
@@ -672,8 +669,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @notice Allows our contract to receive any assets.
    */
 
-  receive() external payable {
-    //
-  }
+  receive() external payable {}
 
 }
