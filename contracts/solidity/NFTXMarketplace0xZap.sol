@@ -51,7 +51,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
   bool public paused = false;
 
   /// @notice Sets our 0x swap target
-  address payable private swapTarget;
+  address payable private immutable swapTarget;
   
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
@@ -99,11 +99,13 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * 
    * @param _nftxFactory NFTX Vault Factory contract address
    * @param _WETH WETH contract address
+   * @param _swapTarget The swap target specified by the 0x protocol
    */
 
-  constructor(address _nftxFactory, address _WETH) Ownable() ReentrancyGuard() {
+  constructor(address _nftxFactory, address _WETH, address payable _swapTarget) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     WETH = IWETH(_WETH);
+    swapTarget = _swapTarget;
   }
 
 
@@ -123,7 +125,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external nonReentrant {
+  ) external nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -164,7 +166,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -212,7 +214,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -258,7 +260,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external nonReentrant {
+  ) external nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -301,7 +303,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address spender,
     bytes calldata swapCallData,
     address payable to
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Check that we aren't burning tokens or sending to ourselves
     require(to != address(0) && to != address(this), 'Invalid recipient');
 
@@ -533,9 +535,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     address buyToken,
     bytes calldata swapCallData
   ) internal returns (uint256) {
-    // Ensure our contract is not paused, otherwise we need to stop logic
-    require(!paused, 'Zap is paused');
-
     // Track our balance of the buyToken to determine how much we've bought.
     uint256 boughtAmount = IERC20(buyToken).balanceOf(address(this));
 
@@ -642,17 +641,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
 
 
   /**
-   * @notice Allows our zap to set the swap target for 0x.
-   * 
-   * @param _swapTarget The new swap target to used
-   */
-
-  function setSwapTarget(address payable _swapTarget) external onlyOwner {
-    swapTarget = _swapTarget;
-  }
-
-
-  /**
    * @notice Allows our owner to withdraw and tokens in the contract.
    * 
    * @param token The address of the token to be rescued
@@ -665,6 +653,18 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     } else {
       IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
     }
+  }
+
+
+  /**
+   * @notice A modifier that only allows the owner to interact with the function
+   * if the contract is paused. If the contract is not paused then anyone can
+   * interact with the function.
+   */
+
+  modifier onlyOwnerIfPaused() {
+    require(!paused || msg.sender == owner(), "Zap is paused");
+    _;
   }
 
 
