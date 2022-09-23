@@ -102,7 +102,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @param _swapTarget The swap target specified by the 0x protocol
    */
 
-  constructor(address _nftxFactory, address _WETH, address _swapTarget) Ownable() ReentrancyGuard() {
+  constructor(address _nftxFactory, address _WETH, address payable _swapTarget) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     WETH = IWETH(_WETH);
     swapTarget = _swapTarget;
