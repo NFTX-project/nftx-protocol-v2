@@ -51,7 +51,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
   bool public paused = false;
 
   /// @notice Sets our 0x swap target
-  address payable private swapTarget;
+  address payable private immutable swapTarget;
   
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
@@ -99,11 +99,13 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * 
    * @param _nftxFactory NFTX Vault Factory contract address
    * @param _WETH WETH contract address
+   * @param _swapTarget The swap target specified by the 0x protocol
    */
 
-  constructor(address _nftxFactory, address _WETH) Ownable() ReentrancyGuard() {
+  constructor(address _nftxFactory, address _WETH, address _swapTarget) Ownable() ReentrancyGuard() {
     nftxFactory = INFTXVaultFactory(_nftxFactory);
     WETH = IWETH(_WETH);
+    swapTarget = _swapTarget;
   }
 
 
@@ -635,17 +637,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
 
   function pause(bool _paused) external onlyOwner {
     paused = _paused;
-  }
-
-
-  /**
-   * @notice Allows our zap to set the swap target for 0x.
-   * 
-   * @param _swapTarget The new swap target to used
-   */
-
-  function setSwapTarget(address payable _swapTarget) external onlyOwner {
-    swapTarget = _swapTarget;
   }
 
 
