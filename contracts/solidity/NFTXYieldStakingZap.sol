@@ -38,7 +38,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
   bool public paused = false;
 
   /// @notice Sets our 0x swap target
-  address payable private swapTarget;
+  address payable private immutable swapTarget;
  
   /// @notice Holds the mapping of our sushi router
   IUniswapV2Router01 public immutable sushiRouter;
@@ -68,7 +68,8 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     address _inventoryStaking,
     address _lpStaking,
     address _sushiRouter,
-    address _weth
+    address _weth,
+    address payable _swapTarget
   ) Ownable() ReentrancyGuard() {
     // Set our staking contracts
     inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
@@ -82,6 +83,9 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
+
+    // Set our 0x Swap Target
+    swapTarget = _swapTarget;
   }
 
 
@@ -101,6 +105,10 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     // Ensure we have tx value
     require(msg.value > 0, 'Invalid value provided');
 
+    // Get our vaults base staking token. This is used to calculate the xToken
+    address baseToken = _vaultAddress(vaultId);
+    require(baseToken != address(0), 'Invalid vault provided');
+    
     // Get our start WETH balance
     uint wethBalance = WETH.balanceOf(address(this));
 
@@ -108,10 +116,6 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     if (msg.value > 0) {
       WETH.deposit{value: msg.value}();
     }
-
-    // Get our vaults base staking token. This is used to calculate the xToken
-    address baseToken = _vaultAddress(vaultId);
-    require(baseToken != address(0), 'Invalid vault provided');
 
     // Convert WETH to vault token
     uint256 vaultTokenAmount = _fillQuote(baseToken, swapCallData);
@@ -288,7 +292,8 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
 
   /**
-   * @notice Maps a cached NFTX vault address against a vault ID.
+   * @notice Maps a cached NFTX vault address against a vault ID for gas savings on
+   * repeat vault address lookups.
    * 
    * @param vaultId The ID of the NFTX vault
    */
@@ -315,22 +320,11 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
 
   /**
-   * @notice Allows our zap to set the swap target for 0x.
-   * 
-   * @param _swapTarget The new swap target to used
-   */
-
-  function setSwapTarget(address payable _swapTarget) external onlyOwner {
-    swapTarget = _swapTarget;
-  }
-
-
-  /**
-   * @notice Allows our contract to receive any assets.
+   * @notice Allows our contract to only receive WETH and reject everything else.
    */
 
   receive() external payable {
-    //
+    require(msg.sender == address(WETH), "Only WETH");
   }
 
 }
