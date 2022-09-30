@@ -75,11 +75,12 @@ describe('Yield Staking Zap', function () {
       lpStaking.address,
       mockSushiSwap.address,  // Sushi router
       weth.address,
+      mock0xProvider.address  // 0x swap target
     );
     await yieldStakingZap.deployed()
 
     // Allow our yield staking zap to exclude fees
-    await nftx.setZapContract(yieldStakingZap.address);
+    await nftx.setZapContract(yieldStakingZap.address, true);
     await nftx.setFeeExclusion(yieldStakingZap.address, true);
 
     // Add WETH to the 0x pool
