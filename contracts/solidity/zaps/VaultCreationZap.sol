@@ -2,11 +2,28 @@
 
 pragma solidity ^0.8.0;
 
+import "../interface/INFTXInventoryStaking.sol";
+import "../interface/INFTXLPStaking.sol";
+import "../interface/IUniswapV2Router01.sol";
 import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
-import "../token/ERC1155SafeHolderUpgradeable.sol";
 import "../token/IERC1155Upgradeable.sol";
-import "../util/ReentrancyGuardUpgradeable.sol";
+import "../util/Ownable.sol";
+import "../util/ReentrancyGuard.sol";
+import "../util/SafeERC20Upgradeable.sol";
+
+
+
+/**
+ * @notice A partial WETH interface.
+ */
+
+interface IWETH {
+  function deposit() external payable;
+  function transfer(address to, uint value) external returns (bool);
+  function withdraw(uint) external;
+  function balanceOf(address to) external view returns (uint256);
+}
 
 
 /**
@@ -16,10 +33,25 @@ import "../util/ReentrancyGuardUpgradeable.sol";
  * @author Twade
  */
 
-contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUpgradeable {
+contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
+
+  using SafeERC20Upgradeable for IERC20Upgradeable;
+
+  /// @notice Allows zap to be paused
+  bool public paused = false;
 
   /// @notice An interface for the NFTX Vault Factory contract
   INFTXVaultFactory public immutable vaultFactory;
+
+  /// @notice Holds the mapping of our sushi router
+  IUniswapV2Router01 public immutable sushiRouter;
+
+  /// @notice An interface for the WETH contract
+  IWETH public immutable WETH;
+
+  /// @notice An interface for the NFTX Vault Factory contract
+  INFTXInventoryStaking public immutable inventoryStaking;
+  INFTXLPStaking public immutable lpStaking;
 
   /// @notice Basic information pertaining to the vault
   struct vaultInfo {
@@ -49,18 +81,38 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
   struct vaultTokens {
     uint[] assetTokenIds;
     uint[] assetTokenAmounts;
+
+    // Sushiswap integration for liquidity
+    uint minTokenIn;
+    uint minWethIn;
+    uint wethIn;
   }
 
 
   /**
    * @notice Initialises our zap by setting contract addresses onto their
    * respective interfaces.
-   * 
-   * @param _vaultFactory NFTX Vault Factory contract address
    */
 
-  constructor(address _vaultFactory) {
+  constructor(
+    address _vaultFactory,
+    address _inventoryStaking,
+    address _lpStaking,
+    address _sushiRouter,
+    address _weth
+  ) Ownable() ReentrancyGuard() {
+    // Set our staking contracts
+    inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
+    lpStaking = INFTXLPStaking(_lpStaking);
+
+    // Set our NFTX factory contract
     vaultFactory = INFTXVaultFactory(_vaultFactory);
+
+    // Set our Sushi Router used for liquidity
+    sushiRouter = IUniswapV2Router01(_sushiRouter);
+
+    // Set our chain's WETH contract
+    WETH = IWETH(_weth);
   }
 
 
@@ -84,7 +136,13 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
     vaultFeesConfig calldata vaultFees,
     vaultEligibilityStorage calldata eligibilityStorage,
     vaultTokens calldata assetTokens
-  ) external nonReentrant returns (uint vaultId_) {
+  ) external nonReentrant payable returns (uint vaultId_) {
+    // Ensure our zap is not paused
+    require(!paused, 'Zap is paused');
+
+    // Get the amount of starting ETH in the contract
+    uint startingEth = address(this).balance;
+
     // Create our vault skeleton
     vaultId_ = vaultFactory.createVault(
       vaultData.name,
@@ -132,8 +190,58 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
         IERC1155Upgradeable(vaultData.assetAddress).setApprovalForAll(address(vault), true);
       }
 
-      // We can now mint our asset tokens, giving the vault our tokens
-      vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, msg.sender);
+      // We can now mint our asset tokens, giving the vault our tokens and storing them
+      // inside our zap, as we will shortly be staking them. Our zap is excluded from fees,
+      // so there should be no loss in the amount returned.
+      vault.mintTo(assetTokens.assetTokenIds, assetTokens.assetTokenAmounts, address(this));
+
+      // We now have tokens against our provided NFTs that we can now stake through either
+      // inventory or liquidity.
+
+      // Get our vaults base staking token. This is used to calculate the xToken
+      address baseToken = address(vault);
+
+      // We first want to set up our liquidity, as the returned values will be variable
+      if (assetTokens.minTokenIn > 0) {
+        require(msg.value > assetTokens.wethIn, 'Insufficient vault sent for liquidity');
+
+        // Wrap ETH into WETH for our contract from the sender
+        WETH.deposit{value: msg.value}();
+
+        // Convert WETH to vault token
+        require(IERC20Upgradeable(baseToken).balanceOf(address(this)) >= assetTokens.minTokenIn, 'Insufficient tokens acquired for liquidity');
+
+        // Provide liquidity to sushiswap, using the vault tokens and pairing it with the
+        // liquidity amount specified in the call.
+        IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), assetTokens.minTokenIn);
+        (,, uint256 liquidity) = sushiRouter.addLiquidity(
+          baseToken,
+          address(WETH),
+          assetTokens.minTokenIn,
+          assetTokens.wethIn,
+          assetTokens.minTokenIn,
+          assetTokens.minWethIn,
+          address(this),
+          block.timestamp
+        );
+
+        // Stake in LP rewards contract 
+        address lpToken = pairFor(baseToken, address(WETH));
+        IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
+        lpStaking.timelockDepositFor(vaultId_, msg.sender, liquidity, 48 hours);
+      }
+
+      // Return any token dust to the caller
+      uint256 remainingTokens = IERC20Upgradeable(baseToken).balanceOf(address(this));
+
+      // Any tokens that we have remaining after our liquidity staking are thrown into
+      // inventory to ensure what we don't have any token dust remaining.
+      if (remainingTokens > 0) {
+        // Make a direct timelock mint using the default timelock duration. This sends directly
+        // to our user, rather than via the zap, to avoid the timelock locking the tx.
+        IERC20Upgradeable(baseToken).transfer(inventoryStaking.vaultXToken(vaultId_), remainingTokens);
+        inventoryStaking.timelockMintFor(vaultId_, remainingTokens, msg.sender, 2);
+      }
     }
 
     // If we have specified vault features that aren't the default (all enabled)
@@ -159,6 +267,44 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
 
     // Finalise our vault, preventing further edits
     vault.finalizeVault();
+
+    // Now that all transactions are finished we can return any ETH dust left over
+    // from our liquidity staking.
+    uint remainingEth = address(this).balance - startingEth;
+    if (remainingEth > 0) {
+      bool sent = payable(msg.sender).send(remainingEth);
+      require(sent, "Failed to send Ether");
+    }
+  }
+
+
+  /**
+   * @notice Calculates the CREATE2 address for a sushi pair without making any
+   * external calls.
+   * 
+   * @return pair Address of our token pair
+   */
+
+  function pairFor(address tokenA, address tokenB) internal view returns (address pair) {
+    (address token0, address token1) = sortTokens(tokenA, tokenB);
+    pair = address(uint160(uint256(keccak256(abi.encodePacked(
+      hex'ff',
+      sushiRouter.factory(),
+      keccak256(abi.encodePacked(token0, token1)),
+      hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
+    )))));
+  }
+
+
+  /**
+   * @notice Returns sorted token addresses, used to handle return values from pairs sorted in
+   * this order.
+   */
+
+  function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
+      require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
+      (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+      require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
   }
 
 
@@ -204,6 +350,17 @@ contract NFTXVaultCreationZap is ERC1155SafeHolderUpgradeable, ReentrancyGuardUp
   function _getBoolean(uint256 _packedBools, uint256 _boolNumber) internal pure returns(bool) {
     uint256 flag = (_packedBools >> _boolNumber) & uint256(1);
     return (flag == 1 ? true : false);
+  }
+
+
+  /**
+   * @notice Allows our zap to be paused to prevent any processing.
+   * 
+   * @param _paused New pause state
+   */
+
+  function pause(bool _paused) external onlyOwner {
+    paused = _paused;
   }
 
 }
