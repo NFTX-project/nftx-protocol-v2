@@ -145,7 +145,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
     require(!paused, 'Zap is paused');
 
     // Get the amount of starting ETH in the contract
-    uint startingWEth = WETH.balanceOf(address(this));
+    uint startingWeth = WETH.balanceOf(address(this));
 
     // Create our vault skeleton
     vaultId_ = vaultFactory.createVault(
@@ -279,8 +279,8 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
     // from our liquidity staking.
     uint remainingWEth = WETH.balanceOf(address(this)) - startingWeth;
     if (remainingWEth > 0) {
-      WETH.withdraw{value: msg.value}();
-      bool sent = payable(msg.sender).send(remainingEth);
+      WETH.withdraw(remainingWEth);
+      bool sent = payable(msg.sender).send(remainingWEth);
       require(sent, "Failed to send Ether");
     }
   }
