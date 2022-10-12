@@ -8,10 +8,11 @@ import "../interface/IUniswapV2Router01.sol";
 import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
 import "../token/IERC1155Upgradeable.sol";
+import "../token/ERC1155SafeHolderUpgradeable.sol";
 import "../util/Ownable.sol";
 import "../util/ReentrancyGuard.sol";
 import "../util/SafeERC20Upgradeable.sol";
-
+import "../util/SushiHelper.sol";
 
 
 /**
@@ -33,7 +34,7 @@ interface IWETH {
  * @author Twade
  */
 
-contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
+contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgradeable {
 
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -45,6 +46,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
 
   /// @notice Holds the mapping of our sushi router
   IUniswapV2Router01 public immutable sushiRouter;
+  SushiHelper internal immutable sushiHelper;
 
   /// @notice An interface for the WETH contract
   IWETH public immutable WETH;
@@ -99,6 +101,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
     address _inventoryStaking,
     address _lpStaking,
     address _sushiRouter,
+    address _sushiHelper,
     address _weth
   ) Ownable() ReentrancyGuard() {
     // Set our staking contracts
@@ -110,6 +113,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
 
     // Set our Sushi Router used for liquidity
     sushiRouter = IUniswapV2Router01(_sushiRouter);
+    sushiHelper = SushiHelper(_sushiHelper);
 
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
@@ -141,7 +145,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
     require(!paused, 'Zap is paused');
 
     // Get the amount of starting ETH in the contract
-    uint startingEth = address(this).balance;
+    uint startingWEth = WETH.balanceOf(address(this));
 
     // Create our vault skeleton
     vaultId_ = vaultFactory.createVault(
@@ -151,6 +155,9 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
       vaultData.is1155,
       vaultData.allowAllItems
     );
+
+    // Deploy our vault's xToken
+    inventoryStaking.deployXTokenForVault(vaultId_);
 
     // Build our vault interface
     INFTXVault vault = INFTXVault(vaultFactory.vault(vaultId_));
@@ -226,7 +233,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
         );
 
         // Stake in LP rewards contract 
-        address lpToken = pairFor(baseToken, address(WETH));
+        address lpToken = sushiHelper.pairFor(sushiRouter.factory(), baseToken, address(WETH));
         IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
         lpStaking.timelockDepositFor(vaultId_, msg.sender, liquidity, 48 hours);
       }
@@ -270,41 +277,12 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard {
 
     // Now that all transactions are finished we can return any ETH dust left over
     // from our liquidity staking.
-    uint remainingEth = address(this).balance - startingEth;
-    if (remainingEth > 0) {
+    uint remainingWEth = WETH.balanceOf(address(this)) - startingWeth;
+    if (remainingWEth > 0) {
+      WETH.withdraw{value: msg.value}();
       bool sent = payable(msg.sender).send(remainingEth);
       require(sent, "Failed to send Ether");
     }
-  }
-
-
-  /**
-   * @notice Calculates the CREATE2 address for a sushi pair without making any
-   * external calls.
-   * 
-   * @return pair Address of our token pair
-   */
-
-  function pairFor(address tokenA, address tokenB) internal view returns (address pair) {
-    (address token0, address token1) = sortTokens(tokenA, tokenB);
-    pair = address(uint160(uint256(keccak256(abi.encodePacked(
-      hex'ff',
-      sushiRouter.factory(),
-      keccak256(abi.encodePacked(token0, token1)),
-      hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
-    )))));
-  }
-
-
-  /**
-   * @notice Returns sorted token addresses, used to handle return values from pairs sorted in
-   * this order.
-   */
-
-  function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
-      require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES');
-      (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-      require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
   }
 
 

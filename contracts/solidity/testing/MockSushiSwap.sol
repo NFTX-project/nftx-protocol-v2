@@ -15,8 +15,12 @@ contract MockSushiSwap {
         address to,
         uint256 deadline
     ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-		amountA = 1;
-		amountB = 1;
-		liquidity = 1;
+		amountA = amountADesired;
+		amountB = amountBDesired;
+		liquidity = (amountADesired * amountBDesired) / 1e18;
 	}
+
+    function factory() external returns (address) {
+        return address(this);
+    }
 }
