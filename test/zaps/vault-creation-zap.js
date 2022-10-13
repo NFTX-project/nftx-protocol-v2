@@ -51,13 +51,9 @@ describe('Vault Creation Zap', function () {
 
     // Set up a mocked sushi helper, which will allow us to repoint our liquidity pool
     // token to one that we can control.
-    const MockLPToken = await ethers.getContractFactory("DummyXToken");
-    mockLpToken = await MockLPToken.deploy();
-    await mockLpToken.deployed();
-
     const sushiHelperArtifact = await artifacts.readArtifact("SushiHelper");
     const mockSushiHelper = await deployMockContract(deployer, sushiHelperArtifact.abi);
-    await mockSushiHelper.mock.pairFor.returns(mockLpToken.address);
+    await mockSushiHelper.mock.pairFor.returns(weth.address);
 
     // Set up vault creation zap
     const VaultCreationZap = await ethers.getContractFactory("NFTXVaultCreationZap")
@@ -71,10 +67,6 @@ describe('Vault Creation Zap', function () {
     )
     await vaultCreationZap.deployed();
 
-    // Throw some mocked LP tokens into our vault creation zap, as normally we would
-    // have received them from Sushi.
-    await mockLpToken.mint(vaultCreationZap.address, ethers.utils.parseEther('100'));
-
     // Allow our yield staking zap to exclude fees
     await nftx.setZapContract(vaultCreationZap.address);
     await nftx.setFeeExclusion(vaultCreationZap.address, true);
@@ -85,7 +77,7 @@ describe('Vault Creation Zap', function () {
    * Test our vault creation flow
    */
 
-  describe('createVault', async function () {
+  describe('Create vaults with a variety of configurations', async function () {
 
     before(async function () {
       // ..
@@ -95,7 +87,7 @@ describe('Vault Creation Zap', function () {
      * Confirm that a vault can be created when providing all possible options.
      */
 
-    it("Should allow 721 vault to be created in a single call", async function () {
+    it("1. Should allow 721 vault to be created in a single call", async function () {
 
       // Mint the vault asset address to Alice (10 tokens)
       for (let i = 0; i < 10; ++i) {
@@ -176,7 +168,9 @@ describe('Vault Creation Zap', function () {
       expect(await erc721.balanceOf(newVault.address)).to.equal(4);
 
       // Confirm our user has the expected balance of inventory staked xToken
-      // todo..
+      let xToken = await inventoryStaking.vaultXToken(0);
+      const xTokenContract = await ethers.getContractAt('XTokenUpgradeable', xToken);
+      expect(await xTokenContract.balanceOf(alice.getAddress())).to.equal('4000000000000000000');
     });
 
 
@@ -184,7 +178,7 @@ describe('Vault Creation Zap', function () {
      * Confirm that a vault can be created when providing all possible options.
      */
 
-    it("Should allow 1155 vault to be created in a single call", async function () {
+    it("2. Should allow 1155 vault to be created in a single call", async function () {
 
       // Mint 10x the vault asset address to Alice (10 tokens)
       for (let i = 0; i < 10; ++i) {
@@ -268,102 +262,114 @@ describe('Vault Creation Zap', function () {
       expect(await erc1155.balanceOf(newVault.address, 4)).to.equal(0);
 
       // Confirm our user has the expected balance of inventory staked xToken
-      // todo..
+      let xToken = await inventoryStaking.vaultXToken(1);
+      const xTokenContract = await ethers.getContractAt('XTokenUpgradeable', xToken);
+      expect(await xTokenContract.balanceOf(alice.getAddress())).to.equal('10000000000000000000');
     });
 
-  });
 
+    /**
+     * Confirm that a vault can be created with both inventory and liquidity staking
+     * in a single call.
+     */
 
-  /**
-   * Confirm that a vault can be created with both inventory and liquidity staking
-   * in a single call.
-   */
+    it("3. Should allow inventory and liquidity staking in a single call", async function () {
+        // Mint the vault asset address to Alice (10 tokens)
+        for (let i = 11; i < 20; ++i) {
+          await erc721.publicMint(alice.address, i);
+        }
 
-  it("Should allow inventory and liquidity staking in a single call", async function () {
-      // Mint the vault asset address to Alice (10 tokens)
-      for (let i = 11; i < 20; ++i) {
-        await erc721.publicMint(alice.address, i);
-      }
+        // Approve the Vault Creation Zap to use Alice's ERC721s
+        await erc721.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
 
-      // Approve the Vault Creation Zap to use Alice's ERC721s
-      await erc721.connect(alice).setApprovalForAll(vaultCreationZap.address, true);
+        // Use call static to get the actual return vault from the call. In this case we additionally
+        // need to send ETH to the zap in order to fund the liquidity staking. We send 10 ETH but will
+        // only need to use 7 ETH of this. For this reason, we need to test that we correctly have 3 ETH
+        // returned after the creation.
+        const vaultId = await vaultCreationZap.connect(alice).createVault(
+          // Vault creation
+          {
+            name: 'Race Poogers',
+            symbol: 'POOGERS',
+            assetAddress: erc721.address,
+            is1155: false,
+            allowAllItems: true
+          },
 
-      // Use call static to get the actual return vault from the call. In this case we additionally
-      // need to send ETH to the zap in order to fund the liquidity staking. We send 10 ETH but will
-      // only need to use 7 ETH of this. For this reason, we need to test that we correctly have 3 ETH
-      // returned after the creation.
-      const vaultId = await vaultCreationZap.connect(alice).createVault(
-        // Vault creation
-        {
-          name: 'Race Poogers',
-          symbol: 'POOGERS',
-          assetAddress: erc721.address,
-          is1155: false,
-          allowAllItems: true
-        },
+          // Vault features
+          32,  // 11111
+      
+          // Fee assignment
+          {
+            mintFee: 10000000,           // 0.10
+            randomRedeemFee: 5000000,    // 0.05
+            targetRedeemFee: 10000000,   // 0.10
+            randomSwapFee: 5000000,      // 0.05
+            targetSwapFee: 10000000      // 0.10
+          },
+      
+          // Eligibility storage
+          {
+            moduleIndex: -1,
+            initData: 0
+          },
 
-        // Vault features
-        32,  // 11111
-    
-        // Fee assignment
-        {
-          mintFee: 10000000,           // 0.10
-          randomRedeemFee: 5000000,    // 0.05
-          targetRedeemFee: 10000000,   // 0.10
-          randomSwapFee: 5000000,      // 0.05
-          targetSwapFee: 10000000      // 0.10
-        },
-    
-        // Eligibility storage
-        {
-          moduleIndex: -1,
-          initData: 0
-        },
+          // Mint and stake
+          {
+            assetTokenIds: [11, 12, 13, 14, 15],
+            assetTokenAmounts: [1, 1, 1, 1, 1],
+            minTokenIn: '350000000000000000',  // 3.5 tokens
+            minWethIn: ethers.utils.parseEther('7'),
+            wethIn: ethers.utils.parseEther('7')
+          },
+          { value: ethers.utils.parseEther('10') }
+        );
 
-        // Mint and stake
-        {
-          assetTokenIds: [11, 12, 13, 14, 15],
-          assetTokenAmounts: [1, 1, 1, 1, 1],
-          minTokenIn: '350000000000000000',  // 3.5 tokens
-          minWethIn: ethers.utils.parseEther('7'),
-          wethIn: ethers.utils.parseEther('7')
-        },
-        { value: ethers.utils.parseEther('10') }
-      );
+        // Build our NFTXVaultUpgradeable against the newly created vault
+        const newVault = await ethers.getContractAt(
+          "NFTXVaultUpgradeable",
+          await nftx.vault(2)
+        );
 
-      // Build our NFTXVaultUpgradeable against the newly created vault
-      const newVault = await ethers.getContractAt(
-        "NFTXVaultUpgradeable",
-        await nftx.vault(0)
-      );
+        // Confirm our general information
+        expect(await newVault.vaultId()).to.equal(2);
+        expect(await newVault.name()).to.equal('Race Poogers');
+        expect(await newVault.symbol()).to.equal('POOGERS');
+        expect(await newVault.assetAddress()).to.equal(erc721.address);
 
-      // Confirm our general information
-      expect(await newVault.vaultId()).to.equal(0);
-      expect(await newVault.name()).to.equal('Race Poogers');
-      expect(await newVault.symbol()).to.equal('POOGERS');
-      expect(await newVault.assetAddress()).to.equal(erc721.address);
+        // Confirm our features
+        expect(await newVault.enableMint()).to.equal(true);
+        expect(await newVault.enableRandomRedeem()).to.equal(true);
+        expect(await newVault.enableTargetRedeem()).to.equal(true);
+        expect(await newVault.enableRandomSwap()).to.equal(true);
+        expect(await newVault.enableTargetSwap()).to.equal(true);
 
-      // Confirm our features
-      expect(await newVault.enableMint()).to.equal(true);
-      expect(await newVault.enableRandomRedeem()).to.equal(true);
-      expect(await newVault.enableTargetRedeem()).to.equal(true);
-      expect(await newVault.enableRandomSwap()).to.equal(true);
-      expect(await newVault.enableTargetSwap()).to.equal(true);
+        // Confirm our fees
+        let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
 
-      // Confirm our fees
-      let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
+        expect(mintFee).to.equal("100000000000000000");
+        expect(randomRedeemFee).to.equal("50000000000000000");
+        expect(targetRedeemFee).to.equal("100000000000000000");
+        expect(randomSwapFee).to.equal("50000000000000000");
+        expect(targetSwapFee).to.equal("100000000000000000");
 
-      expect(mintFee).to.equal("100000000000000000");
-      expect(randomRedeemFee).to.equal("50000000000000000");
-      expect(targetRedeemFee).to.equal("100000000000000000");
-      expect(randomSwapFee).to.equal("50000000000000000");
-      expect(targetSwapFee).to.equal("100000000000000000");
+        // Confirm our vault's token holdings
+        expect(await erc721.balanceOf(newVault.address)).to.equal(5);
 
-      // Confirm our vault's token holdings
-      expect(await erc721.balanceOf(newVault.address)).to.equal(5);
+        // Confirm our user has the expected balance of inventory staked xToken
+        // let xToken = await inventoryStaking.vaultXToken(2);
+        // const xTokenContract = await ethers.getContractAt('XTokenUpgradeable', xToken);
+        // expect(await xTokenContract.balanceOf(alice.getAddress())).to.equal('1500000000000000000');
 
-      // Confirm our user has the expected balance of inventory staked xToken
-      // todo..
+        // Confirm our user has the expected balance of liquidity staked xToken
+        // dev: We can't actually do this as our liquidity staking is mocked
+
+        // Confirm our remaining ETH was returned. Since we can't account for an exact amount
+        // due to gas, we just want to make sure we have more that:
+        // 100 (start) - 10 (tx value sent) + 3 (refunded amount) = 93 (with slight gas variance)
+        expect(await ethers.provider.getBalance(alice.address)).to.gt(ethers.utils.parseEther('90'));
+    });
+
   });
 
 });
@@ -374,12 +380,14 @@ async function _initialise_nftx_contracts() {
   const provider = await StakingProvider.deploy();
   await provider.deployed();
 
-  const Staking = await ethers.getContractFactory("NFTXLPStaking");
-  lpStaking = await upgrades.deployProxy(Staking, [provider.address], {
-    initializer: "__NFTXLPStaking__init",
-    unsafeAllow: 'delegatecall'
-  });
-  await lpStaking.deployed();
+  // We deploy the liquidity pool staking contract as a mock, as we have a conflict in the
+  // test suite in which the staking reward token doesn't match the sushiswap pair, so we
+  // never have a sufficient balance to supply. This mock ensures that we just never revert
+  // on the call.
+  const lpStakingArtifact = await artifacts.readArtifact("NFTXLPStaking");
+  lpStaking = await deployMockContract(deployer, lpStakingArtifact.abi);
+  await lpStaking.mock.timelockDepositFor.returns();
+  await lpStaking.mock.addPoolForVault.returns();
 
   const NFTXVault = await ethers.getContractFactory("NFTXVaultUpgradeable");
   const nftxVault = await NFTXVault.deploy();
@@ -423,5 +431,5 @@ async function _initialise_nftx_contracts() {
 
   // Connect our contracts to the NFTX Vault Factory
   await feeDistrib.connect(deployer).setNFTXVaultFactory(nftx.address);
-  await lpStaking.connect(deployer).setNFTXVaultFactory(nftx.address);
+  // await lpStaking.connect(deployer).setNFTXVaultFactory(nftx.address);
 }

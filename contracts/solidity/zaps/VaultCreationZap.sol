@@ -341,4 +341,8 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
     paused = _paused;
   }
 
+  receive() external payable {
+    require(msg.sender == address(WETH), "Only WETH");
+  }
+
 }
