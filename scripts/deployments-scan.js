@@ -5,24 +5,24 @@ const fakeWalletAddress = '0x7346946C18B9C79DAE0520DDBC009D1EE816430B';
 
 const multiProxyControllers = {
   'mainnet': '0x35fb4026dcF19f8cA37dcca4D2D68A549548750C',
-  'rinkeby': '0xFc542C7fEA1da20E1195b2476ae35db50925515C',
+  'goerli': '0xbde65406B20ADb4ba9D88908187Bc9460fF24da9',
   'arbitrum': '0x732E5F7FE7c40333DfeFF57755666F85d1e164c1',
 }
 
 const zaps = {
   'NFTXStakingZap': {
     'mainnet': '0x7a5e0B4069709cF4D02423b8cafDc608f4436791',
-    'rinkeby': '0xeF5F5491EF04Df94638162Cb8f7CBAd64760e797',
+    'goerli': '0xd9A60945DD4b3a5Ea91480e82dA20D3AceC5D857',
     'arbitrum': '0xfb8664E4EB4d2F8B0220d358d0d9C4896DC84959',
   },
   'NFTXMarketplaceZap': {
     'mainnet': '0x0fc584529a2AEfA997697FAfAcbA5831faC0c22d',
-    'rinkeby': '0xF83d27657a6474cB2Ae09a5b39177BBB80E63d81',
+    'goerli': '0x27124948dcc9EbF3113681898FF217d3E4f56900',
     'arbitrum': '0x66f26E38bD50FD52A50da8E87E435f04f98001B7',
   },
   'NFTXUnstakingInventoryZap': {
     'mainnet': '0x51d660Ba5c218b2Cf33FBAcA5e3aBb8aEff3543B',
-    'rinkeby': '0x608F0D84657BB876DDEDD8d8d5aB9D12639d5798',
+    'goerli': '0x7c656F0691Db983ee78f68189c55C36d1862c901',
     'arbitrum': '0x009e4110Fd68c603DD1F9189C4BaC3D12Cde8c70',
   },
 }
@@ -34,13 +34,13 @@ async function main() {
 
   providers = {
     'mainnet': new ethers.providers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/i_qZ0g_j78x_hiP3rb8beh2nYWHWVel0'),
-    'rinkeby': new ethers.providers.JsonRpcProvider('https://rinkeby.infura.io/v3/aaeff29653f045988e7c2bd8d4b04636'),
+    'goerli': new ethers.providers.JsonRpcProvider('https://eth-goerli.g.alchemy.com/v2/WenTurWn7CRtTMr_XUlYwu6o59ULm5uK'),
     'arbitrum': new ethers.providers.JsonRpcProvider('https://arb1.arbitrum.io/rpc'),
   }
 
   signers = {
     'mainnet': await providers['mainnet'].getSigner(fakeWalletAddress),
-    'rinkeby': await providers['rinkeby'].getSigner(fakeWalletAddress),
+    'goerli': await providers['goerli'].getSigner(fakeWalletAddress),
     'arbitrum': await providers['arbitrum'].getSigner(fakeWalletAddress),
   }
 
@@ -53,7 +53,7 @@ async function main() {
    */
 
   const proxyMainnet = await ethers.getContractAt('MultiProxyController', multiProxyControllers['mainnet'], signers['mainnet']);
-  const proxyRinkeby = await ethers.getContractAt('MultiProxyController', multiProxyControllers['rinkeby'], signers['rinkeby']);
+  const proxyGoerli = await ethers.getContractAt('MultiProxyController', multiProxyControllers['goerli'], signers['goerli']);
   const proxyArbitrum = await ethers.getContractAt('MultiProxyController', multiProxyControllers['arbitrum'], signers['arbitrum']);
 
   console.log('');
@@ -61,37 +61,36 @@ async function main() {
   console.log('| Network     | Contract Address                               | Match  | Verified  |');
   console.log('+-------------+------------------------------------------------+--------+-----------+');
 
-  let mainnetImplementations = await proxyMainnet.getAllImpls();
-  let rinkebyImplementations = await proxyRinkeby.getAllImpls();
-  let arbitrumImplementations = await proxyArbitrum.getAllImpls();
+  let mainnetImplementations = await proxyMainnet.getAllProxies();
+  let goerliImplementations = await proxyGoerli.getAllProxies();
+  let arbitrumImplementations = await proxyArbitrum.getAllProxies();
 
   for (let i = 0; i < mainnetImplementations.length; ++i) {
     await checkContractNetworks(
       await proxyMainnet.getName(i),
       mainnetImplementations[i],
-      rinkebyImplementations[i],
+      goerliImplementations[i],
       arbitrumImplementations[i]
     );
   }
-
 
   /**
    * GET OUR VAULT IMPLEMENTATION FROM THE VAULT FACTORY
    */
 
   let mainnetVaultFactory = await ethers.getContractAt('NFTXVaultFactoryUpgradeable', mainnetImplementations[0], signers['mainnet']);
-  let rinkebyVaultFactory = await ethers.getContractAt('NFTXVaultFactoryUpgradeable', rinkebyImplementations[0], signers['rinkeby']);
+  let goerliVaultFactory = await ethers.getContractAt('NFTXVaultFactoryUpgradeable', goerliImplementations[0], signers['goerli']);
   let arbitrumVaultFactory = await ethers.getContractAt('NFTXVaultFactoryUpgradeable', arbitrumImplementations[0], signers['arbitrum']);
  
   // Get the first vault on each of our vault factory implementations
   let mainnetVaultImplementation = await mainnetVaultFactory.vault('0');
-  let rinkebyVaultImplementation = await rinkebyVaultFactory.vault('0');
+  let goerliVaultImplementation = await goerliVaultFactory.vault('0');
   let arbitrumVaultImplementation = await arbitrumVaultFactory.vault('0');
  
   await checkContractNetworks(
     'NFTXVaultFactoryUpgradeable',
     mainnetVaultImplementation,
-    rinkebyVaultImplementation,
+    goerliVaultImplementation,
     arbitrumVaultImplementation
   );
 
@@ -101,18 +100,18 @@ async function main() {
    */
 
   let mainnetLPStaking = await ethers.getContractAt('NFTXLPStaking', mainnetImplementations[2], signers['mainnet']);
-  let rinkebyLPStaking = await ethers.getContractAt('NFTXLPStaking', rinkebyImplementations[2], signers['rinkeby']);
+  let goerliLPStaking = await ethers.getContractAt('NFTXLPStaking', goerliImplementations[2], signers['goerli']);
   let arbitrumLPStaking = await ethers.getContractAt('NFTXLPStaking', arbitrumImplementations[2], signers['arbitrum']);
 
   // Get the first vault on each of our vault factory implementations
   let mainnetRewardDistToken = await mainnetLPStaking.newTimelockRewardDistTokenImpl();
-  let rinkebyRewardDistToken = await rinkebyLPStaking.newTimelockRewardDistTokenImpl();
+  let goerliRewardDistToken = await goerliLPStaking.newTimelockRewardDistTokenImpl();
   let arbitrumRewardDistToken = await arbitrumLPStaking.newTimelockRewardDistTokenImpl();
 
   await checkContractNetworks(
     'TimelockRewardDistributionTokenImpl',
     mainnetRewardDistToken,
-    rinkebyRewardDistToken,
+    goerliRewardDistToken,
     arbitrumRewardDistToken
   );
 
@@ -122,18 +121,18 @@ async function main() {
    */
 
   let mainnetInventoryStaking = await ethers.getContractAt('NFTXInventoryStaking', mainnetImplementations[5], signers['mainnet']);
-  let rinkebyInventoryStaking = await ethers.getContractAt('NFTXInventoryStaking', rinkebyImplementations[5], signers['rinkeby']);
+  let goerliInventoryStaking = await ethers.getContractAt('NFTXInventoryStaking', goerliImplementations[5], signers['goerli']);
   let arbitrumInventoryStaking = await ethers.getContractAt('NFTXInventoryStaking', arbitrumImplementations[5], signers['arbitrum']);
 
   // Get the first vault on each of our vault factory implementations
   let mainnetXToken = await mainnetInventoryStaking.childImplementation();
-  let rinkebyXToken = await rinkebyInventoryStaking.childImplementation();
+  let goerliXToken = await goerliInventoryStaking.childImplementation();
   let arbitrumXToken = await arbitrumInventoryStaking.childImplementation();
 
   await checkContractNetworks(
     'XTokenUpgradeable',
     mainnetXToken,
-    rinkebyXToken,
+    goerliXToken,
     arbitrumXToken
   );
 
@@ -145,33 +144,33 @@ async function main() {
   let zapKeys = Object.keys(zaps);
   for (let i = 0; i < zapKeys.length; ++i) {
     let zapMainnet = await ethers.getContractAt(zapKeys[i], zaps[zapKeys[i]]['mainnet'], signers['mainnet']);
-    let zapRinkeby = await ethers.getContractAt(zapKeys[i], zaps[zapKeys[i]]['rinkeby'], signers['rinkeby']);
+    let zapGoerli = await ethers.getContractAt(zapKeys[i], zaps[zapKeys[i]]['goerli'], signers['goerli']);
     let zapArbitrum = await ethers.getContractAt(zapKeys[i], zaps[zapKeys[i]]['arbitrum'], signers['arbitrum']);
 
     await checkContractNetworks(
       zapKeys[i],
       zapMainnet.address,
-      zapRinkeby.address,
+      zapGoerli.address,
       zapArbitrum.address
-    );
+    )
   }
 }
 
 
-async function checkContractNetworks(name, mainnet, rinkeby, arbitrum) {
+async function checkContractNetworks(name, mainnet, goerli, arbitrum) {
   let mainnetCode = await providers['mainnet'].getCode(mainnet);
 
   let isVerified = await checkContractValidated(mainnet, 'mainnet') ? 'true ' : 'false';
-  let rinkebyVerified = await checkContractValidated(rinkeby, 'rinkeby') ? 'true ' : 'false';
+  let goerliVerified = await checkContractValidated(goerli, 'goerli') ? 'true ' : 'false';
   let arbitrumVerified = await checkContractValidated(arbitrum, 'arbitrum') ? 'true ' : 'false';
 
-  let rinkebyMatches = await checkByteCodeMatches('rinkeby', rinkeby, mainnetCode) ? 'true ' : 'false';
+  let goerliMatches = await checkByteCodeMatches('goerli', goerli, mainnetCode) ? 'true ' : 'false';
   let arbitrumMatches = await checkByteCodeMatches('arbitrum', arbitrum, mainnetCode) ? 'true ' : 'false';
 
   console.log(`| ${name}                                                                           `);
   console.log('+-------------+------------------------------------------------+--------+-----------+');
   console.log(`| mainnet     | ${mainnet}     | ${isVerified}  | true      |`);
-  console.log(`| rinkeby     | ${rinkeby}     | ${rinkebyVerified}  | ${rinkebyMatches}     |`);
+  console.log(`| goerli      | ${goerli}     | ${goerliVerified}  | ${goerliMatches}     |`);
   console.log(`| arbitrum    | ${arbitrum}     | ${arbitrumVerified}  | ${arbitrumMatches}     |`);
   console.log('+-----------------------------------------------------------------------------------+');
 }
@@ -186,13 +185,13 @@ async function checkByteCodeMatches(network, address, baseByteCode) {
 async function checkContractValidated(address, network) {
   uris = {
     'mainnet': 'https://api.etherscan.io',
-    'rinkeby': 'https://api-rinkeby.etherscan.io',
+    'goerli': 'https://api-goerli.etherscan.io',
     'arbitrum': 'https://api.arbiscan.io',
   }
 
   api_keys = {
     'mainnet': 'Q4A7CY29DUEGAAM419CXQ3ZBZUNJPH46ZC',
-    'rinkeby': '',  // Authed API keys don't actually work on Rinkeby
+    'goerli': '',
     'arbitrum': 'ZFUE496DW5CMHK1KPT4M2V111J2YC99TJP',
   }
 
