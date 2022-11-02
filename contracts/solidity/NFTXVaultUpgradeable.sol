@@ -6,7 +6,7 @@ import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXEligibility.sol";
 import "./interface/INFTXEligibilityManager.sol";
-import "./interface/INFTXFeeDistributor.sol";
+import "./interface/INFTXSimpleFeeDistributor.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
 import "./token/ERC721SafeHolderUpgradeable.sol";
 import "./token/ERC1155SafeHolderUpgradeable.sol";
@@ -55,6 +55,7 @@ contract NFTXVaultUpgradeable is
 
     event VaultShutdown(address assetAddress, uint256 numItems, address recipient);
     event MetaDataChange(string oldName, string oldSymbol, string newName, string newSymbol);
+    event FeeSentToDistributor(address user, uint256 amount, uint256 actionType);
 
     function __NFTXVault_init(
         string memory _name,
@@ -194,7 +195,7 @@ contract NFTXVaultUpgradeable is
         // Mint to the user.
         _mint(to, base * count);
         uint256 totalFee = mintFee() * count;
-        _chargeAndDistributeFees(to, totalFee);
+        _chargeFee(msg.sender, totalFee, 0);
 
         emit Minted(tokenIds, amounts, to);
         return count;
@@ -234,7 +235,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = (_targetRedeemFee * specificIds.length) + (
             _randomRedeemFee * (amount - specificIds.length)
         );
-        _chargeAndDistributeFees(msg.sender, totalFee);
+        _chargeFee(msg.sender, totalFee, 1);
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
@@ -281,7 +282,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = (_targetSwapFee * specificIds.length) + (
             _randomSwapFee * (count - specificIds.length)
         );
-        _chargeAndDistributeFees(msg.sender, totalFee);
+        _chargeFee(msg.sender, totalFee, 3);
         
         // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
@@ -465,22 +466,17 @@ contract NFTXVaultUpgradeable is
         return redeemedIds;
     }
 
-    function _chargeAndDistributeFees(address user, uint256 amount) internal virtual {
-        // Do not charge fees if the zap contract is calling
-        // Added in v1.0.3. Changed to mapping in v1.0.5.
-        
+    function _chargeFee(address user, uint256 amount, uint256 actionType) internal virtual {
         INFTXVaultFactory _vaultFactory = vaultFactory;
 
         if (_vaultFactory.excludedFromFees(msg.sender)) {
             return;
         }
-        
-        // Mint fees directly to the distributor and distribute.
+
         if (amount > 0) {
-            address feeDistributor = _vaultFactory.feeDistributor();
-            // Changed to a _transfer() in v1.0.3.
-            _transfer(user, feeDistributor, amount);
-            INFTXFeeDistributor(feeDistributor).distribute(vaultId);
+            INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(_vaultFactory.feeDistributor());
+            emit FeeSentToDistributor(user, amount, actionType);
+            _transfer(user, address(feeDistrib), amount);
         }
     }
 
