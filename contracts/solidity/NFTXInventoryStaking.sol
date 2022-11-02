@@ -15,6 +15,7 @@ import "./proxy/UpgradeableBeacon.sol";
 import "./proxy/Create2BeaconProxy.sol";
 import "./token/XTokenUpgradeable.sol";
 import "./interface/ITimelockExcludeList.sol";
+import "./interface/INFTXSimpleFeeDistributor.sol";
 
 // Author: 0xKiwi.
 
@@ -120,6 +121,7 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
     // Leave the bar. Claim back your tokens.
     // Unlocks the staked + gained tokens and burns xTokens.
     function withdraw(uint256 vaultId, uint256 _share) external virtual override {
+        _distributeFees(vaultId);
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
 
@@ -167,6 +169,8 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
         XTokenUpgradeable xToken = XTokenUpgradeable((xTokenAddr(address(baseToken))));
 
+        _distributeFees(vaultId);
+
         uint256 xTokensMinted = xToken.mintXTokens(account, _amount, timelockLength);
         return (baseToken, xToken, xTokensMinted);
     }
@@ -189,5 +193,29 @@ contract NFTXInventoryStaking is PausableUpgradeable, UpgradeableBeacon, INFTXIn
         // solhint-disable-next-line no-inline-assembly
         assembly { size := extcodesize(account) }
         return size != 0;
+    }
+
+    function _distributeFees(uint256 vaultId) internal {
+        INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor()).distribute(vaultId);
+    }
+
+    function totalUndistributedFees(uint256 vaultId) public view returns (uint256) {
+        INFTXSimpleFeeDistributor feeDistrib = INFTXSimpleFeeDistributor(nftxVaultFactory.feeDistributor());
+        (address receiverAddr, uint256 receiverAlloc) = feeDistrib.feeReceiverInfo(1);
+        require(receiverAddr == address(this), "wrong index");
+        // TODO: fetch allocationtotal from fee distributor
+        return IERC20Upgradeable(nftxVaultFactory.vault(vaultId)).balanceOf(nftxVaultFactory.feeDistributor()) * receiverAlloc / 1e18;
+    }
+
+    function adjustedXTokenShareValue(uint256 vaultId) public view returns (uint256) {
+        IERC20Upgradeable baseToken = IERC20Upgradeable(nftxVaultFactory.vault(vaultId));
+        XTokenUpgradeable xToken = XTokenUpgradeable(xTokenAddr(address(baseToken)));
+        require(address(xToken) != address(0), "XToken not deployed");
+
+        uint256 multiplier = 10 ** 18;
+        uint256 adjustedBaseTokenBal = baseToken.balanceOf(address(xToken)) + totalUndistributedFees(vaultId);
+        return xToken.totalSupply() > 0 
+            ? multiplier * adjustedBaseTokenBal / xToken.totalSupply() 
+            : multiplier;
     }
 }

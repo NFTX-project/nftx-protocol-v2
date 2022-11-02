@@ -7,6 +7,7 @@ import "./interface/INFTXVaultFactory.sol";
 import "./interface/INFTXEligibility.sol";
 import "./interface/INFTXEligibilityManager.sol";
 import "./interface/INFTXFeeDistributor.sol";
+import "./interface/INFTXSimpleFeeDistributor.sol";
 import "./token/ERC20FlashMintUpgradeable.sol";
 import "./token/ERC721SafeHolderUpgradeable.sol";
 import "./token/ERC1155SafeHolderUpgradeable.sol";
@@ -187,7 +188,10 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256) {
         onlyOwnerIfPaused(1);
+        checkAddressOnDenyList(msg.sender);
+
         require(enableMint, "Minting not enabled");
+
         // Take the NFTs.
         uint256 count = receiveNFTs(tokenIds, amounts);
 
@@ -217,6 +221,8 @@ contract NFTXVaultUpgradeable is
         returns (uint256[] memory)
     {
         onlyOwnerIfPaused(2);
+        checkAddressOnDenyList(msg.sender);
+
         require(
             amount == specificIds.length || enableRandomRedeem,
             "NFTXVault: Random redeem not enabled"
@@ -257,6 +263,8 @@ contract NFTXVaultUpgradeable is
         address to
     ) public override virtual nonReentrant returns (uint256[] memory) {
         onlyOwnerIfPaused(3);
+        checkAddressOnDenyList(msg.sender);
+
         uint256 count;
         if (is1155) {
             for (uint256 i; i < tokenIds.length; ++i) {
@@ -558,6 +566,10 @@ contract NFTXVaultUpgradeable is
 
     function onlyOwnerIfPaused(uint256 lockId) internal view {
         require(!vaultFactory.isLocked(lockId) || msg.sender == owner(), "Paused");
+    }
+
+    function checkAddressOnDenyList(address caller) internal pure {
+        require(caller != 0xbbc53022Af15Bb973AD906577c84784c47C14371, "Caller is blocked");
     }
 
     function retrieveTokens(uint256 amount, address from, address to) public onlyOwner {
