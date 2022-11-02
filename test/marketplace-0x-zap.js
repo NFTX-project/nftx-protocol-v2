@@ -62,7 +62,7 @@ describe('0x Marketplace Zap', function () {
 
     // Set up our NFTX Marketplace 0x Zap
     const MarketplaceZap = await ethers.getContractFactory('NFTXMarketplace0xZap')
-    marketplaceZap = await MarketplaceZap.deploy(nftx.address, weth.address, mock0xProvider.address)
+    marketplaceZap = await MarketplaceZap.deploy(nftx.address, weth.address)
     await marketplaceZap.deployed()
 
     // Mint the vault asset address to Alice (10 tokens)
@@ -115,58 +115,6 @@ describe('0x Marketplace Zap', function () {
   });
 
 
-  it("Should allow contract owner to pause the contract", async function () {
-    // Confirm that we start in an unpaused state
-    expect(await marketplaceZap.paused()).to.equal(false)
-
-    // Confirm we can pause as the owner
-    await marketplaceZap.pause(true)
-    expect(await marketplaceZap.paused()).to.equal(true)
-
-    // Confirm that we can still pause as deployed (who is owner)
-    await marketplaceZap.connect(deployer).pause(false)
-    expect(await marketplaceZap.paused()).to.equal(false)
-  })
-
-
-  it("Should not allow contract interaction when paused", async function () {
-    // Confirm that we start in a paused state
-    await marketplaceZap.pause(true)
-    expect(await marketplaceZap.paused()).to.equal(true)
-
-    // Attempt to mint against the paused contract
-    await expect(
-      marketplaceZap.connect(alice).mintAndSell721(
-        await vault.vaultId(),    // vaultId
-        [1],                      // ids
-        alice.address,            // spender
-        _create_call_data(        // swapCallData
-          vault.address,
-          weth.address
-        ),
-        alice.address             // to
-      )
-    ).to.be.revertedWith('Zap is paused')
-
-    // Unpause the contract so no future tests are affected
-    await marketplaceZap.pause(false)
-    expect(await marketplaceZap.paused()).to.equal(false)
-  })
-
-
-  it("Should not allow a non-owner to pause the contract", async function () {
-    expect(await marketplaceZap.paused()).to.equal(false)
-
-    await expect(marketplaceZap.connect(alice).pause(true)).to.be.revertedWith('Ownable: caller is not the owner')
-
-    expect(await marketplaceZap.paused()).to.equal(false)
-
-    await expect(marketplaceZap.connect(alice).pause(false)).to.be.revertedWith('Ownable: caller is not the owner')
-
-    expect(await marketplaceZap.paused()).to.equal(false)
-  })
-
-
   /**
    * Mints tokens from our NFTX vault and sells them on 0x.
    */
@@ -190,6 +138,7 @@ describe('0x Marketplace Zap', function () {
           await vault.vaultId(),    // vaultId
           [1, 2, 3],                // ids
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault.address,
             weth.address
@@ -203,6 +152,7 @@ describe('0x Marketplace Zap', function () {
           await vault.vaultId(),    // vaultId
           [1, 2, 3],                // ids
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault.address,
             weth.address
@@ -223,6 +173,7 @@ describe('0x Marketplace Zap', function () {
           await vault.vaultId(),    // vaultId
           [],                       // ids
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault.address,
             weth.address
@@ -244,6 +195,7 @@ describe('0x Marketplace Zap', function () {
           await vault.vaultId(),    // vaultId
           [11],                     // ids
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault.address,
             weth.address
@@ -258,6 +210,7 @@ describe('0x Marketplace Zap', function () {
           await vault.vaultId(),    // vaultId
           [11],                     // ids
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault.address,
             weth.address
@@ -284,6 +237,7 @@ describe('0x Marketplace Zap', function () {
         await vault.vaultId(),    // vaultId
         [1],                      // ids
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           vault.address,
           weth.address
@@ -312,6 +266,7 @@ describe('0x Marketplace Zap', function () {
         await vault.vaultId(),    // vaultId
         [2],                      // ids
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           vault.address,
           weth.address
@@ -338,6 +293,10 @@ describe('0x Marketplace Zap', function () {
 
   describe('buyAndSwap721', async function () {
 
+    /**
+     *
+     */
+
     before(async function () {
       // Set our payIn amount to be 1 WETH
       await mock0xProvider.setPayInAmount(String(BASE * 0.1));
@@ -359,6 +318,7 @@ describe('0x Marketplace Zap', function () {
           [4, 5, 6],                // idsIn
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -373,6 +333,7 @@ describe('0x Marketplace Zap', function () {
           [4, 5, 6],                // idsIn
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -394,6 +355,7 @@ describe('0x Marketplace Zap', function () {
           [],                       // idsIn
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -410,6 +372,7 @@ describe('0x Marketplace Zap', function () {
           [4, 5, 6],                // idsIn
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -429,6 +392,7 @@ describe('0x Marketplace Zap', function () {
         [4],                      // idsIn
         [],                       // specificIds
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           weth.address,            // payInToken
           vault.address            // payOutToken
@@ -457,6 +421,7 @@ describe('0x Marketplace Zap', function () {
         [5],                      // idsIn
         [4],                      // specificIds
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           weth.address,            // payInToken
           vault.address            // payOutToken
@@ -487,6 +452,7 @@ describe('0x Marketplace Zap', function () {
         [6],                      // idsIn
         [],                       // specificIds
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           weth.address,            // payInToken
           vault.address            // payOutToken
@@ -515,6 +481,7 @@ describe('0x Marketplace Zap', function () {
         [7, 8],                   // idsIn
         [],                       // specificIds
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           weth.address,            // payInToken
           vault.address            // payOutToken
@@ -536,6 +503,10 @@ describe('0x Marketplace Zap', function () {
   })
 
   describe('buyAndRedeem', async function () {
+
+    /**
+     *
+     */
 
     before(async function () {
       // Set our payIn amount to be 1 WETH
@@ -574,6 +545,7 @@ describe('0x Marketplace Zap', function () {
           3,                        // amount
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -588,6 +560,7 @@ describe('0x Marketplace Zap', function () {
           1,                        // amount
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -609,6 +582,7 @@ describe('0x Marketplace Zap', function () {
           0,                        // amount
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -625,6 +599,7 @@ describe('0x Marketplace Zap', function () {
           1,                        // amount
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -639,6 +614,7 @@ describe('0x Marketplace Zap', function () {
           2,                        // amount
           [],                       // specificIds
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             weth.address,
             vault.address
@@ -652,7 +628,11 @@ describe('0x Marketplace Zap', function () {
     });
 
 
-    xit('Should be able to fill quote', async function () {
+    /**
+     *
+     */
+
+    it('Should be able to fill quote', async function () {
       expect(await erc721.balanceOf(alice.address)).to.equal(7)
       expect(await erc721.balanceOf(vault.address)).to.equal(12)
 
@@ -662,6 +642,7 @@ describe('0x Marketplace Zap', function () {
         1,                        // amount
         [],                       // specificIds
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           weth.address,            // payInToken
           vault.address            // payOutToken
@@ -706,6 +687,7 @@ describe('0x Marketplace Zap', function () {
           [1, 2, 3],                // ids
           [1, 1, 1],                // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -720,6 +702,7 @@ describe('0x Marketplace Zap', function () {
           [1, 2, 3],                // ids
           [1, 1, 1],                // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -741,6 +724,7 @@ describe('0x Marketplace Zap', function () {
           [],                       // ids
           [],                       // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -762,6 +746,7 @@ describe('0x Marketplace Zap', function () {
           [1],                      // ids
           [0],                      // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -785,6 +770,7 @@ describe('0x Marketplace Zap', function () {
           [11],                     // ids
           [1],                      // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -800,6 +786,7 @@ describe('0x Marketplace Zap', function () {
           [11],                     // ids
           [1],                      // amounts
           alice.address,            // spender
+          mock0xProvider.address,   // swapTarget
           _create_call_data(        // swapCallData
             vault1155.address,
             weth.address
@@ -827,6 +814,7 @@ describe('0x Marketplace Zap', function () {
         [1],                      // ids
         [1],                      // amounts
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           vault1155.address,
           weth.address
@@ -862,6 +850,7 @@ describe('0x Marketplace Zap', function () {
         [1, 2],                   // ids
         [3, 2],                   // amounts
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           vault1155.address,
           weth.address
@@ -892,6 +881,7 @@ describe('0x Marketplace Zap', function () {
         [2],                      // ids
         [3],                      // amounts
         alice.address,            // spender
+        mock0xProvider.address,   // swapTarget
         _create_call_data(        // swapCallData
           vault1155.address,
           weth.address

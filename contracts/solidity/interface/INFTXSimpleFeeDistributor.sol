@@ -15,9 +15,6 @@ interface INFTXSimpleFeeDistributor {
   function inventoryStaking() external view returns (address);
   function treasury() external view returns (address);
   function allocTotal() external view returns (uint256);
-  function feeReceiverInfo(uint256 index) external view returns (address, uint256);
-  // function feeReceiverAddr(uint256 index) external view returns (address);
-  // function feeReceiverAlloc(uint256 index) external view returns (uint256);
 
   // Write functions.
   function __SimpleFeeDistributor__init__(address _lpStaking, address _treasury) external;
