@@ -14,7 +14,7 @@ module.exports = {
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
     },
     goerli: {
-      url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_RINKEBY_API_KEY}`,
+      url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_GOERLI_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
       timeout: 1200000,
     },
