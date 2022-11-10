@@ -177,8 +177,4 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       return true;
     }
   }
-
-  function feeReceiverInfo(uint256 index) external override view returns (address, uint256) {
-    return (feeReceivers[index].receiver, feeReceivers[index].allocPoint);
-  }
 } 
