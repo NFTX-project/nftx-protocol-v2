@@ -22,7 +22,7 @@ module.exports = {
     goerli: {
       url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_GOERLI_API_KEY}`,
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
-      gasPrice: 2500000000,
+      timeout: 1200000,
     },
     mainnet: {
       url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
