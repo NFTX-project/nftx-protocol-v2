@@ -58,10 +58,6 @@ contract NFTXSimpleFeeDistributor is INFTXSimpleFeeDistributor, ReentrancyGuardU
       return;
     } 
 
-    if (tokenBalance == 0) {
-      return;
-    }
-
     uint256 length = feeReceivers.length;
     uint256 leftover;
     for (uint256 i; i < length; ++i) {

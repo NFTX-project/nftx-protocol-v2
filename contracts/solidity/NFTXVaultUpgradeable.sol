@@ -194,7 +194,7 @@ contract NFTXVaultUpgradeable is
         // Mint to the user.
         _mint(to, base * count);
         uint256 totalFee = mintFee() * count;
-        _chargeFees(msg.sender, totalFee);
+        _chargeAndDistributeFees(to, totalFee);
 
         emit Minted(tokenIds, amounts, to);
         return count;
@@ -234,7 +234,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = (_targetRedeemFee * specificIds.length) + (
             _randomRedeemFee * (amount - specificIds.length)
         );
-        _chargeFees(msg.sender, totalFee);
+        _chargeAndDistributeFees(msg.sender, totalFee);
 
         // Withdraw from vault.
         uint256[] memory redeemedIds = withdrawNFTsTo(amount, specificIds, to);
@@ -281,7 +281,7 @@ contract NFTXVaultUpgradeable is
         uint256 totalFee = (_targetSwapFee * specificIds.length) + (
             _randomSwapFee * (count - specificIds.length)
         );
-        _chargeFees(msg.sender, totalFee);
+        _chargeAndDistributeFees(msg.sender, totalFee);
         
         // Give the NFTs first, so the user wont get the same thing back, just to be nice. 
         uint256[] memory ids = withdrawNFTsTo(count, specificIds, to);
@@ -465,15 +465,22 @@ contract NFTXVaultUpgradeable is
         return redeemedIds;
     }
 
-    function _chargeFees(address user, uint256 amount) internal virtual {
+    function _chargeAndDistributeFees(address user, uint256 amount) internal virtual {
+        // Do not charge fees if the zap contract is calling
+        // Added in v1.0.3. Changed to mapping in v1.0.5.
+        
         INFTXVaultFactory _vaultFactory = vaultFactory;
 
         if (_vaultFactory.excludedFromFees(msg.sender)) {
             return;
         }
-
+        
+        // Mint fees directly to the distributor and distribute.
         if (amount > 0) {
-            _transfer(user, _vaultFactory.feeDistributor(), amount);
+            address feeDistributor = _vaultFactory.feeDistributor();
+            // Changed to a _transfer() in v1.0.3.
+            _transfer(user, feeDistributor, amount);
+            INFTXFeeDistributor(feeDistributor).distribute(vaultId);
         }
     }
 
