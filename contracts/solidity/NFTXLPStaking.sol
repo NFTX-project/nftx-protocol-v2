@@ -30,6 +30,9 @@ contract NFTXLPStaking is PausableUpgradeable {
     event PoolUpdated(uint256 vaultId, address pool);
     event FeesReceived(uint256 vaultId, uint256 amount);
 
+    event Deposit(uint256 vaultId, address stakingToken, uint256 amount, address account, uint256 timelockLength);
+    event Withdraw(uint256 vaultId, address stakingToken, uint256 amount, address account);
+
     struct StakingPool {
         address stakingToken;
         address rewardToken;
@@ -130,17 +133,20 @@ contract NFTXLPStaking is PausableUpgradeable {
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
         TimelockRewardDistributionTokenImpl xSLPToken = _rewardDistributionTokenAddr(pool);
 
+        // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
+        uint256 timelockLength = 2;
+
         // If the user has an existing timelock, check if it is in the future.
         uint256 currentTimelock = xSLPToken.timelockUntil(msg.sender);
         if (currentTimelock > block.timestamp) {
             // Maintain the same timelock if they already have one.
             // We do this instead of patching in the token because
             // the xSLP contracts as currently deployed are not upgradeable.
-            xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
-        } else {
-            // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
-            xSLPToken.timelockMint(msg.sender, amount, 2);
+            timelockLength = currentTimelock - block.timestamp;
         }
+
+        xSLPToken.timelockMint(msg.sender, amount, timelockLength);
+        emit Deposit(vaultId, pool.stakingToken, amount, msg.sender, timelockLength);
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
@@ -162,7 +168,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
-        _withdraw(pool, balanceOf(vaultId, msg.sender), msg.sender);
+        _withdraw(vaultId, pool, balanceOf(vaultId, msg.sender), msg.sender);
     }
 
     function emergencyExitAndClaim(address _stakingToken, address _rewardToken) external {
@@ -171,14 +177,14 @@ contract NFTXLPStaking is PausableUpgradeable {
         require(isContract(address(dist)), "Not a pool");
         _distributeFees(INFTXVault(_rewardToken).vaultId());
         _claimRewards(pool, msg.sender);
-        _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
+        _withdraw(vaultId, pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
     function emergencyExit(address _stakingToken, address _rewardToken) external {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
         TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
-        _withdraw(pool, dist.balanceOf(msg.sender), msg.sender);
+        _withdraw(vaultId, pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
     // function emergencyMigrate(uint256 vaultId) external {
@@ -216,7 +222,7 @@ contract NFTXLPStaking is PausableUpgradeable {
         StakingPool memory pool = vaultStakingInfo[vaultId];
         _distributeFees(vaultId);
         _claimRewards(pool, msg.sender);
-        _withdraw(pool, amount, msg.sender);
+        _withdraw(vaultId, pool, amount, msg.sender);
     }
 
     function claimRewards(uint256 vaultId) public {
@@ -310,10 +316,11 @@ contract NFTXLPStaking is PausableUpgradeable {
         _rewardDistributionTokenAddr(pool).withdrawReward(account);
     }
 
-    function _withdraw(StakingPool memory pool, uint256 amount, address account) internal {
+    function _withdraw(uint256 vaultId, StakingPool memory pool, uint256 amount, address account) internal {
         require(pool.stakingToken != address(0), "LPStaking: Nonexistent pool");
         _rewardDistributionTokenAddr(pool).burnFrom(account, amount);
         IERC20Upgradeable(pool.stakingToken).safeTransfer(account, amount);
+        emit Withdraw(vaultId, pool.stakingToken, amount, account);
     }
 
     function _deployDividendToken(StakingPool memory pool) internal returns (address) {
