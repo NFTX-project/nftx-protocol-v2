@@ -133,9 +133,6 @@ contract NFTXLPStaking is PausableUpgradeable {
         IERC20Upgradeable(pool.stakingToken).safeTransferFrom(msg.sender, address(this), amount);
         TimelockRewardDistributionTokenImpl xSLPToken = _rewardDistributionTokenAddr(pool);
 
-        // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
-        uint256 timelockLength = 2;
-
         // If the user has an existing timelock, check if it is in the future.
         uint256 currentTimelock = xSLPToken.timelockUntil(msg.sender);
         if (currentTimelock > block.timestamp) {
