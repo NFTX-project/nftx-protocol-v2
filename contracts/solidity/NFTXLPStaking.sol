@@ -142,10 +142,12 @@ contract NFTXLPStaking is PausableUpgradeable {
             // Maintain the same timelock if they already have one.
             // We do this instead of patching in the token because
             // the xSLP contracts as currently deployed are not upgradeable.
-            timelockLength = currentTimelock - block.timestamp;
+            xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
+        } else {
+            // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
+            xSLPToken.timelockMint(msg.sender, amount, 2);
         }
 
-        xSLPToken.timelockMint(msg.sender, amount, timelockLength);
         emit Deposit(vaultId, pool.stakingToken, amount, msg.sender, timelockLength);
     }
 
