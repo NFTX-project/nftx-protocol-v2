@@ -140,12 +140,12 @@ contract NFTXLPStaking is PausableUpgradeable {
             // We do this instead of patching in the token because
             // the xSLP contracts as currently deployed are not upgradeable.
             xSLPToken.timelockMint(msg.sender, amount, currentTimelock-block.timestamp);
+            emit Deposit(vaultId, pool.stakingToken, amount, msg.sender, currentTimelock-block.timestamp);
         } else {
             // Timelock for 2 seconds if they don't already have a timelock to prevent flash loans.
             xSLPToken.timelockMint(msg.sender, amount, 2);
+            emit Deposit(vaultId, pool.stakingToken, amount, msg.sender, 2);
         }
-
-        emit Deposit(vaultId, pool.stakingToken, amount, msg.sender, timelockLength);
     }
 
     function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external {
@@ -176,14 +176,14 @@ contract NFTXLPStaking is PausableUpgradeable {
         require(isContract(address(dist)), "Not a pool");
         _distributeFees(INFTXVault(_rewardToken).vaultId());
         _claimRewards(pool, msg.sender);
-        _withdraw(vaultId, pool, dist.balanceOf(msg.sender), msg.sender);
+        _withdraw(INFTXVault(_rewardToken).vaultId(), pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
     function emergencyExit(address _stakingToken, address _rewardToken) external {
         StakingPool memory pool = StakingPool(_stakingToken, _rewardToken);
         TimelockRewardDistributionTokenImpl dist = _rewardDistributionTokenAddr(pool);
         require(isContract(address(dist)), "Not a pool");
-        _withdraw(vaultId, pool, dist.balanceOf(msg.sender), msg.sender);
+        _withdraw(INFTXVault(_rewardToken).vaultId(), pool, dist.balanceOf(msg.sender), msg.sender);
     }
 
     // function emergencyMigrate(uint256 vaultId) external {
