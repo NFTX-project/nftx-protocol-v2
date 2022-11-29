@@ -7,11 +7,11 @@ import "../interface/INFTXLPStaking.sol";
 import "../interface/IUniswapV2Router01.sol";
 import "../interface/INFTXVault.sol";
 import "../interface/INFTXVaultFactory.sol";
-import "../token/IERC1155Upgradeable.sol";
-import "../token/ERC1155SafeHolderUpgradeable.sol";
+import "../testing/IERC1155.sol";
+import "../testing/ERC1155Holder.sol";
 import "../util/Ownable.sol";
 import "../util/ReentrancyGuard.sol";
-import "../util/SafeERC20Upgradeable.sol";
+import "../util/SafeERC20.sol";
 import "../util/SushiHelper.sol";
 
 
@@ -35,9 +35,9 @@ interface IWETH {
  * @author Twade
  */
 
-contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgradeable {
+contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
 
-  using SafeERC20Upgradeable for IERC20Upgradeable;
+  using SafeERC20 for IERC20;
 
   /// @notice Allows zap to be paused
   bool public paused = false;
@@ -197,7 +197,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
       } else {
         // Transfer all of our 1155 tokens to our zap, as the `mintTo` call on our
         // vault requires the call sender to hold the ERC1155 token.
-        IERC1155Upgradeable(vaultData.assetAddress).safeBatchTransferFrom(
+        IERC1155(vaultData.assetAddress).safeBatchTransferFrom(
           msg.sender,
           address(this),
           assetTokens.assetTokenIds,
@@ -206,7 +206,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
         );
 
         // Approve our vault to play with our 1155 tokens
-        IERC1155Upgradeable(vaultData.assetAddress).setApprovalForAll(address(vault), true);
+        IERC1155(vaultData.assetAddress).setApprovalForAll(address(vault), true);
       }
 
       // We can now mint our asset tokens, giving the vault our tokens and storing them
@@ -228,11 +228,11 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
         WETH.deposit{value: msg.value}();
 
         // Convert WETH to vault token
-        require(IERC20Upgradeable(baseToken).balanceOf(address(this)) >= assetTokens.minTokenIn, 'Insufficient tokens acquired for liquidity');
+        require(IERC20(baseToken).balanceOf(address(this)) >= assetTokens.minTokenIn, 'Insufficient tokens acquired for liquidity');
 
         // Provide liquidity to sushiswap, using the vault tokens and pairing it with the
         // liquidity amount specified in the call.
-        IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), assetTokens.minTokenIn);
+        IERC20(baseToken).safeApprove(address(sushiRouter), assetTokens.minTokenIn);
         (,, uint256 liquidity) = sushiRouter.addLiquidity(
           baseToken,
           address(WETH),
@@ -243,23 +243,23 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
           address(this),
           block.timestamp
         );
-        IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), 0);
+        IERC20(baseToken).safeApprove(address(sushiRouter), 0);
 
         // Stake in LP rewards contract 
         address lpToken = sushiHelper.pairFor(sushiRouter.factory(), baseToken, address(WETH));
-        IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
+        IERC20(lpToken).safeApprove(address(lpStaking), liquidity);
         lpStaking.timelockDepositFor(vaultId_, msg.sender, liquidity, 48 hours);
       }
 
       // Return any token dust to the caller
-      uint256 remainingTokens = IERC20Upgradeable(baseToken).balanceOf(address(this));
+      uint256 remainingTokens = IERC20(baseToken).balanceOf(address(this));
 
       // Any tokens that we have remaining after our liquidity staking are thrown into
       // inventory to ensure what we don't have any token dust remaining.
       if (remainingTokens > 0) {
         // Make a direct timelock mint using the default timelock duration. This sends directly
         // to our user, rather than via the zap, to avoid the timelock locking the tx.
-        IERC20Upgradeable(baseToken).transfer(inventoryStaking.vaultXToken(vaultId_), remainingTokens);
+        IERC20(baseToken).transfer(inventoryStaking.vaultXToken(vaultId_), remainingTokens);
         inventoryStaking.timelockMintFor(vaultId_, remainingTokens, msg.sender, 2);
       }
     }

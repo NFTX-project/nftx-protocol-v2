@@ -4,23 +4,17 @@ pragma solidity ^0.8.0;
 
 import "./interface/INFTXVault.sol";
 import "./interface/INFTXVaultFactory.sol";
-import "./token/IERC1155Upgradeable.sol";
-import "./token/ERC721HolderUpgradeable.sol";
-import "./token/ERC1155HolderUpgradeable.sol";
+import "./testing/IERC1155.sol";
+import "./testing/ERC721Holder.sol";
+import "./testing/ERC1155Holder.sol";
 import "./util/Ownable.sol";
 import "./util/ReentrancyGuard.sol";
-import "./util/SafeERC20Upgradeable.sol";
+import "./util/SafeERC20.sol";
 
 
 /**
  * @notice A partial ERC20 interface.
  */
-
-interface IERC20 {
-  function balanceOf(address owner) external view returns (uint256);
-  function approve(address spender, uint256 amount) external returns (bool);
-  function transfer(address to, uint256 amount) external returns (bool);
-}
 
 
 /**
@@ -43,9 +37,9 @@ interface IWETH {
  * @author Twade
  */
 
-contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeable, ERC1155HolderUpgradeable {
+contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155Holder {
 
-  using SafeERC20Upgradeable for IERC20Upgradeable;
+  using SafeERC20 for IERC20;
 
   /// @notice Allows zap to be paused
   bool public paused = false;
@@ -362,8 +356,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
 
     // Transfer tokens from the message sender to the vault
     address assetAddress = INFTXVault(vault).assetAddress();
-    IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
-    IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+    IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), ids, amounts, "");
+    IERC1155(assetAddress).setApprovalForAll(vault, true);
 
     // Mint our tokens from the vault to this contract
     INFTXVault(vault).mint(ids, amounts);
@@ -436,8 +430,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
 
     // Transfer tokens to zap and mint to NFTX.
     address assetAddress = INFTXVault(vault).assetAddress();
-    IERC1155Upgradeable(assetAddress).safeBatchTransferFrom(msg.sender, address(this), idsIn, amounts, "");
-    IERC1155Upgradeable(assetAddress).setApprovalForAll(vault, true);
+    IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), idsIn, amounts, "");
+    IERC1155(assetAddress).setApprovalForAll(vault, true);
     INFTXVault(vault).swapTo(idsIn, amounts, idsOut, to);
     
     return vault;
@@ -555,9 +549,9 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
       require(success, "Unable to send unwrapped WETH");
     }
 
-    uint dustBalance = IERC20Upgradeable(vault).balanceOf(address(this));
+    uint dustBalance = IERC20(vault).balanceOf(address(this));
     if (dustBalance > 0) {
-      IERC20Upgradeable(vault).transfer(spender, dustBalance);
+      IERC20(vault).transfer(spender, dustBalance);
     }
 
     emit DustReturned(remaining, dustBalance, spender);
@@ -638,7 +632,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
       (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
       require(success, "Address: unable to send value");
     } else {
-      IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
+      IERC20(token).safeTransfer(msg.sender, IERC20(token).balanceOf(address(this)));
     }
   }
 

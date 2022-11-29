@@ -8,7 +8,7 @@ import "./interface/INFTXVaultFactory.sol";
 import "./interface/IUniswapV2Router01.sol";
 import "./util/Ownable.sol";
 import "./util/ReentrancyGuard.sol";
-import "./util/SafeERC20Upgradeable.sol";
+import "./util/SafeERC20.sol";
 
 
 /**
@@ -33,7 +33,7 @@ interface IWETH {
 
 contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
-  using SafeERC20Upgradeable for IERC20Upgradeable;
+  using SafeERC20 for IERC20;
   
   /// @notice Allows zap to be paused
   bool public paused = false;
@@ -126,7 +126,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Make a direct timelock mint using the default timelock duration. This sends directly
     // to our user, rather than via the zap, to avoid the timelock locking the tx.
-    IERC20Upgradeable(baseToken).transfer(inventoryStaking.vaultXToken(vaultId), vaultTokenAmount);
+    IERC20(baseToken).transfer(inventoryStaking.vaultXToken(vaultId), vaultTokenAmount);
     inventoryStaking.timelockMintFor(vaultId, vaultTokenAmount, msg.sender, 2);
 
     // Return any left of WETH to the user as ETH
@@ -191,7 +191,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
-    IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), vaultTokenAmount);
+    IERC20(baseToken).safeApprove(address(sushiRouter), vaultTokenAmount);
     (uint256 amountToken, , uint256 liquidity) = sushiRouter.addLiquidity(
       baseToken,
       address(WETH),
@@ -205,13 +205,13 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Stake in LP rewards contract 
     address lpToken = pairFor(baseToken, address(WETH));
-    IERC20Upgradeable(lpToken).safeApprove(address(lpStaking), liquidity);
+    IERC20(lpToken).safeApprove(address(lpStaking), liquidity);
     lpStaking.timelockDepositFor(vaultId, msg.sender, liquidity, 48 hours);
     
     // Return any token dust to the caller
     uint256 remainingTokens = vaultTokenAmount - amountToken;
     if (remainingTokens != 0) {
-      IERC20Upgradeable(baseToken).transfer(msg.sender, remainingTokens);
+      IERC20(baseToken).transfer(msg.sender, remainingTokens);
     }
 
     // Return any left of WETH to the user as ETH
@@ -266,7 +266,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
       (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
       require(success, "Address: unable to send value");
     } else {
-      IERC20Upgradeable(token).safeTransfer(msg.sender, IERC20Upgradeable(token).balanceOf(address(this)));
+      IERC20(token).safeTransfer(msg.sender, IERC20(token).balanceOf(address(this)));
     }
   }
 
@@ -283,14 +283,14 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     bytes calldata swapCallData
   ) internal returns (uint256) {
       // Track our balance of the buyToken to determine how much we've bought.
-      uint256 boughtAmount = IERC20Upgradeable(buyToken).balanceOf(address(this));
+      uint256 boughtAmount = IERC20(buyToken).balanceOf(address(this));
 
       // Call the encoded swap function call on the contract at `swapTarget`
       (bool success,) = swapTarget.call(swapCallData);
       require(success, 'SWAP_CALL_FAILED');
 
       // Use our current buyToken balance to determine how much we've bought.
-      return IERC20Upgradeable(buyToken).balanceOf(address(this)) - boughtAmount;
+      return IERC20(buyToken).balanceOf(address(this)) - boughtAmount;
   }
 
 
