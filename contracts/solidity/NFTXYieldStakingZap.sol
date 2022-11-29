@@ -105,7 +105,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
   function buyAndStakeInventory(
     uint256 vaultId,
     bytes calldata swapCallData
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Ensure we have tx value
     require(msg.value > 0, 'Invalid value provided');
 
@@ -164,7 +164,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     uint256 minWethIn,
     uint256 wethIn
 
-  ) external payable nonReentrant {
+  ) external payable nonReentrant onlyOwnerIfPaused {
     // Ensure we have tx value
     require(msg.value > 0, 'Invalid value provided');
     require(msg.value > wethIn, 'Insufficient vault sent for pairing');
@@ -319,6 +319,17 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
   function pause(bool _paused) external onlyOwner {
     paused = _paused;
+  }
+
+  /**
+   * @notice A modifier that only allows the owner to interact with the function
+   * if the contract is paused. If the contract is not paused then anyone can
+   * interact with the function.
+   */
+
+  modifier onlyOwnerIfPaused() {
+    require(!paused || msg.sender == owner(), "Zap is paused");
+    _;
   }
 
 
