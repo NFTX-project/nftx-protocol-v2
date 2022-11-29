@@ -56,6 +56,9 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
   INFTXInventoryStaking public immutable inventoryStaking;
   INFTXLPStaking public immutable lpStaking;
 
+  // Set a constant address for specific contracts that need special logic
+  address constant CRYPTO_PUNKS = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+
   /// @notice Basic information pertaining to the vault
   struct vaultInfo {
     address assetAddress;      // 20/32
@@ -183,14 +186,17 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
         // Iterate over our 721 tokens to transfer them all to our vault
         for (uint i; i < length;) {
           _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
-          bytes memory data = abi.encodeWithSignature(
-              "offerPunkForSaleToAddress(uint256,uint256,address)",
-              assetTokens.assetTokenIds[i],
-              0,
-              address(vault)
-          );
-          (bool success, bytes memory resultData) = vaultData.assetAddress.call(data);
-          require(success, string(resultData));
+
+          if(vaultData.assetAddress == CRYPTO_PUNKS) {
+            bytes memory data = abi.encodeWithSignature(
+                "offerPunkForSaleToAddress(uint256,uint256,address)",
+                assetTokens.assetTokenIds[i],
+                0,
+                address(vault)
+            );
+            (bool success, bytes memory resultData) = vaultData.assetAddress.call(data);
+            require(success, string(resultData));
+          }
 
           unchecked { ++i; }
         }
@@ -310,7 +316,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
   function _transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     bytes memory data;
 
-    if (assetAddr == 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+    if (assetAddr == CRYPTO_PUNKS) {
       // Fix here for frontrun attack.
       bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
       (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
