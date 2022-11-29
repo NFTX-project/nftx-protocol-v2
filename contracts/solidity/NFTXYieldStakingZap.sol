@@ -20,6 +20,7 @@ interface IWETH {
   function transfer(address to, uint value) external returns (bool);
   function withdraw(uint) external;
   function balanceOf(address to) external view returns (uint256);
+  function approve(address guy, uint wad) external returns (bool);
 }
 
 
@@ -180,6 +181,10 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     // Convert WETH to vault token
     uint256 vaultTokenAmount = _fillQuote(baseToken, swapCallData);
     require(vaultTokenAmount > minTokenIn, 'Insufficient tokens acquired');
+
+    // Check WETH balance
+    uint256 WETHAmount = WETH.balanceOf(address(this)) - wethBalance;
+    require(WETHAmount >= wethIn, 'Insufficient WETH remaining');
 
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
