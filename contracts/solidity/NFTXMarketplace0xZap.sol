@@ -227,6 +227,9 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     // Buy vault tokens that will cover our transaction
     uint256 quoteAmount = _fillQuote(address(WETH), vault, swapCallData);
 
+    // check if received sufficient vault tokens
+    require(quoteAmount >= amount * 1e18, 'Insufficient vault tokens');
+
     // Redeem token IDs from the vault
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, quoteAmount, to);
