@@ -86,6 +86,7 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     WETH = IWETH(_weth);
     // setting infinite approval here to save on subsequent gas costs
     WETH.approve(_sushiRouter, type(uint256).max);
+    WETH.approve(_swapTarget, type(uint256).max);
 
     // Set our 0x Swap Target
     swapTarget = _swapTarget;
@@ -283,11 +284,6 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
   ) internal returns (uint256) {
       // Track our balance of the buyToken to determine how much we've bought.
       uint256 boughtAmount = IERC20Upgradeable(buyToken).balanceOf(address(this));
-
-      // Give `swapTarget` an infinite allowance to spend this contract's `sellToken`.
-      // Note that for some tokens (e.g., USDT, KNC), you must first reset any existing
-      // allowance to 0 before being able to update it.
-      require(IERC20Upgradeable(address(WETH)).approve(swapTarget, type(uint256).max), 'Unable to approve contract');
 
       // Call the encoded swap function call on the contract at `swapTarget`
       (bool success,) = swapTarget.call(swapCallData);
