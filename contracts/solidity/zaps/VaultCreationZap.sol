@@ -24,6 +24,7 @@ interface IWETH {
   function transfer(address to, uint value) external returns (bool);
   function withdraw(uint) external;
   function balanceOf(address to) external view returns (uint256);
+  function approve(address guy, uint wad) external returns (bool);
 }
 
 
@@ -117,6 +118,8 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
 
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
+    // setting infinite approval here to save on subsequent gas costs
+    WETH.approve(_sushiRouter, type(uint256).max);
   }
 
 
@@ -231,6 +234,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
           address(this),
           block.timestamp
         );
+        IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), 0);
 
         // Stake in LP rewards contract 
         address lpToken = sushiHelper.pairFor(sushiRouter.factory(), baseToken, address(WETH));
