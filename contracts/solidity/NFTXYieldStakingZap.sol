@@ -85,8 +85,8 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
     // setting infinite approval here to save on subsequent gas costs
-    WETH.approve(_sushiRouter, type(uint256).max);
-    WETH.approve(_swapTarget, type(uint256).max);
+    IWETH(_weth).approve(_sushiRouter, type(uint256).max);
+    IWETH(_weth).approve(_swapTarget, type(uint256).max);
 
     // Set our 0x Swap Target
     swapTarget = _swapTarget;

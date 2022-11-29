@@ -119,7 +119,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
     // setting infinite approval here to save on subsequent gas costs
-    WETH.approve(_sushiRouter, type(uint256).max);
+    IWETH(_weth).approve(_sushiRouter, type(uint256).max);
   }
 
 
