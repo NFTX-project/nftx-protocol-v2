@@ -84,6 +84,8 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Set our chain's WETH contract
     WETH = IWETH(_weth);
+    // setting infinite approval here to save on subsequent gas costs
+    WETH.approve(_sushiRouter, type(uint256).max);
 
     // Set our 0x Swap Target
     swapTarget = _swapTarget;
@@ -188,11 +190,11 @@ contract NFTXYieldStakingZap is Ownable, ReentrancyGuard {
 
     // Provide liquidity to sushiswap, using the vault token that we acquired from 0x and
     // pairing it with the liquidity amount specified in the call.
-    IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), minTokenIn);
+    IERC20Upgradeable(baseToken).safeApprove(address(sushiRouter), vaultTokenAmount);
     (uint256 amountToken, , uint256 liquidity) = sushiRouter.addLiquidity(
       baseToken,
       address(WETH),
-      minTokenIn,
+      vaultTokenAmount,
       wethIn,
       minTokenIn,
       minWethIn,
