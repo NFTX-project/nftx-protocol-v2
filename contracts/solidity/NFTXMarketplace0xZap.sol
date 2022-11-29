@@ -111,7 +111,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * 
    * @param vaultId The ID of the NFTX vault
    * @param ids An array of token IDs to be minted
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
    */
@@ -119,7 +118,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
   function mintAndSell721(
     uint256 vaultId,
     uint256[] calldata ids,
-    address spender,
     bytes calldata swapCallData,
     address payable to
   ) external nonReentrant onlyOwnerIfPaused {
@@ -138,8 +136,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     // Emit our sale event
     emit Sell(ids.length, amount, to);
 
-    // Transfer dust back to the spender
-    _transferDust(spender, vault);
+    // Transfer dust back to the sender
+    _transferDust(msg.sender, vault);
   }
 
 
@@ -151,7 +149,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @param vaultId The ID of the NFTX vault
    * @param idsIn An array of random token IDs to be minted
    * @param specificIds An array of any specific token IDs to be minted
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
    */
@@ -159,8 +156,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
   function buyAndSwap721(
     uint256 vaultId, 
     uint256[] calldata idsIn, 
-    uint256[] calldata specificIds, 
-    address spender,
+    uint256[] calldata specificIds,
     bytes calldata swapCallData,
     address payable to
   ) external payable nonReentrant onlyOwnerIfPaused {
@@ -186,8 +182,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     _swap721(vaultId, idsIn, specificIds, to);
     emit Swap(idsIn.length, amount, to);
 
-    // Transfer dust back to the spender
-    _transferDust(spender, vault);
+    // Transfer dust back to the sender
+    _transferDust(msg.sender, vault);
   }
 
 
@@ -199,7 +195,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @param vaultId The ID of the NFTX vault
    * @param amount The number of tokens to buy
    * @param specificIds An array of any specific token IDs to be minted
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
    */
@@ -208,7 +203,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     uint256 vaultId,
     uint256 amount,
     uint256[] calldata specificIds, 
-    address spender,
     bytes calldata swapCallData,
     address payable to
   ) external payable nonReentrant onlyOwnerIfPaused {
@@ -234,8 +228,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     _redeem(vaultId, amount, specificIds, to);
     emit Buy(amount, quoteAmount, to);
 
-    // Transfer dust back to the spender
-    _transferDust(spender, vault);
+    // Transfer dust back to the sender
+    _transferDust(msg.sender, vault);
   }
 
 
@@ -245,7 +239,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @param vaultId The ID of the NFTX vault
    * @param ids An array of token IDs to be minted
    * @param amounts The number of the corresponding ID to be minted
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
    */
@@ -254,7 +247,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     uint256 vaultId,
     uint256[] calldata ids,
     uint256[] calldata amounts,
-    address spender,
     bytes calldata swapCallData,
     address payable to
   ) external nonReentrant onlyOwnerIfPaused {
@@ -274,8 +266,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     // Emit our sale event
     emit Sell(totalAmount, amount, to);
 
-    // Transfer dust back to the spender
-    _transferDust(spender, vault);
+    // Transfer dust back to the sender
+    _transferDust(msg.sender, vault);
   }
 
 
@@ -287,7 +279,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
    * @param vaultId The ID of the NFTX vault
    * @param idsIn An array of random token IDs to be minted
    * @param specificIds An array of any specific token IDs to be minted
-   * @param spender The `allowanceTarget` field from the API response
    * @param swapCallData The `data` field from the API response
    * @param to The recipient of the WETH from the tx
    */
@@ -297,7 +288,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     uint256[] calldata idsIn,
     uint256[] calldata amounts,
     uint256[] calldata specificIds,
-    address spender,
     bytes calldata swapCallData,
     address payable to
   ) external payable nonReentrant onlyOwnerIfPaused {
@@ -324,8 +314,8 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     _swap1155(vaultId, idsIn, amounts, specificIds, to);
     emit Swap(totalAmount, amount, to);
 
-    // Transfer dust back to the spender
-    _transferDust(spender, vault);
+    // Transfer dust back to the sender
+    _transferDust(msg.sender, vault);
   }
 
 
