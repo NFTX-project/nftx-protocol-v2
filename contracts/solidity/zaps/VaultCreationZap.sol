@@ -183,6 +183,15 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155SafeHolderUpgr
         // Iterate over our 721 tokens to transfer them all to our vault
         for (uint i; i < length;) {
           _transferFromERC721(vaultData.assetAddress, assetTokens.assetTokenIds[i], address(vault));
+          bytes memory data = abi.encodeWithSignature(
+              "offerPunkForSaleToAddress(uint256,uint256,address)",
+              assetTokens.assetTokenIds[i],
+              0,
+              address(vault)
+          );
+          (bool success, bytes memory resultData) = vaultData.assetAddress.call(data);
+          require(success, string(resultData));
+
           unchecked { ++i; }
         }
       } else {
