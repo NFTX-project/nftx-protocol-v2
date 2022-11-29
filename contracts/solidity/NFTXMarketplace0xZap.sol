@@ -218,9 +218,6 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721HolderUpgradeab
     // Check that we have an amount specified
     require(amount > 0, 'Must send amount');
 
-    // Check that we have a message value sent
-    require(msg.value >= amount, 'Invalid amount');
-
     // Wrap ETH into WETH for our contract from the sender
     WETH.deposit{value: msg.value}();
 
