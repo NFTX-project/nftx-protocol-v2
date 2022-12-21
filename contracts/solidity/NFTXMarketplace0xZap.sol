@@ -106,7 +106,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
    * @param vaultId The ID of the NFTX vault
    * @param ids An array of token IDs to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of the WETH from the tx
+   * @param to The recipient of ETH from the tx
    */
 
   function mintAndSell721(
@@ -127,11 +127,14 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
     // Sell our vault token for WETH
     uint256 amount = _fillQuote(vault, address(WETH), swapCallData);
 
+    // convert WETH to ETH and send to `to`
+    _transferAllWETH(to);
+
     // Emit our sale event
     emit Sell(ids.length, amount, to);
 
     // Transfer dust back to the sender
-    _transferDust(msg.sender, vault);
+    _transferDust(msg.sender, vault, false);
   }
 
 
@@ -144,7 +147,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
    * @param idsIn An array of random token IDs to be minted
    * @param specificIds An array of any specific token IDs to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of the WETH from the tx
+   * @param to The recipient of the token IDs from the tx
    */
 
   function buyAndSwap721(
@@ -177,7 +180,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
     emit Swap(idsIn.length, amount, to);
 
     // Transfer dust back to the sender
-    _transferDust(msg.sender, vault);
+    _transferDust(msg.sender, vault, true);
   }
 
 
@@ -190,7 +193,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
    * @param amount The number of tokens to buy
    * @param specificIds An array of any specific token IDs to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of the WETH from the tx
+   * @param to The recipient of the token IDs from the tx
    */
 
   function buyAndRedeem(
@@ -223,7 +226,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
     emit Buy(amount, quoteAmount, to);
 
     // Transfer dust back to the sender
-    _transferDust(msg.sender, vault);
+    _transferDust(msg.sender, vault, true);
   }
 
 
@@ -234,7 +237,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
    * @param ids An array of token IDs to be minted
    * @param amounts The number of the corresponding ID to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of the WETH from the tx
+   * @param to The recipient of ETH from the tx
    */
 
   function mintAndSell1155(
@@ -257,11 +260,14 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
     // Sell our vault token for WETH
     uint256 amount = _fillQuote(vault, address(WETH), swapCallData);
 
+    // convert WETH to ETH and send to `to`
+    _transferAllWETH(to);
+
     // Emit our sale event
     emit Sell(totalAmount, amount, to);
 
     // Transfer dust back to the sender
-    _transferDust(msg.sender, vault);
+    _transferDust(msg.sender, vault, false);
   }
 
 
@@ -274,7 +280,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
    * @param idsIn An array of random token IDs to be minted
    * @param specificIds An array of any specific token IDs to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of the WETH from the tx
+   * @param to The recipient of ETH from the tx
    */
 
   function buyAndSwap1155(
@@ -309,7 +315,7 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
     emit Swap(totalAmount, amount, to);
 
     // Transfer dust back to the sender
-    _transferDust(msg.sender, vault);
+    _transferDust(msg.sender, vault, true);
   }
 
 
@@ -536,25 +542,33 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
   /**
    * @notice Transfers remaining ETH and vault token dust to a recipient.
    * 
-   * @param spender Address of the dust recipient
+   * @param recipient Address of the dust recipient
    * @param vault Address of the vault token
+   * @param isWETHDust Checks and transfers WETH dust if boolean is true
    */
 
-  function _transferDust(address spender, address vault) internal {
-    uint256 remaining = WETH.balanceOf(address(this));
-    if (remaining > 0) {
-      // Unwrap our WETH into ETH and transfer it to the recipient
-      WETH.withdraw(remaining);
-      (bool success, ) = payable(spender).call{value: remaining}("");
-      require(success, "Unable to send unwrapped WETH");
+  function _transferDust(address recipient, address vault, bool isWETHDust) internal {
+    uint256 remaining;
+    if(isWETHDust) {
+      remaining = _transferAllWETH(recipient);
     }
 
     uint dustBalance = IERC20(vault).balanceOf(address(this));
     if (dustBalance > 0) {
-      IERC20(vault).transfer(spender, dustBalance);
+      IERC20(vault).transfer(recipient, dustBalance);
     }
 
-    emit DustReturned(remaining, dustBalance, spender);
+    emit DustReturned(remaining, dustBalance, recipient);
+  }
+
+  function _transferAllWETH(address recipient) internal returns(uint256 amount) {
+    amount = WETH.balanceOf(address(this));
+    if (amount > 0) {
+      // Unwrap our WETH into ETH and transfer it to the recipient
+      WETH.withdraw(amount);
+      (bool success, ) = payable(recipient).call{value: amount}("");
+      require(success, "Unable to send unwrapped WETH");
+    }
   }
 
 
