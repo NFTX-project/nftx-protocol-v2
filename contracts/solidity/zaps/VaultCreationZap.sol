@@ -228,7 +228,7 @@ contract NFTXVaultCreationZap is Ownable, ReentrancyGuard, ERC1155Holder {
 
       // We first want to set up our liquidity, as the returned values will be variable
       if (assetTokens.minTokenIn > 0) {
-        require(msg.value > assetTokens.wethIn, 'Insufficient vault sent for liquidity');
+        require(msg.value >= assetTokens.wethIn, 'Insufficient msg.value sent for liquidity');
 
         // Wrap ETH into WETH for our contract from the sender
         WETH.deposit{value: msg.value}();
