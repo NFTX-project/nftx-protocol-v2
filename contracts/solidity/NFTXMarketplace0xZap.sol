@@ -274,13 +274,13 @@ contract NFTXMarketplace0xZap is Ownable, ReentrancyGuard, ERC721Holder, ERC1155
   /**
    * @notice Purchases vault tokens from 0x with WETH and then swaps the tokens for
    * either random or specific token IDs from the vault. The specified recipient will
-   * receive the ERC721 tokens, as well as any WETH dust that is left over from the tx.
+   * receive the ERC1155 tokens, as well as any WETH dust that is left over from the tx.
    * 
    * @param vaultId The ID of the NFTX vault
    * @param idsIn An array of random token IDs to be minted
    * @param specificIds An array of any specific token IDs to be minted
    * @param swapCallData The `data` field from the API response
-   * @param to The recipient of ETH from the tx
+   * @param to The recipient of token IDs from the tx
    */
 
   function buyAndSwap1155(
