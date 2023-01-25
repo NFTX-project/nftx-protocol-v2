@@ -440,9 +440,9 @@ describe('Vault Creation Zap', function () {
         let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
 
         expect(mintFee).to.equal("100000000000000000");
-        expect(randomRedeemFee).to.equal("50000000000000000");
-        expect(targetRedeemFee).to.equal("40000000000000000");
-        expect(randomSwapFee).to.equal("50000000000000000");
+        expect(randomRedeemFee).to.equal("40000000000000000");
+        expect(targetRedeemFee).to.equal("60000000000000000");
+        expect(randomSwapFee).to.equal("40000000000000000");
         expect(targetSwapFee).to.equal("100000000000000000");
 
         // Confirm our vault's token holdings
