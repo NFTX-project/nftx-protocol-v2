@@ -370,6 +370,85 @@ describe('Vault Creation Zap', function () {
         expect(await ethers.provider.getBalance(alice.address)).to.gt(ethers.utils.parseEther('90'));
     });
 
+    /**
+     * Confirm that a vault can be created with both inventory and liquidity staking
+     * in a single call.
+     */
+
+    it("4. Should allow no tokens to be sent when creating", async function () {
+        const vaultId = await vaultCreationZap.connect(alice).createVault(
+          // Vault creation
+          {
+            name: "fref",
+            symbol: "ferfre",
+            assetAddress: "0x3b055557a3d9c638bc32a9cd87dd5f7c740002fa",
+            is1155: false,
+            allowAllItems: true
+          },
+
+          // Vault features
+          31,  // 11110
+      
+          // Fee assignment
+          {
+            mintFee: 10000000,         // 0.10
+            randomRedeemFee: 4000000,  // 0.04
+            targetRedeemFee: 6000000,  // 0.10
+            randomSwapFee: 4000000,    // 0.04
+            targetSwapFee: 10000000    // 0.10
+          },
+      
+          // Eligibility storage
+          {
+            moduleIndex: -1,
+            initData: 0
+          },
+
+          // Mint and stake
+          {
+            assetTokenIds: [],
+            assetTokenAmounts: [],
+            minTokenIn: 0,
+            minWethIn: 0,
+            wethIn: 0
+          },
+
+          // No msg.value
+          {  }
+        );
+
+        // Build our NFTXVaultUpgradeable against the newly created vault
+        const newVault = await ethers.getContractAt(
+          "NFTXVaultUpgradeable",
+          await nftx.vault(3)
+        );
+
+        // Confirm our general information
+        expect(await newVault.vaultId()).to.equal(3);
+        expect(await newVault.name()).to.equal('fref');
+        expect(await newVault.symbol()).to.equal('ferfre');
+        expect(await newVault.assetAddress()).to.equal('0x3b055557A3d9c638bC32A9cd87Dd5F7C740002FA');
+
+        // Confirm our features
+        expect(await newVault.enableMint()).to.equal(true);
+        expect(await newVault.enableRandomRedeem()).to.equal(true);
+        expect(await newVault.enableTargetRedeem()).to.equal(true);
+        expect(await newVault.enableRandomSwap()).to.equal(true);
+        expect(await newVault.enableTargetSwap()).to.equal(true);
+
+        // Confirm our fees
+        let [mintFee, randomRedeemFee, targetRedeemFee, randomSwapFee, targetSwapFee] = await newVault.vaultFees();
+
+        expect(mintFee).to.equal("100000000000000000");
+        expect(randomRedeemFee).to.equal("50000000000000000");
+        expect(targetRedeemFee).to.equal("40000000000000000");
+        expect(randomSwapFee).to.equal("50000000000000000");
+        expect(targetSwapFee).to.equal("100000000000000000");
+
+        // Confirm our vault's token holdings
+        expect(await erc721.balanceOf(newVault.address)).to.equal(0);
+    });
+
   });
 
 });
